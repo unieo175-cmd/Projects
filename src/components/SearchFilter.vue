@@ -11,21 +11,11 @@ const props = defineProps({
 const emit = defineEmits(['filter']);
 
 const searchQuery = ref('');
-const channelFilter = ref('all');
 const merchantFilter = ref('all');
 const merchantSearch = ref('');
 const showMerchantDropdown = ref(false);
 const dateFrom = ref('');
 const dateTo = ref('');
-
-// Get unique channels
-const uniqueChannels = computed(() => {
-  const channels = new Set();
-  props.records.forEach(r => {
-    if (r.channel) channels.add(r.channel);
-  });
-  return Array.from(channels);
-});
 
 // Get unique merchants with search
 const uniqueMerchants = computed(() => {
@@ -62,11 +52,6 @@ const applyFilters = () => {
     );
   }
 
-  // Channel filter
-  if (channelFilter.value !== 'all') {
-    filtered = filtered.filter(r => r.channel === channelFilter.value);
-  }
-
   // Merchant filter
   if (merchantFilter.value !== 'all') {
     filtered = filtered.filter(r => r.merchant === merchantFilter.value);
@@ -84,11 +69,10 @@ const applyFilters = () => {
 };
 
 // Watch for changes and apply filters
-watch([searchQuery, channelFilter, merchantFilter, dateFrom, dateTo], applyFilters, { immediate: true });
+watch([searchQuery, merchantFilter, dateFrom, dateTo], applyFilters, { immediate: true });
 
 const resetFilters = () => {
   searchQuery.value = '';
-  channelFilter.value = 'all';
   merchantFilter.value = 'all';
   merchantSearch.value = '';
   dateFrom.value = '';
@@ -111,15 +95,6 @@ const handleMerchantBlur = () => {
     showMerchantDropdown.value = false;
   }, 200);
 };
-
-const getChannelIcon = (channel) => {
-  switch (channel) {
-    case '支付宝': return '💙';
-    case '微信': return '💚';
-    case '銀行卡': return '💳';
-    default: return '📱';
-  }
-};
 </script>
 
 <template>
@@ -136,17 +111,6 @@ const getChannelIcon = (channel) => {
           placeholder="搜尋流水號、商戶、用戶ID、銀行..."
           class="search-input"
         />
-      </div>
-
-      <!-- Channel Filter -->
-      <div class="filter-group">
-        <label class="filter-label">渠道</label>
-        <select v-model="channelFilter" class="filter-select">
-          <option value="all">全部渠道</option>
-          <option v-for="channel in uniqueChannels" :key="channel" :value="channel">
-            {{ getChannelIcon(channel) }} {{ channel }}
-          </option>
-        </select>
       </div>
 
       <!-- Merchant Filter with Searchable Dropdown -->
@@ -264,22 +228,6 @@ const getChannelIcon = (channel) => {
 
 .search-input::placeholder {
   color: #8e8e93;
-}
-
-.filter-select {
-  padding: 12px 16px;
-  border: 1px solid #3a3a3c;
-  border-radius: 10px;
-  background: #2c2c2e;
-  color: #fff;
-  font-size: 15px;
-  outline: none;
-  cursor: pointer;
-  min-width: 160px;
-}
-
-.filter-select:focus {
-  border-color: #0a84ff;
 }
 
 /* Merchant Filter Dropdown */

@@ -101,7 +101,7 @@ const maxBankAmount = computed(() => {
           />
         </svg>
         <div class="donut-center">
-          <span class="donut-total">{{ records.length.toLocaleString() }}</span>
+          <span class="donut-total">{{ props.records.length.toLocaleString() }}</span>
           <span class="donut-label">總數</span>
         </div>
       </div>

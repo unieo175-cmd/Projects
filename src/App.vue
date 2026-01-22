@@ -1,36 +1,90 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import SearchFilter from './components/SearchFilter.vue';
 import MetricsCards from './components/MetricsCards.vue';
+import WithdrawMetricsCards from './components/WithdrawMetricsCards.vue';
 import Charts from './components/Charts.vue';
-import { parseCSV, calculateMetrics } from './utils/csvParser';
+import { parseCSV, calculateMetrics, parseWithdrawCSV, calculateWithdrawMetrics } from './utils/csvParser';
 
 const allRecords = ref([]);
 const filteredRecords = ref([]);
 const isLoading = ref(true);
+const loadingProgress = ref(0);
+const loadingStatus = ref('準備載入...');
 const dataDate = ref('2026-01-01');
 
+// 分頁切換
+const activeTab = ref('deposit'); // 'deposit' or 'withdraw'
+
+// 渠道切換（用於控制 Charts 顯示）
+const activeChannel = ref('all'); // 'all', 'bankCard', 'alipay'
+
+const handleChannelChange = (channel) => {
+  activeChannel.value = channel;
+};
+
 const metrics = computed(() => {
+  if (activeTab.value === 'withdraw') {
+    return calculateWithdrawMetrics(filteredRecords.value);
+  }
   return calculateMetrics(filteredRecords.value);
 });
 
-// 自動載入資料
-const loadData = async () => {
+// 自動載入資料（含進度顯示）
+const loadData = async (type = 'deposit') => {
   isLoading.value = true;
+  loadingProgress.value = 0;
+  loadingStatus.value = '正在下載數據...';
+
+  const csvFile = type === 'deposit' ? 'data.csv' : 'withdraw.csv';
+
   try {
-    const response = await fetch(import.meta.env.BASE_URL + 'data.csv');
+    loadingProgress.value = 10;
+    const response = await fetch(import.meta.env.BASE_URL + csvFile);
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    loadingProgress.value = 30;
+    loadingStatus.value = '正在讀取數據...';
+
     const content = await response.text();
-    allRecords.value = parseCSV(content);
-    filteredRecords.value = [...allRecords.value];
+    console.log('CSV 內容長度:', content.length);
+
+    loadingProgress.value = 50;
+    loadingStatus.value = '正在解析數據...';
+
+    const parsed = type === 'deposit' ? parseCSV(content) : parseWithdrawCSV(content);
+    console.log('解析結果:', parsed.length, '筆記錄');
+
+    loadingProgress.value = 80;
+    loadingStatus.value = '正在處理記錄...';
+
+    allRecords.value = parsed;
+    filteredRecords.value = [...parsed];
+
+    loadingProgress.value = 100;
+    loadingStatus.value = `完成！共 ${parsed.length} 筆記錄`;
+    console.log('載入完成 - allRecords:', allRecords.value.length);
+
   } catch (error) {
     console.error('Error loading data:', error);
+    loadingStatus.value = '載入失敗: ' + error.message;
   } finally {
-    isLoading.value = false;
+    setTimeout(() => {
+      isLoading.value = false;
+    }, 500);
   }
 };
 
+// 監聽分頁切換
+watch(activeTab, (newTab) => {
+  loadData(newTab);
+});
+
 onMounted(() => {
-  loadData();
+  loadData('deposit');
 });
 
 const handleFilter = (filtered) => {
@@ -42,7 +96,23 @@ const handleFilter = (filtered) => {
   <div class="app">
     <header class="header">
       <div class="header-content">
-        <h1>💳 充值數據分析平台</h1>
+        <h1>💳 數據分析</h1>
+        <div class="tab-container">
+          <button
+            class="tab-btn"
+            :class="{ active: activeTab === 'deposit' }"
+            @click="activeTab = 'deposit'"
+          >
+            充值
+          </button>
+          <button
+            class="tab-btn"
+            :class="{ active: activeTab === 'withdraw' }"
+            @click="activeTab = 'withdraw'"
+          >
+            提現
+          </button>
+        </div>
         <div class="data-info">
           <span class="data-date">📅 資料日期：{{ dataDate }}</span>
           <span class="record-count">📊 共 {{ allRecords.length.toLocaleString() }} 筆數</span>
@@ -52,8 +122,13 @@ const handleFilter = (filtered) => {
 
     <main class="main">
       <div v-if="isLoading" class="loading">
-        <div class="spinner"></div>
-        <p>正在載入數據...</p>
+        <div class="progress-container">
+          <div class="progress-bar">
+            <div class="progress-fill" :style="{ width: loadingProgress + '%' }"></div>
+          </div>
+          <div class="progress-text">{{ loadingProgress }}%</div>
+        </div>
+        <p class="loading-status">{{ loadingStatus }}</p>
       </div>
 
       <div v-else-if="allRecords.length === 0" class="empty-state">
@@ -64,8 +139,9 @@ const handleFilter = (filtered) => {
 
       <template v-else>
         <SearchFilter :records="allRecords" @filter="handleFilter" />
-        <MetricsCards :metrics="metrics" />
-        <Charts :records="filteredRecords" />
+        <MetricsCards v-if="activeTab === 'deposit'" :metrics="metrics" @channelChange="handleChannelChange" />
+        <WithdrawMetricsCards v-else :metrics="metrics" />
+        <Charts v-if="activeTab === 'deposit' && activeChannel === 'all'" :records="filteredRecords" />
       </template>
     </main>
 
@@ -134,6 +210,35 @@ body {
   border-radius: 8px;
 }
 
+.tab-container {
+  display: flex;
+  gap: 8px;
+  background: #2c2c2e;
+  padding: 4px;
+  border-radius: 10px;
+}
+
+.tab-btn {
+  padding: 10px 24px;
+  border: none;
+  background: transparent;
+  color: #8e8e93;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tab-btn:hover {
+  color: #fff;
+}
+
+.tab-btn.active {
+  background: #0a84ff;
+  color: #fff;
+}
+
 .main {
   flex: 1;
   max-width: 1400px;
@@ -148,23 +253,39 @@ body {
   align-items: center;
   justify-content: center;
   min-height: 400px;
-  gap: 16px;
+  gap: 20px;
 }
 
-.spinner {
-  width: 48px;
-  height: 48px;
-  border: 3px solid #3a3a3c;
-  border-top-color: #0a84ff;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
+.progress-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 300px;
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: #3a3a3c;
+  border-radius: 4px;
+  overflow: hidden;
 }
 
-.loading p {
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #0a84ff, #30d158);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  font-size: 32px;
+  font-weight: 700;
+  color: #0a84ff;
+}
+
+.loading-status {
   color: #8e8e93;
   font-size: 16px;
 }
