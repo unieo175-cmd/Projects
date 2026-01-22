@@ -97,8 +97,10 @@ export const parseCSV = (content) => {
       record.processingTime = null;
     }
 
-    // 過濾掉商戶名稱包含「线下」的記錄
-    if (record.merchant.includes('线下') || record.merchant.includes('線下')) {
+    // 過濾掉商戶名稱包含「线下」、「test」、「qa」的記錄
+    const merchantLower = record.merchant.toLowerCase();
+    if (record.merchant.includes('线下') || record.merchant.includes('線下') ||
+        merchantLower.includes('test') || merchantLower.includes('qa')) {
       continue;
     }
 
