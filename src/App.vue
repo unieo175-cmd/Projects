@@ -8,7 +8,7 @@ import { parseCSV, calculateMetrics } from './utils/csvParser';
 const allRecords = ref([]);
 const filteredRecords = ref([]);
 const isLoading = ref(true);
-const dataDate = ref('2026-01-11');
+const dataDate = ref('2026-01-01');
 
 const metrics = computed(() => {
   return calculateMetrics(filteredRecords.value);
