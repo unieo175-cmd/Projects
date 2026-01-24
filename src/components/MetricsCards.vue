@@ -29,42 +29,45 @@ const showFraud = ref(true);
 const showCommercial = ref(true);
 const showTime = ref(true);
 const showNoCreditDowngradeDetails = ref(false);
+const showAlipayNoCreditDowngradeDetails = ref(false);
+const showAlipayC2c = ref(true);
+const showAlipayFraud = ref(true);
 
 // 金額區間列表
 const amountRanges = [100, 200, 300, 500, 1000, 1500, 2000, 3000, 5000, 6000, 7000, 8000, 9000, 10000, 15000, 20000, 30000];
 
-// 第一區域：重要資訊
+// 第一区域：重要信息
 const generalCards = computed(() => [
   {
-    title: '總申請筆數',
+    title: '总申请笔数',
     value: (props.metrics.totalApplicationCount || 0).toLocaleString(),
     unit: `(成功率 ${(props.metrics.successRate || 0).toFixed(2)}%)`,
     color: '#0a84ff',
     icon: '📊'
   },
   {
-    title: '總申請金額',
+    title: '总申请金额',
     value: formatAmount(props.metrics.totalApplicationAmount || 0),
     unit: '元',
     color: '#30d158',
     icon: '💰'
   },
   {
-    title: '平均處理時間',
+    title: '平均处理时间',
     value: formatTime(props.metrics.avgTimeSeconds),
     unit: '',
     color: '#0a84ff',
     icon: '⏱️'
   },
   {
-    title: '無效申請',
+    title: '无效申请',
     value: (props.metrics.invalidCount || 0).toLocaleString(),
     unit: `(${(props.metrics.invalidRatio || 0).toFixed(2)}%)`,
     color: '#ff453a',
     icon: '❌'
   },
   {
-    title: '掉單筆數',
+    title: '掉单笔数',
     value: (props.metrics.dropOrderCount || 0).toLocaleString(),
     unit: `(${(props.metrics.dropOrderRatio || 0).toFixed(2)}%)`,
     color: '#ff9f0a',
@@ -72,38 +75,38 @@ const generalCards = computed(() => [
   }
 ]);
 
-// 第三區域：時間分佈
+// 第三区域：时间分布
 const timeCards = computed(() => [
   {
-    title: '2分鐘內',
+    title: '2分钟内',
     value: (props.metrics.within2MinCount || 0).toLocaleString(),
     unit: `(${(props.metrics.within2MinRatio || 0).toFixed(2)}%)`,
     color: '#30d158',
     icon: '⚡'
   },
   {
-    title: '3-5分鐘',
+    title: '3-5分钟',
     value: (props.metrics.within3to5MinCount || 0).toLocaleString(),
     unit: `(${(props.metrics.within3to5MinRatio || 0).toFixed(2)}%)`,
     color: '#5e5ce6',
     icon: '🕐'
   },
   {
-    title: '5-15分鐘',
+    title: '5-15分钟',
     value: (props.metrics.within5to15MinCount || 0).toLocaleString(),
     unit: `(${(props.metrics.within5to15MinRatio || 0).toFixed(2)}%)`,
     color: '#ff9f0a',
     icon: '🕑'
   },
   {
-    title: '15-30分鐘',
+    title: '15-30分钟',
     value: (props.metrics.within15to30MinCount || 0).toLocaleString(),
     unit: `(${(props.metrics.within15to30MinRatio || 0).toFixed(2)}%)`,
     color: '#ff9f0a',
     icon: '🕒'
   },
   {
-    title: '30分鐘以上',
+    title: '30分钟以上',
     value: (props.metrics.over30MinCount || 0).toLocaleString(),
     unit: `(${(props.metrics.over30MinRatio || 0).toFixed(2)}%)`,
     color: '#ff453a',
@@ -128,30 +131,30 @@ const timeCards = computed(() => [
         :class="{ active: activeChannel === 'bankCard' }"
         @click="activeChannel = 'bankCard'"
       >
-        銀行卡
+        极速(银行卡)
       </button>
       <button
         class="channel-tab"
         :class="{ active: activeChannel === 'alipay' }"
         @click="activeChannel = 'alipay'"
       >
-        支付寶
+        极速(支付宝)
       </button>
       <button
         class="channel-tab"
         :class="{ active: activeChannel === 'wechat' }"
         @click="activeChannel = 'wechat'"
       >
-        微信
+        极速(微信)
       </button>
     </div>
 
     <!-- ========== 全部渠道 ========== -->
     <template v-if="activeChannel === 'all'">
-      <!-- 重要資訊 -->
+      <!-- 重要信息 -->
       <div class="metrics-section">
         <div class="section-header" @click="showGeneral = !showGeneral">
-          <h3 class="section-title">重要資訊</h3>
+          <h3 class="section-title">重要信息</h3>
           <span class="toggle-icon">{{ showGeneral ? '▼' : '▶' }}</span>
         </div>
         <div v-show="showGeneral" class="metrics-grid five-grid">
@@ -172,10 +175,10 @@ const timeCards = computed(() => [
         </div>
       </div>
 
-      <!-- 處理時間分佈 -->
+      <!-- 处理时间分布 -->
       <div class="metrics-section">
         <div class="section-header" @click="showTime = !showTime">
-          <h3 class="section-title">處理時間分佈</h3>
+          <h3 class="section-title">处理时间分布</h3>
           <span class="toggle-icon">{{ showTime ? '▼' : '▶' }}</span>
         </div>
         <div v-show="showTime" class="metrics-grid five-grid">
@@ -197,19 +200,19 @@ const timeCards = computed(() => [
       </div>
     </template>
 
-    <!-- ========== 銀行卡渠道 ========== -->
+    <!-- ========== 银行卡渠道 ========== -->
     <template v-else-if="activeChannel === 'bankCard'">
-      <!-- 極速（銀行卡） -->
+      <!-- 极速（银行卡） -->
       <div class="metrics-section">
         <div class="section-header" @click="showJisu = !showJisu">
-          <h3 class="section-title">極速（銀行卡）</h3>
+          <h3 class="section-title">极速（银行卡）</h3>
           <span class="toggle-icon">{{ showJisu ? '▼' : '▶' }}</span>
         </div>
         <div v-show="showJisu" class="jisu-content">
-          <!-- 1. 充值申請筆數 -->
+          <!-- 1. 充值申请笔数 -->
           <div class="jisu-block">
             <div class="block-header">
-              <span class="block-title">充值申請筆數</span>
+              <span class="block-title">充值申请笔数</span>
               <span class="block-value">{{ (metrics.jisuApplicationCount || 0).toLocaleString() }}</span>
             </div>
             <div class="block-details">
@@ -218,48 +221,56 @@ const timeCards = computed(() => [
                 <span class="detail-value">{{ (metrics.normalCardAppCount || 0).toLocaleString() }}</span>
               </div>
               <div class="detail-item">
-                <span class="detail-label">極速</span>
+                <span class="detail-label">极速提</span>
                 <span class="detail-value">{{ (metrics.expressCardAppCount || 0).toLocaleString() }}</span>
               </div>
-            </div>
-          </div>
-
-          <!-- 2. 成功配對筆數/金額 -->
-          <div class="jisu-block">
-            <div class="block-header">
-              <span class="block-title">成功配對</span>
-              <span class="block-value">{{ (metrics.totalMatchCount || 0).toLocaleString() }} 筆 / {{ formatAmount(metrics.totalMatchAmount || 0) }} 元</span>
-            </div>
-            <div class="block-details">
               <div class="detail-item">
-                <span class="detail-label">一般卡</span>
-                <span class="detail-value">{{ (metrics.normalMatchCount || 0).toLocaleString() }} 筆 / {{ formatAmount(metrics.normalMatchAmount || 0) }} 元</span>
+                <span class="detail-label">建单成功等待无配对</span>
+                <span class="detail-value">0</span>
               </div>
               <div class="detail-item">
-                <span class="detail-label">極速</span>
-                <span class="detail-value">{{ (metrics.expressMatchCount || 0).toLocaleString() }} 筆 / {{ formatAmount(metrics.expressMatchAmount || 0) }} 元</span>
+                <span class="detail-label">取无卡06提示</span>
+                <span class="detail-value">0</span>
               </div>
             </div>
           </div>
 
-          <!-- 3. 訂單成功筆數/金額 -->
+          <!-- 2. 成功配对笔数/金额 -->
           <div class="jisu-block">
             <div class="block-header">
-              <span class="block-title">訂單成功</span>
-              <span class="block-value">{{ (metrics.totalOrderSuccessCount || 0).toLocaleString() }} 筆 / {{ formatAmount(metrics.totalOrderSuccessAmount || 0) }} 元</span>
+              <span class="block-title">成功配对</span>
+              <span class="block-value">{{ (metrics.totalMatchCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.totalMatchAmount || 0) }} 元</span>
             </div>
             <div class="block-details">
               <div class="detail-item">
                 <span class="detail-label">一般卡</span>
-                <span class="detail-value">{{ (metrics.normalOrderSuccessCount || 0).toLocaleString() }} 筆 / {{ formatAmount(metrics.normalOrderSuccessAmount || 0) }} 元</span>
+                <span class="detail-value">{{ (metrics.normalMatchCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.normalMatchAmount || 0) }} 元</span>
               </div>
               <div class="detail-item">
-                <span class="detail-label">極速</span>
-                <span class="detail-value">{{ (metrics.expressOrderSuccessCount || 0).toLocaleString() }} 筆 / {{ formatAmount(metrics.expressOrderSuccessAmount || 0) }} 元</span>
+                <span class="detail-label">极速提</span>
+                <span class="detail-value">{{ (metrics.expressMatchCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.expressMatchAmount || 0) }} 元</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. 订单成功笔数/金额 -->
+          <div class="jisu-block">
+            <div class="block-header">
+              <span class="block-title">订单成功</span>
+              <span class="block-value">{{ (metrics.totalOrderSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.totalOrderSuccessAmount || 0) }} 元</span>
+            </div>
+            <div class="block-details">
+              <div class="detail-item">
+                <span class="detail-label">一般卡</span>
+                <span class="detail-value">{{ (metrics.normalOrderSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.normalOrderSuccessAmount || 0) }} 元</span>
               </div>
               <div class="detail-item">
-                <span class="detail-label">信評上分</span>
-                <span class="detail-value">{{ (metrics.creditScoreSuccessCount || 0).toLocaleString() }} 筆 / {{ formatAmount(metrics.creditScoreSuccessAmount || 0) }} 元 / {{ formatTime(metrics.creditScoreAvgTime) }}</span>
+                <span class="detail-label">极速提</span>
+                <span class="detail-value">{{ (metrics.expressOrderSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.expressOrderSuccessAmount || 0) }} 元</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">信评上分</span>
+                <span class="detail-value">{{ (metrics.creditScoreSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.creditScoreSuccessAmount || 0) }} 元 / {{ formatTime(metrics.creditScoreAvgTime) }}</span>
               </div>
             </div>
           </div>
@@ -269,7 +280,7 @@ const timeCards = computed(() => [
             <div class="block-header clickable" @click="showNoCreditDowngradeDetails = !showNoCreditDowngradeDetails">
               <span class="block-title">没信评降等配卡</span>
               <span class="block-value">
-                {{ (metrics.noCreditDowngradeTotal || 0).toLocaleString() }} 筆 / {{ formatTime(metrics.noCreditDowngradeAvgTime) }}
+                {{ (metrics.noCreditDowngradeTotal || 0).toLocaleString() }} 笔 / {{ formatTime(metrics.noCreditDowngradeAvgTime) }}
                 <span class="toggle-arrow">{{ showNoCreditDowngradeDetails ? '▼' : '▶' }}</span>
               </span>
             </div>
@@ -280,120 +291,121 @@ const timeCards = computed(() => [
                 class="detail-item"
               >
                 <span class="detail-label">{{ amt.toLocaleString() }} 元</span>
-                <span class="detail-value">{{ (metrics.noCreditDowngradeByAmount?.[amt] || 0).toLocaleString() }} 筆</span>
+                <span class="detail-value">{{ (metrics.noCreditDowngradeByAmount?.[amt] || 0).toLocaleString() }} 笔</span>
               </div>
               <div class="detail-item">
-                <span class="detail-label">其他金額</span>
-                <span class="detail-value">{{ (metrics.noCreditDowngradeByAmount?.['other'] || 0).toLocaleString() }} 筆</span>
+                <span class="detail-label">其他金额</span>
+                <span class="detail-value">{{ (metrics.noCreditDowngradeByAmount?.['other'] || 0).toLocaleString() }} 笔</span>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- c2c 區域 -->
+      <!-- c2c 区域 -->
       <div class="metrics-section">
         <div class="section-header" @click="showC2c = !showC2c">
           <h3 class="section-title">c2c</h3>
-          <span class="section-value">{{ (metrics.c2cCount || 0).toLocaleString() }} 筆 / {{ formatAmount(metrics.c2cAmount || 0) }} 元</span>
+          <span class="section-value">{{ (metrics.c2cCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.c2cAmount || 0) }} 元</span>
           <span class="toggle-icon">{{ showC2c ? '▼' : '▶' }}</span>
         </div>
         <div v-show="showC2c" class="c2c-content">
           <div class="detail-item">
-            <span class="detail-label">點確認（用戶確認到帳）</span>
-            <span class="detail-value">{{ (metrics.c2cConfirmCount || 0).toLocaleString() }} 筆</span>
+            <span class="detail-label">点确认（用户确认到账）</span>
+            <span class="detail-value">{{ (metrics.c2cConfirmCount || 0).toLocaleString() }} 笔</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">點確認（用戶確認到帳）-平均時間</span>
+            <span class="detail-label">点确认（用户确认到账）-平均时间</span>
             <span class="detail-value">{{ formatTime(metrics.c2cConfirmAvgTime) }}</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">人工审核:通过</span>
-            <span class="detail-value">{{ (metrics.c2cManualAuditCount || 0).toLocaleString() }} 筆</span>
+            <span class="detail-value">{{ (metrics.c2cManualAuditCount || 0).toLocaleString() }} 笔</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">审核-成功平均時間</span>
+            <span class="detail-label">审核-成功平均时间</span>
             <span class="detail-value">{{ formatTime(metrics.c2cAuditSuccessAvgTime) }}</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">超過11min補件後才成功</span>
-            <span class="detail-value">{{ (metrics.c2cOver11MinSuccessCount || 0).toLocaleString() }} 筆</span>
+            <span class="detail-label">超过11min补件后才成功</span>
+            <span class="detail-value">{{ (metrics.c2cOver11MinSuccessCount || 0).toLocaleString() }} 笔</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">騙分拉黑</span>
-            <span class="detail-value">0 筆</span>
+            <span class="detail-label">骗分拉黑</span>
+            <span class="detail-value">0 笔</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">卡验及人验</span>
-            <span class="detail-value">0 筆</span>
+            <span class="detail-value">0 笔</span>
           </div>
         </div>
       </div>
 
-      <!-- 骗分没到账来找 區域 -->
+      <!-- 骗分没到账来找 区域 -->
       <div class="metrics-section">
         <div class="section-header" @click="showFraud = !showFraud">
           <h3 class="section-title">骗分没到账来找</h3>
-          <span class="section-value">0 筆 / 0.00 元</span>
+          <span class="section-value">0 笔 / 0 元</span>
           <span class="toggle-icon">{{ showFraud ? '▼' : '▶' }}</span>
         </div>
         <div v-show="showFraud" class="c2c-content">
           <div class="detail-item">
             <span class="detail-label">人工</span>
-            <span class="detail-value">0 筆 / 0.00 元</span>
+            <span class="detail-value">0 笔 / 0 元</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">信评</span>
-            <span class="detail-value">0 筆 / 0.00 元</span>
+            <span class="detail-value">0 笔 / 0 元</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">没上传回单重复出款充值上分</span>
-            <span class="detail-value">0 筆 / 0.00 元</span>
+            <span class="detail-value">0 笔 / 0 元</span>
           </div>
         </div>
       </div>
 
-      <!-- 商業平台 區域 -->
+      <!-- 商业平台 区域 -->
       <div class="metrics-section">
         <div class="section-header" @click="showCommercial = !showCommercial">
-          <h3 class="section-title">商業平台</h3>
+          <h3 class="section-title">商业平台</h3>
+          <span class="section-value">{{ (metrics.cnxApplicationCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.cnxSuccessAmount || 0) }} 元</span>
           <span class="toggle-icon">{{ showCommercial ? '▼' : '▶' }}</span>
         </div>
         <div v-show="showCommercial" class="c2c-content">
           <div class="detail-item">
             <span class="detail-label">外部充值成功</span>
-            <span class="detail-value">0 筆 / 0.00 元</span>
+            <span class="detail-value">0 笔 / 0 元</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">未收单</span>
-            <span class="detail-value">0 筆</span>
+            <span class="detail-value">0 笔</span>
           </div>
           <div class="detail-header">极速充提3(银行卡)_CNX交易所</div>
           <div class="detail-item">
-            <span class="detail-label">充值申請</span>
-            <span class="detail-value">{{ (metrics.cnxApplicationCount || 0).toLocaleString() }} 筆 / {{ formatAmount(metrics.cnxApplicationAmount || 0) }} 元</span>
+            <span class="detail-label">充值申请</span>
+            <span class="detail-value">{{ (metrics.cnxApplicationCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.cnxApplicationAmount || 0) }} 元</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">充值成功筆數</span>
-            <span class="detail-value">{{ (metrics.cnxSuccessCount || 0).toLocaleString() }} 筆 / {{ formatAmount(metrics.cnxSuccessAmount || 0) }} 元</span>
+            <span class="detail-label">充值成功笔数</span>
+            <span class="detail-value">{{ (metrics.cnxSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.cnxSuccessAmount || 0) }} 元</span>
           </div>
         </div>
       </div>
     </template>
 
-    <!-- ========== 支付寶渠道 ========== -->
+    <!-- ========== 支付宝渠道 ========== -->
     <template v-else-if="activeChannel === 'alipay'">
-      <!-- 極速（支付寶） -->
+      <!-- 极速（支付宝） -->
       <div class="metrics-section">
         <div class="section-header" @click="showAlipay = !showAlipay">
-          <h3 class="section-title">極速（支付寶）</h3>
+          <h3 class="section-title">极速（支付宝）</h3>
           <span class="toggle-icon">{{ showAlipay ? '▼' : '▶' }}</span>
         </div>
         <div v-show="showAlipay" class="jisu-content">
-          <!-- 1. 充值申請筆數 -->
+          <!-- 1. 充值申请笔数 -->
           <div class="jisu-block">
             <div class="block-header">
-              <span class="block-title">充值申請筆數</span>
+              <span class="block-title">充值申请笔数</span>
               <span class="block-value">{{ (metrics.alipayApplicationCount || 0).toLocaleString() }}</span>
             </div>
             <div class="block-details">
@@ -402,58 +414,210 @@ const timeCards = computed(() => [
                 <span class="detail-value">{{ (metrics.alipayNormalCardAppCount || 0).toLocaleString() }}</span>
               </div>
               <div class="detail-item">
-                <span class="detail-label">極速</span>
+                <span class="detail-label">一般宝</span>
                 <span class="detail-value">{{ (metrics.alipayExpressCardAppCount || 0).toLocaleString() }}</span>
               </div>
-            </div>
-          </div>
-
-          <!-- 2. 成功配對筆數/金額 -->
-          <div class="jisu-block">
-            <div class="block-header">
-              <span class="block-title">成功配對</span>
-              <span class="block-value">{{ (metrics.alipayTotalMatchCount || 0).toLocaleString() }} 筆 / {{ formatAmount(metrics.alipayTotalMatchAmount || 0) }} 元</span>
-            </div>
-            <div class="block-details">
               <div class="detail-item">
-                <span class="detail-label">一般卡</span>
-                <span class="detail-value">{{ (metrics.alipayNormalMatchCount || 0).toLocaleString() }} 筆 / {{ formatAmount(metrics.alipayNormalMatchAmount || 0) }} 元</span>
+                <span class="detail-label">极速提(卡)</span>
+                <span class="detail-value">{{ (metrics.alipayJisuTikaCount || 0).toLocaleString() }}</span>
               </div>
               <div class="detail-item">
-                <span class="detail-label">極速</span>
-                <span class="detail-value">{{ (metrics.alipayExpressMatchCount || 0).toLocaleString() }} 筆 / {{ formatAmount(metrics.alipayExpressMatchAmount || 0) }} 元</span>
+                <span class="detail-label">极速提(宝)</span>
+                <span class="detail-value">{{ (metrics.alipayJisuTibaoCount || 0).toLocaleString() }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">建单成功等待无配对</span>
+                <span class="detail-value">0</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">取无卡06提示</span>
+                <span class="detail-value">0</span>
               </div>
             </div>
           </div>
 
-          <!-- 3. 訂單成功筆數/金額 -->
+          <!-- 2. 成功配对笔数/金额 -->
           <div class="jisu-block">
             <div class="block-header">
-              <span class="block-title">訂單成功</span>
-              <span class="block-value">{{ (metrics.alipayTotalOrderSuccessCount || 0).toLocaleString() }} 筆 / {{ formatAmount(metrics.alipayTotalOrderSuccessAmount || 0) }} 元</span>
+              <span class="block-title">成功配对</span>
+              <span class="block-value">{{ (metrics.alipayTotalMatchCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.alipayTotalMatchAmount || 0) }} 元</span>
             </div>
             <div class="block-details">
               <div class="detail-item">
                 <span class="detail-label">一般卡</span>
-                <span class="detail-value">{{ (metrics.alipayNormalOrderSuccessCount || 0).toLocaleString() }} 筆 / {{ formatAmount(metrics.alipayNormalOrderSuccessAmount || 0) }} 元</span>
+                <span class="detail-value">{{ (metrics.alipayNormalMatchCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.alipayNormalMatchAmount || 0) }} 元</span>
               </div>
               <div class="detail-item">
-                <span class="detail-label">極速</span>
-                <span class="detail-value">{{ (metrics.alipayExpressOrderSuccessCount || 0).toLocaleString() }} 筆 / {{ formatAmount(metrics.alipayExpressOrderSuccessAmount || 0) }} 元</span>
+                <span class="detail-label">一般宝</span>
+                <span class="detail-value">{{ (metrics.alipayExpressCardAppCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.alipayExpressBaoMatchAmount || 0) }} 元</span>
               </div>
               <div class="detail-item">
-                <span class="detail-label">信評上分</span>
-                <span class="detail-value">{{ (metrics.alipayCreditScoreSuccessCount || 0).toLocaleString() }} 筆 / {{ formatAmount(metrics.alipayCreditScoreSuccessAmount || 0) }} 元 / {{ formatTime(metrics.alipayCreditScoreAvgTime) }}</span>
+                <span class="detail-label">极速提(卡)</span>
+                <span class="detail-value">{{ (metrics.alipayJisuTikaCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.alipayJisuTikaMatchAmount || 0) }} 元</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">极速提(宝)</span>
+                <span class="detail-value">{{ (metrics.alipayJisuTibaoCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.alipayJisuTibaoMatchAmount || 0) }} 元</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. 订单成功笔数/金额 -->
+          <div class="jisu-block">
+            <div class="block-header">
+              <span class="block-title">订单成功</span>
+              <span class="block-value">{{ (metrics.alipayTotalOrderSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.alipayTotalOrderSuccessAmount || 0) }} 元</span>
+            </div>
+            <div class="block-details">
+              <div class="detail-item">
+                <span class="detail-label">一般卡</span>
+                <span class="detail-value">{{ (metrics.alipayNormalOrderSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.alipayNormalOrderSuccessAmount || 0) }} 元</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">一般宝</span>
+                <span class="detail-value">{{ (metrics.alipayBaoOrderSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.alipayBaoOrderSuccessAmount || 0) }} 元</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">极速提(卡)</span>
+                <span class="detail-value">{{ (metrics.alipayJisuTikaOrderSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.alipayJisuTikaOrderSuccessAmount || 0) }} 元</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">极速提(宝)</span>
+                <span class="detail-value">{{ (metrics.alipayJisuTibaoOrderSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.alipayJisuTibaoOrderSuccessAmount || 0) }} 元</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">信评上分</span>
+                <span class="detail-value">{{ (metrics.alipayCreditScoreSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.alipayCreditScoreSuccessAmount || 0) }} 元 / {{ formatTime(metrics.alipayCreditScoreAvgTime) }}</span>
+              </div>
+              <div class="detail-item sub-item">
+                <span class="detail-label">其中信评不含图文复核</span>
+                <span class="detail-value">{{ (metrics.alipayCreditNoTuwenCount || 0).toLocaleString() }} 笔 / {{ formatTime(metrics.alipayCreditNoTuwenAvgTime) }}</span>
               </div>
             </div>
           </div>
 
           <!-- 4. 没信评降等配卡 -->
           <div class="jisu-block">
-            <div class="block-header">
+            <div class="block-header clickable" @click="showAlipayNoCreditDowngradeDetails = !showAlipayNoCreditDowngradeDetails">
               <span class="block-title">没信评降等配卡</span>
-              <span class="block-value">{{ (metrics.alipayNoCreditDowngradeTotal || 0).toLocaleString() }} 筆 / {{ formatTime(metrics.alipayNoCreditDowngradeAvgTime) }}</span>
+              <span class="block-value">
+                {{ (metrics.alipayNoCreditDowngradeTotal || 0).toLocaleString() }} 笔 / {{ formatTime(metrics.alipayNoCreditDowngradeAvgTime) }}
+                <span class="toggle-arrow">{{ showAlipayNoCreditDowngradeDetails ? '▼' : '▶' }}</span>
+              </span>
             </div>
+            <div v-show="showAlipayNoCreditDowngradeDetails" class="block-details amount-list">
+              <div
+                v-for="amt in amountRanges"
+                :key="amt"
+                class="detail-item"
+              >
+                <span class="detail-label">{{ amt.toLocaleString() }} 元</span>
+                <span class="detail-value">{{ (metrics.alipayNoCreditDowngradeByAmount?.[amt] || 0).toLocaleString() }} 笔</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">其他金额</span>
+                <span class="detail-value">{{ (metrics.alipayNoCreditDowngradeByAmount?.['other'] || 0).toLocaleString() }} 笔</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- c2c 区域 -->
+      <div class="metrics-section">
+        <div class="section-header" @click="showAlipayC2c = !showAlipayC2c">
+          <h3 class="section-title">c2c</h3>
+          <span class="section-value">{{ (metrics.alipayC2cCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.alipayC2cAmount || 0) }} 元</span>
+          <span class="toggle-icon">{{ showAlipayC2c ? '▼' : '▶' }}</span>
+        </div>
+        <div v-show="showAlipayC2c" class="c2c-content">
+          <div class="detail-item">
+            <span class="detail-label">点确认（用户确认到账）</span>
+            <span class="detail-value">{{ (metrics.alipayC2cConfirmCount || 0).toLocaleString() }} 笔</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">点确认（用户确认到账）-平均时间</span>
+            <span class="detail-value">{{ formatTime(metrics.alipayC2cConfirmAvgTime) }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">人工审核:通过</span>
+            <span class="detail-value">{{ (metrics.alipayC2cManualAuditCount || 0).toLocaleString() }} 笔</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">审核-成功平均时间</span>
+            <span class="detail-value">{{ formatTime(metrics.alipayC2cAuditSuccessAvgTime) }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">超过11min补件后才成功</span>
+            <span class="detail-value">{{ (metrics.alipayC2cOver11MinSuccessCount || 0).toLocaleString() }} 笔</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">骗分拉黑</span>
+            <span class="detail-value">0 笔</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">卡验及人验</span>
+            <span class="detail-value">0 笔</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 骗分没到账来找 区域 -->
+      <div class="metrics-section">
+        <div class="section-header" @click="showAlipayFraud = !showAlipayFraud">
+          <h3 class="section-title">骗分没到账来找</h3>
+          <span class="section-value">0 笔 / 0 元</span>
+          <span class="toggle-icon">{{ showAlipayFraud ? '▼' : '▶' }}</span>
+        </div>
+        <div v-show="showAlipayFraud" class="c2c-content">
+          <div class="detail-item">
+            <span class="detail-label">人工</span>
+            <span class="detail-value">0 笔 / 0 元</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">信评</span>
+            <span class="detail-value">0 笔 / 0 元</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">没上传回单重复出款充值上分</span>
+            <span class="detail-value">0 笔 / 0 元</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 宝转卡渠道及宝转宝渠道 提现申请笔数统计 -->
+      <div class="metrics-section">
+        <div class="section-header">
+          <h3 class="section-title">宝转卡渠道及宝转宝渠道 提现申请笔数统计</h3>
+        </div>
+        <div class="c2c-content">
+          <div class="detail-header">宝转卡渠道，配支付宝提现</div>
+          <div class="detail-item">
+            <span class="detail-label">申请</span>
+            <span class="detail-value">{{ (metrics.alipayBaoZhuanKaCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.alipayBaoZhuanKaAmount || 0) }} 元</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">成功</span>
+            <span class="detail-value">0 笔 / 0 元</span>
+          </div>
+
+          <div class="detail-header">宝转宝渠道，配银行卡提现</div>
+          <div class="detail-item">
+            <span class="detail-label">申请</span>
+            <span class="detail-value">{{ (metrics.alipayBaoZhuanBaoCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.alipayBaoZhuanBaoAmount || 0) }} 元</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">成功</span>
+            <span class="detail-value">0 笔 / 0 元</span>
+          </div>
+
+          <div class="detail-item summary-item">
+            <span class="detail-label">整体 配对成功/提现申请</span>
+            <span class="detail-value highlight">0%</span>
+          </div>
+          <div class="detail-item summary-item">
+            <span class="detail-label">整体-提现成功/提现申请</span>
+            <span class="detail-value highlight">0%</span>
           </div>
         </div>
       </div>
@@ -461,17 +625,17 @@ const timeCards = computed(() => [
 
     <!-- ========== 微信渠道 ========== -->
     <template v-else-if="activeChannel === 'wechat'">
-      <!-- 極速（微信） -->
+      <!-- 极速（微信） -->
       <div class="metrics-section">
         <div class="section-header" @click="showWechat = !showWechat">
-          <h3 class="section-title">極速（微信）</h3>
+          <h3 class="section-title">极速（微信）</h3>
           <span class="toggle-icon">{{ showWechat ? '▼' : '▶' }}</span>
         </div>
         <div v-show="showWechat" class="jisu-content">
-          <!-- 1. 充值申請筆數 -->
+          <!-- 1. 充值申请笔数 -->
           <div class="jisu-block">
             <div class="block-header">
-              <span class="block-title">充值申請筆數</span>
+              <span class="block-title">充值申请笔数</span>
               <span class="block-value">{{ (metrics.wechatApplicationCount || 0).toLocaleString() }}</span>
             </div>
             <div class="block-details">
@@ -480,48 +644,48 @@ const timeCards = computed(() => [
                 <span class="detail-value">{{ (metrics.wechatNormalCardAppCount || 0).toLocaleString() }}</span>
               </div>
               <div class="detail-item">
-                <span class="detail-label">極速</span>
+                <span class="detail-label">极速</span>
                 <span class="detail-value">{{ (metrics.wechatExpressCardAppCount || 0).toLocaleString() }}</span>
               </div>
             </div>
           </div>
 
-          <!-- 2. 成功配對筆數/金額 -->
+          <!-- 2. 成功配对笔数/金额 -->
           <div class="jisu-block">
             <div class="block-header">
-              <span class="block-title">成功配對</span>
-              <span class="block-value">{{ (metrics.wechatTotalMatchCount || 0).toLocaleString() }} 筆 / {{ formatAmount(metrics.wechatTotalMatchAmount || 0) }} 元</span>
+              <span class="block-title">成功配对</span>
+              <span class="block-value">{{ (metrics.wechatTotalMatchCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.wechatTotalMatchAmount || 0) }} 元</span>
             </div>
             <div class="block-details">
               <div class="detail-item">
                 <span class="detail-label">一般卡</span>
-                <span class="detail-value">{{ (metrics.wechatNormalMatchCount || 0).toLocaleString() }} 筆 / {{ formatAmount(metrics.wechatNormalMatchAmount || 0) }} 元</span>
+                <span class="detail-value">{{ (metrics.wechatNormalMatchCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.wechatNormalMatchAmount || 0) }} 元</span>
               </div>
               <div class="detail-item">
-                <span class="detail-label">極速</span>
-                <span class="detail-value">{{ (metrics.wechatExpressMatchCount || 0).toLocaleString() }} 筆 / {{ formatAmount(metrics.wechatExpressMatchAmount || 0) }} 元</span>
+                <span class="detail-label">极速</span>
+                <span class="detail-value">{{ (metrics.wechatExpressMatchCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.wechatExpressMatchAmount || 0) }} 元</span>
               </div>
             </div>
           </div>
 
-          <!-- 3. 訂單成功筆數/金額 -->
+          <!-- 3. 订单成功笔数/金额 -->
           <div class="jisu-block">
             <div class="block-header">
-              <span class="block-title">訂單成功</span>
-              <span class="block-value">{{ (metrics.wechatTotalOrderSuccessCount || 0).toLocaleString() }} 筆 / {{ formatAmount(metrics.wechatTotalOrderSuccessAmount || 0) }} 元</span>
+              <span class="block-title">订单成功</span>
+              <span class="block-value">{{ (metrics.wechatTotalOrderSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.wechatTotalOrderSuccessAmount || 0) }} 元</span>
             </div>
             <div class="block-details">
               <div class="detail-item">
                 <span class="detail-label">一般卡</span>
-                <span class="detail-value">{{ (metrics.wechatNormalOrderSuccessCount || 0).toLocaleString() }} 筆 / {{ formatAmount(metrics.wechatNormalOrderSuccessAmount || 0) }} 元</span>
+                <span class="detail-value">{{ (metrics.wechatNormalOrderSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.wechatNormalOrderSuccessAmount || 0) }} 元</span>
               </div>
               <div class="detail-item">
-                <span class="detail-label">極速</span>
-                <span class="detail-value">{{ (metrics.wechatExpressOrderSuccessCount || 0).toLocaleString() }} 筆 / {{ formatAmount(metrics.wechatExpressOrderSuccessAmount || 0) }} 元</span>
+                <span class="detail-label">极速</span>
+                <span class="detail-value">{{ (metrics.wechatExpressOrderSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.wechatExpressOrderSuccessAmount || 0) }} 元</span>
               </div>
               <div class="detail-item">
-                <span class="detail-label">信評上分</span>
-                <span class="detail-value">{{ (metrics.wechatCreditScoreSuccessCount || 0).toLocaleString() }} 筆 / {{ formatAmount(metrics.wechatCreditScoreSuccessAmount || 0) }} 元 / {{ formatTime(metrics.wechatCreditScoreAvgTime) }}</span>
+                <span class="detail-label">信评上分</span>
+                <span class="detail-value">{{ (metrics.wechatCreditScoreSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.wechatCreditScoreSuccessAmount || 0) }} 元 / {{ formatTime(metrics.wechatCreditScoreAvgTime) }}</span>
               </div>
             </div>
           </div>
@@ -530,7 +694,7 @@ const timeCards = computed(() => [
           <div class="jisu-block">
             <div class="block-header">
               <span class="block-title">没信评降等配卡</span>
-              <span class="block-value">{{ (metrics.wechatNoCreditDowngradeTotal || 0).toLocaleString() }} 筆 / {{ formatTime(metrics.wechatNoCreditDowngradeAvgTime) }}</span>
+              <span class="block-value">{{ (metrics.wechatNoCreditDowngradeTotal || 0).toLocaleString() }} 笔 / {{ formatTime(metrics.wechatNoCreditDowngradeAvgTime) }}</span>
             </div>
           </div>
         </div>
@@ -761,6 +925,14 @@ const timeCards = computed(() => [
   font-family: monospace;
 }
 
+.detail-item.sub-item {
+  padding-left: 20px;
+}
+
+.detail-item.sub-item .detail-label {
+  color: #6e6e73;
+}
+
 .detail-header {
   font-size: 14px;
   font-weight: 600;
@@ -768,6 +940,23 @@ const timeCards = computed(() => [
   margin-top: 10px;
   padding-top: 10px;
   border-top: 1px solid #3a3a3c;
+}
+
+.detail-item.summary-item {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #3a3a3c;
+}
+
+.detail-item.summary-item .detail-label {
+  font-weight: 600;
+  color: #fff;
+}
+
+.detail-value.highlight {
+  color: #30d158;
+  font-weight: 700;
+  font-size: 16px;
 }
 
 @media (max-width: 1200px) {

@@ -108,19 +108,19 @@ const handleMerchantBlur = () => {
         <input
           v-model="searchQuery"
           type="text"
-          placeholder="搜尋流水號、商戶、用戶ID、銀行..."
+          placeholder="搜索流水号、商户、用户ID、银行..."
           class="search-input"
         />
       </div>
 
       <!-- Merchant Filter with Searchable Dropdown -->
       <div class="filter-group merchant-filter">
-        <label class="filter-label">商戶名稱</label>
+        <label class="filter-label">商户名称</label>
         <div class="dropdown-container">
           <input
             v-model="merchantSearch"
             type="text"
-            placeholder="搜尋或選擇商戶..."
+            placeholder="搜索或选择商户..."
             class="merchant-search-input"
             @focus="handleMerchantFocus"
             @blur="handleMerchantBlur"
@@ -131,7 +131,7 @@ const handleMerchantBlur = () => {
               :class="{ active: merchantFilter === 'all' }"
               @mousedown="selectMerchant('all')"
             >
-              全部商戶
+              全部商户
             </div>
             <div
               v-for="merchant in filteredMerchants"
@@ -143,7 +143,7 @@ const handleMerchantBlur = () => {
               {{ merchant }}
             </div>
             <div v-if="filteredMerchants.length === 0" class="dropdown-empty">
-              無符合的商戶
+              无符合的商户
             </div>
           </div>
         </div>
@@ -152,13 +152,13 @@ const handleMerchantBlur = () => {
 
     <div class="filter-row">
       <div class="date-range">
-        <label>從</label>
+        <label>从</label>
         <input v-model="dateFrom" type="date" class="date-input" />
         <label>到</label>
         <input v-model="dateTo" type="date" class="date-input" />
       </div>
 
-      <button @click="resetFilters" class="reset-btn">重置篩選</button>
+      <button @click="resetFilters" class="reset-btn">重置筛选</button>
     </div>
   </div>
 </template>

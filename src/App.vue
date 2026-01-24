@@ -3,18 +3,21 @@ import { ref, computed, onMounted, watch } from 'vue';
 import SearchFilter from './components/SearchFilter.vue';
 import MetricsCards from './components/MetricsCards.vue';
 import WithdrawMetricsCards from './components/WithdrawMetricsCards.vue';
+import WeeklyReport from './components/WeeklyReport.vue';
 import Charts from './components/Charts.vue';
 import { parseCSV, calculateMetrics, parseWithdrawCSV, calculateWithdrawMetrics } from './utils/csvParser';
 
 const allRecords = ref([]);
 const filteredRecords = ref([]);
+const depositRecords = ref([]); // 充值數據（保留以供提現計算使用）
+const withdrawRecords = ref([]); // 提現數據
 const isLoading = ref(true);
 const loadingProgress = ref(0);
-const loadingStatus = ref('準備載入...');
+const loadingStatus = ref('准备加载...');
 const dataDate = ref('2026-01-01');
 
 // 分頁切換
-const activeTab = ref('deposit'); // 'deposit' or 'withdraw'
+const activeTab = ref('deposit'); // 'deposit', 'withdraw', or 'weekly'
 
 // 渠道切換（用於控制 Charts 顯示）
 const activeChannel = ref('all'); // 'all', 'bankCard', 'alipay'
@@ -23,18 +26,23 @@ const handleChannelChange = (channel) => {
   activeChannel.value = channel;
 };
 
+// 充值指標（用於計算提現的充值配对率）
+const depositMetrics = computed(() => {
+  return calculateMetrics(depositRecords.value);
+});
+
 const metrics = computed(() => {
   if (activeTab.value === 'withdraw') {
-    return calculateWithdrawMetrics(filteredRecords.value);
+    return calculateWithdrawMetrics(filteredRecords.value, depositMetrics.value);
   }
   return calculateMetrics(filteredRecords.value);
 });
 
-// 自動載入資料（含進度顯示）
+// 自动加载数据（含进度显示）
 const loadData = async (type = 'deposit') => {
   isLoading.value = true;
   loadingProgress.value = 0;
-  loadingStatus.value = '正在下載數據...';
+  loadingStatus.value = '正在下载数据...';
 
   const csvFile = type === 'deposit' ? 'data.csv' : 'withdraw.csv';
 
@@ -47,30 +55,46 @@ const loadData = async (type = 'deposit') => {
     }
 
     loadingProgress.value = 30;
-    loadingStatus.value = '正在讀取數據...';
+    loadingStatus.value = '正在读取数据...';
 
     const content = await response.text();
-    console.log('CSV 內容長度:', content.length);
+    console.log('CSV 内容长度:', content.length);
 
     loadingProgress.value = 50;
-    loadingStatus.value = '正在解析數據...';
+    loadingStatus.value = '正在解析数据...';
 
     const parsed = type === 'deposit' ? parseCSV(content) : parseWithdrawCSV(content);
-    console.log('解析結果:', parsed.length, '筆記錄');
+    console.log('解析结果:', parsed.length, '笔记录');
 
     loadingProgress.value = 80;
-    loadingStatus.value = '正在處理記錄...';
+    loadingStatus.value = '正在处理记录...';
+
+    if (type === 'deposit') {
+      depositRecords.value = parsed;
+    } else {
+      withdrawRecords.value = parsed;
+      // 如果还没加载充值数据，先加载
+      if (depositRecords.value.length === 0) {
+        loadingStatus.value = '正在加载充值数据...';
+        const depositResponse = await fetch(import.meta.env.BASE_URL + 'data.csv');
+        if (depositResponse.ok) {
+          const depositContent = await depositResponse.text();
+          depositRecords.value = parseCSV(depositContent);
+          console.log('充值数据加载完成:', depositRecords.value.length, '笔');
+        }
+      }
+    }
 
     allRecords.value = parsed;
     filteredRecords.value = [...parsed];
 
     loadingProgress.value = 100;
-    loadingStatus.value = `完成！共 ${parsed.length} 筆記錄`;
-    console.log('載入完成 - allRecords:', allRecords.value.length);
+    loadingStatus.value = `完成！共 ${parsed.length} 笔记录`;
+    console.log('加载完成 - allRecords:', allRecords.value.length);
 
   } catch (error) {
     console.error('Error loading data:', error);
-    loadingStatus.value = '載入失敗: ' + error.message;
+    loadingStatus.value = '加载失败: ' + error.message;
   } finally {
     setTimeout(() => {
       isLoading.value = false;
@@ -78,9 +102,51 @@ const loadData = async (type = 'deposit') => {
   }
 };
 
-// 監聽分頁切換
+// 加载周报数据（同时加载充值和提现）
+const loadWeeklyData = async () => {
+  isLoading.value = true;
+  loadingProgress.value = 0;
+  loadingStatus.value = '正在加载周报数据...';
+
+  try {
+    // 加载充值数据
+    loadingProgress.value = 20;
+    loadingStatus.value = '正在加载充值数据...';
+    const depositResponse = await fetch(import.meta.env.BASE_URL + 'data.csv');
+    if (depositResponse.ok) {
+      const depositContent = await depositResponse.text();
+      depositRecords.value = parseCSV(depositContent);
+    }
+
+    // 加载提现数据
+    loadingProgress.value = 60;
+    loadingStatus.value = '正在加载提现数据...';
+    const withdrawResponse = await fetch(import.meta.env.BASE_URL + 'withdraw.csv');
+    if (withdrawResponse.ok) {
+      const withdrawContent = await withdrawResponse.text();
+      withdrawRecords.value = parseWithdrawCSV(withdrawContent);
+    }
+
+    loadingProgress.value = 100;
+    loadingStatus.value = '周报数据加载完成！';
+
+  } catch (error) {
+    console.error('Error loading weekly data:', error);
+    loadingStatus.value = '加载失败: ' + error.message;
+  } finally {
+    setTimeout(() => {
+      isLoading.value = false;
+    }, 500);
+  }
+};
+
+// 监听分页切换
 watch(activeTab, (newTab) => {
-  loadData(newTab);
+  if (newTab === 'weekly') {
+    loadWeeklyData();
+  } else {
+    loadData(newTab);
+  }
 });
 
 onMounted(() => {
@@ -96,7 +162,7 @@ const handleFilter = (filtered) => {
   <div class="app">
     <header class="header">
       <div class="header-content">
-        <h1>💳 數據分析</h1>
+        <h1>💳 数据分析</h1>
         <div class="tab-container">
           <button
             class="tab-btn"
@@ -110,12 +176,18 @@ const handleFilter = (filtered) => {
             :class="{ active: activeTab === 'withdraw' }"
             @click="activeTab = 'withdraw'"
           >
-            提現
+            提现
+          </button>
+          <button
+            class="tab-btn"
+            :class="{ active: activeTab === 'weekly' }"
+            @click="activeTab = 'weekly'"
+          >
+            周报
           </button>
         </div>
         <div class="data-info">
-          <span class="data-date">📅 資料日期：{{ dataDate }}</span>
-          <span class="record-count">📊 共 {{ allRecords.length.toLocaleString() }} 筆數</span>
+          <span class="data-date">📅 数据日期：{{ dataDate }}</span>
         </div>
       </div>
     </header>
@@ -133,15 +205,20 @@ const handleFilter = (filtered) => {
 
       <div v-else-if="allRecords.length === 0" class="empty-state">
         <div class="empty-icon">📊</div>
-        <h2>無法載入數據</h2>
-        <p>請確認資料來源是否正確</p>
+        <h2>无法加载数据</h2>
+        <p>请确认数据来源是否正确</p>
       </div>
 
       <template v-else>
-        <SearchFilter :records="allRecords" @filter="handleFilter" />
-        <MetricsCards v-if="activeTab === 'deposit'" :metrics="metrics" @channelChange="handleChannelChange" />
-        <WithdrawMetricsCards v-else :metrics="metrics" />
-        <Charts v-if="activeTab === 'deposit' && activeChannel === 'all'" :records="filteredRecords" />
+        <template v-if="activeTab === 'weekly'">
+          <WeeklyReport :depositRecords="depositRecords" :withdrawRecords="withdrawRecords" />
+        </template>
+        <template v-else>
+          <SearchFilter :records="allRecords" @filter="handleFilter" />
+          <MetricsCards v-if="activeTab === 'deposit'" :metrics="metrics" @channelChange="handleChannelChange" />
+          <WithdrawMetricsCards v-else :metrics="metrics" />
+          <Charts v-if="activeTab === 'deposit' && activeChannel === 'all'" :records="filteredRecords" />
+        </template>
       </template>
     </main>
 
