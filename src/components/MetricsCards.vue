@@ -393,6 +393,20 @@ const timeCards = computed(() => [
               </div>
             </div>
           </div>
+
+          <!-- 說明區塊 -->
+          <div class="jisu-block note-block">
+            <div class="block-header">
+              <span class="block-title">說明</span>
+            </div>
+            <div class="block-details note-content">
+              <div>充值申请笔数：商戶含"极速充提3"且非支付寶/微信</div>
+              <div>成功配对：有bankCardCode的記錄</div>
+              <div>订单成功：receivedAmount > 0</div>
+              <div v-if="metrics.normalCardAppCount === 0">一般卡：尚缺公式計算</div>
+              <div v-if="metrics.expressCardAppCount === 0">极速提：尚缺公式計算</div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -641,6 +655,20 @@ const timeCards = computed(() => [
               </div>
             </div>
           </div>
+
+          <!-- 說明區塊 -->
+          <div class="jisu-block note-block">
+            <div class="block-header">
+              <span class="block-title">說明</span>
+            </div>
+            <div class="block-details note-content">
+              <div>一般寶 有 +70</div>
+              <div>极速提宝 有 +100</div>
+              <div v-if="metrics.alipayNormalCardAppCount === 0">一般卡：尚缺公式計算</div>
+              <div v-if="metrics.alipayJisuTikaCount === 0">极速提(卡)：尚缺公式計算</div>
+              <div v-if="metrics.alipayJisuTibaoCount === 0">极速提(宝)：尚缺公式計算</div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -731,6 +759,14 @@ const timeCards = computed(() => [
             <span class="detail-value">0 笔 / 0 元</span>
           </div>
         </div>
+        <div class="section-note">
+          <div class="note-title">說明：</div>
+          <div class="note-content">
+            <div>人工：尚缺公式計算</div>
+            <div>信评：尚缺公式計算</div>
+            <div>没上传回单重复出款充值上分：尚缺公式計算</div>
+          </div>
+        </div>
       </div>
 
       <!-- 宝转卡渠道及宝转宝渠道 提现申请笔数统计 -->
@@ -766,6 +802,15 @@ const timeCards = computed(() => [
           <div class="detail-item summary-item">
             <span class="detail-label">整体-提现成功/提现申请</span>
             <span class="detail-value highlight">0%</span>
+          </div>
+        </div>
+        <div class="section-note">
+          <div class="note-title">說明：</div>
+          <div class="note-content">
+            <div>宝转卡渠道申请/成功：尚缺公式計算</div>
+            <div>宝转宝渠道申请/成功：尚缺公式計算</div>
+            <div>整体 配对成功/提现申请：尚缺公式計算</div>
+            <div>整体-提现成功/提现申请：尚缺公式計算</div>
           </div>
         </div>
       </div>
@@ -872,6 +917,20 @@ const timeCards = computed(() => [
                 <span class="detail-label">其他金额</span>
                 <span class="detail-value">{{ (metrics.wechatNoCreditDowngradeByAmount?.['other'] || 0).toLocaleString() }} 笔</span>
               </div>
+            </div>
+          </div>
+
+          <!-- 說明區塊 -->
+          <div class="jisu-block note-block">
+            <div class="block-header">
+              <span class="block-title">說明</span>
+            </div>
+            <div class="block-details note-content">
+              <div>充值申请笔数：商戶含"微信"</div>
+              <div>成功配对：有bankCardCode的記錄</div>
+              <div>订单成功：receivedAmount > 0</div>
+              <div v-if="metrics.wechatNormalCardAppCount === 0">一般卡：尚缺公式計算</div>
+              <div v-if="metrics.wechatExpressCardAppCount === 0">极速：尚缺公式計算</div>
             </div>
           </div>
         </div>
@@ -1236,6 +1295,46 @@ const timeCards = computed(() => [
   color: #5cb85c;
   font-weight: 700;
   font-size: 15px;
+}
+
+/* 說明區塊樣式 */
+.jisu-block.note-block {
+  background: #f8f9fa;
+  border: 1px dashed #ddd;
+}
+
+.jisu-block.note-block .block-header {
+  border-bottom: 1px dashed #ddd;
+}
+
+.jisu-block.note-block .block-title {
+  color: #666;
+}
+
+.note-content {
+  font-size: 12px;
+  color: #999;
+  line-height: 1.8;
+}
+
+.note-content div {
+  padding-left: 8px;
+  border-left: 2px solid #ddd;
+  margin-bottom: 4px;
+}
+
+/* 說明區塊（用於 section 底部） */
+.section-note {
+  padding: 12px 20px;
+  background: #f8f9fa;
+  border-top: 1px solid #f0f0f0;
+}
+
+.note-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #666;
+  margin-bottom: 8px;
 }
 
 /* 充值分鐘分析樣式 */

@@ -240,6 +240,17 @@ const activeChannel = ref('all'); // 'all', 'bankCard', 'alipay', 'wechat'
             <span class="detail-value">{{ formatTime(metrics.bankCardAvgTime) }}</span>
           </div>
         </div>
+        <div class="section-note">
+          <div class="note-title">說明：</div>
+          <div class="note-content">
+            <div v-if="metrics.bankCardMatchRate === 0">充值配对率：尚缺公式計算</div>
+            <div v-if="metrics.bankCardSuccessAfterMatchRate === 0">配对后成功率：尚缺公式計算</div>
+            <div v-if="metrics.bankCardDepositAppCount === 0">充值申请：來自充值數據</div>
+            <div v-if="metrics.bankCardDepositMatchCount === 0">成功配对：來自充值數據</div>
+            <div v-if="metrics.bankCardDepositSuccessCount === 0">充值成功笔数：來自充值數據</div>
+            <div>平均时间：transferStatus = "轉帳完成" 的記錄平均處理時間</div>
+          </div>
+        </div>
       </div>
     </template>
 
@@ -283,6 +294,19 @@ const activeChannel = ref('all'); // 'all', 'bankCard', 'alipay', 'wechat'
             <span class="detail-value">{{ formatTime(metrics.alipayAvgTime) }}</span>
           </div>
         </div>
+        <div class="section-note">
+          <div class="note-title">說明：</div>
+          <div class="note-content">
+            <div>一般寶 有 +70</div>
+            <div>极速提宝 有 +100</div>
+            <div v-if="metrics.alipayMatchRate === 0">充值配对率：尚缺公式計算</div>
+            <div v-if="metrics.alipaySuccessAfterMatchRate === 0">配对后成功率：尚缺公式計算</div>
+            <div v-if="metrics.alipayDepositAppCount === 0">充值申请：來自充值數據</div>
+            <div v-if="metrics.alipayDepositMatchCount === 0">成功配对：來自充值數據</div>
+            <div v-if="metrics.alipayDepositSuccessCount === 0">充值成功笔数：來自充值數據</div>
+            <div>平均时间：transferStatus = "轉帳完成" 的記錄平均處理時間</div>
+          </div>
+        </div>
       </div>
     </template>
 
@@ -324,6 +348,17 @@ const activeChannel = ref('all'); // 'all', 'bankCard', 'alipay', 'wechat'
           <div class="detail-item">
             <span class="detail-label">平均时间</span>
             <span class="detail-value">{{ formatTime(metrics.wechatAvgTime) }}</span>
+          </div>
+        </div>
+        <div class="section-note">
+          <div class="note-title">說明：</div>
+          <div class="note-content">
+            <div v-if="metrics.wechatMatchRate === 0">充值配对率：尚缺公式計算</div>
+            <div v-if="metrics.wechatSuccessAfterMatchRate === 0">配对后成功率：尚缺公式計算</div>
+            <div v-if="metrics.wechatDepositAppCount === 0">充值申请：來自充值數據</div>
+            <div v-if="metrics.wechatDepositMatchCount === 0">成功配对：來自充值數據</div>
+            <div v-if="metrics.wechatDepositSuccessCount === 0">充值成功笔数：來自充值數據</div>
+            <div>平均时间：transferStatus = "轉帳完成" 的記錄平均處理時間</div>
           </div>
         </div>
       </div>
@@ -484,6 +519,32 @@ const activeChannel = ref('all'); // 'all', 'bankCard', 'alipay', 'wechat'
 
 .detail-item.sub-item .detail-label {
   color: #999;
+}
+
+/* 說明區塊 */
+.section-note {
+  padding: 12px 20px;
+  background: #f8f9fa;
+  border-top: 1px solid #f0f0f0;
+}
+
+.note-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.note-content {
+  font-size: 12px;
+  color: #999;
+  line-height: 1.8;
+}
+
+.note-content div {
+  padding-left: 8px;
+  border-left: 2px solid #ddd;
+  margin-bottom: 4px;
 }
 
 /* 提現成功時間區段 - 表格樣式 */
