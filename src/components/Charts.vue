@@ -8,52 +8,73 @@ const props = defineProps({
   }
 });
 
+// 篩選成功配對的記錄（與重要信息-總申請筆數公式一致）
+// 銀行卡成功配對：极速充提3 且非支付寶/微信，有 bankCardCode
+// 支付寶成功配對：包含支付宝/支付寶，有 bankCardCode
+// 微信成功配對：包含微信，有 bankCardCode
+const matchedRecords = computed(() => {
+  return props.records.filter(r => {
+    const hasJiSu = r.merchant && r.merchant.includes('极速充提3');
+    const hasAlipay = r.merchant && (r.merchant.includes('支付宝') || r.merchant.includes('支付寶'));
+    const hasWechat = r.merchant && r.merchant.includes('微信');
+
+    // 銀行卡成功配對
+    const isBankCardMatched = hasJiSu && !hasAlipay && !hasWechat && r.bankCardCode;
+    // 支付寶成功配對
+    const isAlipayMatched = hasAlipay && r.bankCardCode;
+    // 微信成功配對
+    const isWechatMatched = hasWechat && r.bankCardCode;
+
+    return isBankCardMatched || isAlipayMatched || isWechatMatched;
+  });
+});
+
+// 充值成功的記錄（AP > 0）
+const successRecords = computed(() => matchedRecords.value.filter(r => r.receivedAmount > 0));
+
+// 充值成功總筆數
+const successTotalCount = computed(() => successRecords.value.length);
+
 // Calculate status distribution
 // 公式：
-// - 成功：到帳金額≠0 且非補單
-// - 未充值：到帳金額=0
-// - 補單：狀態含補單字眼 且 到帳金額≠0
+// - 成功：到帳金額>0 且非補單
+// - 補單：狀態含補單字眼 且 到帳金額>0
 const statusDistribution = computed(() => {
   const dist = {
     success: 0,
     successAmount: 0,
-    invalid: 0,
     budan: 0,
     budanAmount: 0
   };
 
-  props.records.forEach(r => {
+  successRecords.value.forEach(r => {
     const hasBuDan = r.status && (r.status.includes('補') || r.status.includes('补'));
 
-    if (hasBuDan && r.receivedAmount !== 0) {
-      // 補單：狀態含補單字眼 且 到帳金額≠0
+    if (hasBuDan) {
+      // 補單：狀態含補單字眼 且 到帳金額>0
       dist.budan++;
       dist.budanAmount += r.receivedAmount;
-    } else if (r.receivedAmount !== 0) {
-      // 成功：到帳金額≠0 且非補單
+    } else {
+      // 成功：到帳金額>0 且非補單
       dist.success++;
       dist.successAmount += r.receivedAmount;
-    } else {
-      // 未充值：到帳金額=0
-      dist.invalid++;
     }
   });
 
-  const total = props.records.length || 1;
+  const total = successTotalCount.value || 1;
 
   return [
     { label: '成功', value: dist.success, amount: dist.successAmount, percent: (dist.success / total * 100).toFixed(1), color: '#30d158' },
-    { label: '未充值', value: dist.invalid, amount: 0, percent: (dist.invalid / total * 100).toFixed(1), color: '#ff453a' },
     { label: '補單', value: dist.budan, amount: dist.budanAmount, percent: (dist.budan / total * 100).toFixed(1), color: '#ff9f0a' }
   ].filter(d => d.value > 0);
 });
 
-// Calculate amount distribution by bank
+// Calculate amount distribution by bank (使用充值成功記錄)
 const bankDistribution = computed(() => {
   const bankMap = new Map();
 
-  props.records.forEach(r => {
-    if (r.receivedAmount > 0 && r.bankName) {
+  successRecords.value.forEach(r => {
+    if (r.bankName) {
       const current = bankMap.get(r.bankName) || 0;
       bankMap.set(r.bankName, current + r.receivedAmount);
     }
@@ -65,25 +86,27 @@ const bankDistribution = computed(() => {
     .map(([name, amount]) => ({ name, amount }));
 });
 
-// Calculate hourly distribution
+// Calculate hourly distribution (使用充值成功記錄，顯示筆數和金額)
 const hourlyDistribution = computed(() => {
-  const hours = new Array(24).fill(0);
+  const hoursData = new Array(24).fill(null).map(() => ({ count: 0, amount: 0 }));
 
-  props.records.forEach(r => {
-    if (r.requestTime && r.receivedAmount > 0) {
+  successRecords.value.forEach(r => {
+    if (r.requestTime) {
       const match = r.requestTime.match(/(\d{2}):\d{2}:\d{2}/);
       if (match) {
         const hour = parseInt(match[1]);
-        hours[hour]++;
+        hoursData[hour].count++;
+        hoursData[hour].amount += r.receivedAmount;
       }
     }
   });
 
-  const max = Math.max(...hours) || 1;
-  return hours.map((count, hour) => ({
+  const maxCount = Math.max(...hoursData.map(h => h.count)) || 1;
+  return hoursData.map((data, hour) => ({
     hour: `${hour.toString().padStart(2, '0')}:00`,
-    count,
-    percent: (count / max * 100)
+    count: data.count,
+    amount: data.amount,
+    percent: (data.count / maxCount * 100)
   }));
 });
 
@@ -115,8 +138,8 @@ const maxBankAmount = computed(() => {
           />
         </svg>
         <div class="donut-center">
-          <span class="donut-total">{{ props.records.length.toLocaleString() }}</span>
-          <span class="donut-label">總數</span>
+          <span class="donut-total">{{ successTotalCount.toLocaleString() }}</span>
+          <span class="donut-label">充值成功</span>
         </div>
       </div>
       <div class="legend">
@@ -136,7 +159,10 @@ const maxBankAmount = computed(() => {
       <h3>銀行金額分佈 (Top 8)</h3>
       <div class="bar-chart">
         <div v-for="bank in bankDistribution" :key="bank.name" class="bar-row">
-          <span class="bar-label">{{ bank.name }}</span>
+          <span class="bar-label">
+            {{ bank.name }}
+            <span class="bar-tooltip">{{ bank.name }}</span>
+          </span>
           <div class="bar-container">
             <div
               class="bar-fill"
@@ -152,7 +178,8 @@ const maxBankAmount = computed(() => {
     <div class="chart-card wide">
       <h3>24小時交易分佈</h3>
       <div class="hourly-chart">
-        <div v-for="item in hourlyDistribution" :key="item.hour" class="hour-bar">
+        <div v-for="item in hourlyDistribution" :key="item.hour" class="hour-bar" :title="`${item.count}筆 / ${(item.amount / 10000).toFixed(1)}萬`">
+          <div class="hour-tooltip">{{ item.count }}筆<br>{{ (item.amount / 10000).toFixed(1) }}萬</div>
           <div class="hour-fill" :style="{ height: item.percent + '%' }"></div>
           <span class="hour-label">{{ item.hour.split(':')[0] }}</span>
         </div>
@@ -275,6 +302,27 @@ const maxBankAmount = computed(() => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  position: relative;
+  cursor: pointer;
+}
+
+.bar-tooltip {
+  display: none;
+  position: absolute;
+  left: 0;
+  bottom: 100%;
+  background: #3a3a3c;
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 10;
+  margin-bottom: 4px;
+}
+
+.bar-label:hover .bar-tooltip {
+  display: block;
 }
 
 .bar-container {
@@ -315,6 +363,28 @@ const maxBankAmount = computed(() => {
   flex-direction: column;
   align-items: center;
   height: 100%;
+  position: relative;
+}
+
+.hour-tooltip {
+  display: none;
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #3a3a3c;
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  white-space: nowrap;
+  text-align: center;
+  z-index: 10;
+  margin-bottom: 4px;
+}
+
+.hour-bar:hover .hour-tooltip {
+  display: block;
 }
 
 .hour-fill {

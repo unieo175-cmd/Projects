@@ -2,6 +2,14 @@
 import { ref, computed } from 'vue';
 import { formatTime, formatAmount } from '../utils/csvParser';
 
+// 格式化時間為 mm:ss 格式
+const formatTimeShort = (seconds) => {
+  if (!seconds || seconds < 0) return '00:00';
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+};
+
 const props = defineProps({
   metrics: {
     type: Object,
@@ -12,18 +20,6 @@ const props = defineProps({
 // 渠道切換
 const activeChannel = ref('all'); // 'all', 'bankCard', 'alipay', 'wechat'
 
-// 狀態分佈排序（按數量由高到低）
-const sortedStatusDistribution = computed(() => {
-  const dist = props.metrics.statusDistribution || {};
-  return Object.entries(dist)
-    .sort((a, b) => b[1] - a[1])
-    .map(([status, count]) => ({ status, count }));
-});
-
-// 計算總筆數
-const totalCount = computed(() => {
-  return sortedStatusDistribution.value.reduce((sum, item) => sum + item.count, 0);
-});
 </script>
 
 <template>
@@ -71,18 +67,19 @@ const totalCount = computed(() => {
           <div class="metric-card">
             <div class="card-header">
               <span class="card-icon">📊</span>
-              <span class="card-title">总提现笔数</span>
+              <span class="card-title">总提现成功笔数</span>
             </div>
             <div class="card-value" style="color: #0a84ff;">
               {{ (metrics.totalWithdrawCount || 0).toLocaleString() }}
               <span class="card-unit">笔</span>
             </div>
+            <div class="card-formula">公式：實際轉出金額 > 0</div>
           </div>
 
           <div class="metric-card">
             <div class="card-header">
               <span class="card-icon">💰</span>
-              <span class="card-title">总提现金额</span>
+              <span class="card-title">总提现成功金额</span>
             </div>
             <div class="card-value" style="color: #30d158;">
               {{ formatAmount(metrics.totalWithdrawAmount || 0) }}
@@ -103,36 +100,102 @@ const totalCount = computed(() => {
           <div class="metric-card">
             <div class="card-header">
               <span class="card-icon">📋</span>
-              <span class="card-title">总记录数</span>
+              <span class="card-title">总提现申请笔数</span>
             </div>
             <div class="card-value" style="color: #8e8e93;">
               {{ (metrics.totalRecords || 0).toLocaleString() }}
               <span class="card-unit">笔</span>
             </div>
+            <div class="card-formula">公式：所有記錄（排除test/qa商戶）</div>
           </div>
         </div>
       </div>
 
-      <!-- 状态分布 -->
+      <!-- 提現成功時間區段 -->
       <div class="metrics-section">
         <div class="section-header">
-          <h3 class="section-title">提现状态分布</h3>
+          <h3 class="section-title">提現成功時間區段</h3>
         </div>
-        <div class="status-grid">
-          <div
-            v-for="item in sortedStatusDistribution"
-            :key="item.status"
-            class="status-item"
-          >
-            <span class="status-label">{{ item.status }}</span>
-            <div class="status-bar-container">
-              <div
-                class="status-bar"
-                :style="{ width: (item.count / totalCount * 100) + '%' }"
-              ></div>
-            </div>
-            <span class="status-count">{{ item.count.toLocaleString() }}</span>
-          </div>
+        <div class="minute-analysis-content">
+          <table class="minute-table">
+            <thead>
+              <tr>
+                <th>項目</th>
+                <th>筆數/百分比</th>
+                <th>金額</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="highlight-row">
+                <td>总提现成功笔数</td>
+                <td>{{ (metrics.withdrawSuccessTotalCount || 0).toLocaleString() }}</td>
+                <td>{{ formatAmount(metrics.withdrawSuccessTotalAmount || 0) }} 元</td>
+              </tr>
+              <tr>
+                <td>2分钟内出款</td>
+                <td>{{ (metrics.withdrawWithin2MinCount || 0).toLocaleString() }} ({{ (metrics.withdrawWithin2MinRatio || 0).toFixed(2) }}%)</td>
+                <td>{{ formatAmount(metrics.withdrawWithin2MinAmount || 0) }} 元</td>
+              </tr>
+              <tr>
+                <td>2-5分钟出款</td>
+                <td>{{ (metrics.withdrawWithin2to5MinCount || 0).toLocaleString() }} ({{ (metrics.withdrawWithin2to5MinRatio || 0).toFixed(2) }}%)</td>
+                <td>{{ formatAmount(metrics.withdrawWithin2to5MinAmount || 0) }} 元</td>
+              </tr>
+              <tr>
+                <td>5-15分钟出款</td>
+                <td>{{ (metrics.withdrawWithin5to15MinCount || 0).toLocaleString() }} ({{ (metrics.withdrawWithin5to15MinRatio || 0).toFixed(2) }}%)</td>
+                <td>{{ formatAmount(metrics.withdrawWithin5to15MinAmount || 0) }} 元</td>
+              </tr>
+              <tr>
+                <td>15-30分钟出款</td>
+                <td>{{ (metrics.withdrawWithin15to30MinCount || 0).toLocaleString() }} ({{ (metrics.withdrawWithin15to30MinRatio || 0).toFixed(2) }}%)</td>
+                <td>{{ formatAmount(metrics.withdrawWithin15to30MinAmount || 0) }} 元</td>
+              </tr>
+              <tr>
+                <td>超过30分钟出款</td>
+                <td>{{ (metrics.withdrawOver30MinCount || 0).toLocaleString() }} ({{ (metrics.withdrawOver30MinRatio || 0).toFixed(2) }}%)</td>
+                <td>{{ formatAmount(metrics.withdrawOver30MinAmount || 0) }} 元</td>
+              </tr>
+              <tr class="sub-row">
+                <td class="indent">平均时间-卡(Q)</td>
+                <td>{{ formatTimeShort(metrics.bankCardAvgTime) }}</td>
+                <td>--</td>
+              </tr>
+              <tr class="sub-row">
+                <td class="indent">平均时间-宝(R)</td>
+                <td>{{ formatTimeShort(metrics.alipayAvgTime) }}</td>
+                <td>--</td>
+              </tr>
+              <tr class="divider-row">
+                <td colspan="3"></td>
+              </tr>
+              <tr>
+                <td>提现成功率</td>
+                <td>{{ (metrics.withdrawSuccessRate || 0).toFixed(2) }}%</td>
+                <td>--</td>
+              </tr>
+              <tr>
+                <td>提现失败笔数</td>
+                <td>{{ (metrics.withdrawFailedCount || 0).toLocaleString() }}</td>
+                <td>--</td>
+              </tr>
+              <tr>
+                <td>无卡空单率</td>
+                <td>{{ (metrics.withdrawEmptyOrderRate || 0).toFixed(2) }}%</td>
+                <td>--</td>
+              </tr>
+              <tr>
+                <td>订单成功</td>
+                <td>{{ (metrics.withdrawOrderSuccessCount || 0).toLocaleString() }}</td>
+                <td>{{ formatAmount(metrics.withdrawOrderSuccessAmount || 0) }} 元</td>
+              </tr>
+              <tr>
+                <td>订单成功占比</td>
+                <td>{{ (metrics.withdrawOrderSuccessRate || 0).toFixed(2) }}%</td>
+                <td>--</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </template>
@@ -379,6 +442,13 @@ const totalCount = computed(() => {
   color: #8e8e93;
 }
 
+.card-formula {
+  font-size: 11px;
+  color: #6e6e73;
+  margin-top: 6px;
+  font-style: italic;
+}
+
 /* 提現內容 */
 .withdraw-content {
   display: flex;
@@ -412,51 +482,82 @@ const totalCount = computed(() => {
   color: #6e6e73;
 }
 
-/* 狀態分佈 */
-.status-grid {
+/* 提現成功時間區段 - 表格樣式 */
+.minute-analysis-content {
   padding: 0 16px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
 }
 
-.status-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+.minute-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
 }
 
-.status-label {
-  width: 200px;
-  font-size: 13px;
-  color: #fff;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.minute-table th,
+.minute-table td {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid #3a3a3c;
 }
 
-.status-bar-container {
-  flex: 1;
-  height: 20px;
-  background: #2c2c2e;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.status-bar {
-  height: 100%;
-  background: linear-gradient(90deg, #0a84ff, #5e5ce6);
-  border-radius: 4px;
-  transition: width 0.3s;
-  min-width: 2px;
-}
-
-.status-count {
-  width: 80px;
-  text-align: right;
-  font-size: 13px;
+.minute-table th {
+  background: #3a3a3c;
   color: #8e8e93;
+  font-weight: 600;
+}
+
+.minute-table th:nth-child(2),
+.minute-table th:nth-child(3),
+.minute-table td:nth-child(2),
+.minute-table td:nth-child(3) {
+  text-align: right;
+}
+
+.minute-table td {
+  color: #fff;
+}
+
+.minute-table td:nth-child(2) {
+  color: #0a84ff;
   font-family: monospace;
+}
+
+.minute-table td:nth-child(3) {
+  color: #30d158;
+  font-family: monospace;
+}
+
+.minute-table tr:hover {
+  background: #2c2c2e;
+}
+
+.minute-table tr.highlight-row {
+  background: #1a3a5c;
+}
+
+.minute-table tr.highlight-row:hover {
+  background: #1a4a6c;
+}
+
+.minute-table tr.divider-row td {
+  padding: 4px;
+  border-bottom: 2px solid #3a3a3c;
+}
+
+.minute-table tr.sub-row {
+  background: #252528;
+}
+
+.minute-table tr.sub-row td.indent {
+  padding-left: 32px;
+  color: #8e8e93;
+}
+
+.minute-table td.formula-text {
+  font-size: 11px;
+  color: #6e6e73;
+  font-style: italic;
+  font-family: inherit;
 }
 
 @media (max-width: 1200px) {

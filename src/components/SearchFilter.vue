@@ -8,7 +8,7 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['filter']);
+const emit = defineEmits(['filter', 'export']);
 
 const searchQuery = ref('');
 const merchantFilter = ref('all');
@@ -77,6 +77,10 @@ const resetFilters = () => {
   merchantSearch.value = '';
   dateFrom.value = '';
   dateTo.value = '';
+};
+
+const handleExport = () => {
+  emit('export');
 };
 
 const selectMerchant = (merchant) => {
@@ -159,6 +163,7 @@ const handleMerchantBlur = () => {
       </div>
 
       <button @click="resetFilters" class="reset-btn">重置筛选</button>
+      <button @click="handleExport" class="export-btn">匯出 Excel</button>
     </div>
   </div>
 </template>
@@ -338,6 +343,22 @@ const handleMerchantBlur = () => {
 
 .reset-btn:hover {
   background: #48484a;
+}
+
+.export-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 10px;
+  background: #30d158;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.export-btn:hover {
+  background: #28b94c;
 }
 
 @media (max-width: 768px) {

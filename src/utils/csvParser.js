@@ -163,7 +163,7 @@ export const parseCSV = (content) => {
 
 export const calculateMetrics = (records) => {
   // ===== 全部-重要信息 =====
-  // 總申請筆數 = 銀行卡成功配對 + 支付寶成功配對
+  // 總申請筆數 = 銀行卡成功配對 + 支付寶成功配對 + 微信成功配對
   const allRecords = records;
 
   // 銀行卡成功配對：极速充提3 且非支付寶/微信，有 bankCardCode
@@ -180,11 +180,17 @@ export const calculateMetrics = (records) => {
     return hasAlipay && r.bankCardCode;
   });
 
-  const totalApplicationCount = bankCardForTotal.length + alipayForTotal.length + 170; // +70 一般宝 +100 极速提宝
+  // 微信成功配對：包含微信，有 bankCardCode
+  const wechatForTotal = records.filter(r => {
+    const hasWechat = r.merchant.includes('微信');
+    return hasWechat && r.bankCardCode;
+  });
 
-  // 充值成功筆數 = 銀行卡+支付寶 且 AP > 0
-  const bankCardAndAlipayRecords = [...bankCardForTotal, ...alipayForTotal];
-  const successfulRecords = bankCardAndAlipayRecords.filter(r => r.receivedAmount > 0);
+  const totalApplicationCount = bankCardForTotal.length + alipayForTotal.length + wechatForTotal.length + 170; // +70 一般宝 +100 极速提宝
+
+  // 充值成功筆數 = 銀行卡+支付寶+微信 且 AP > 0
+  const allMatchedRecords = [...bankCardForTotal, ...alipayForTotal, ...wechatForTotal];
+  const successfulRecords = allMatchedRecords.filter(r => r.receivedAmount > 0);
   const successfulCount = successfulRecords.length;
 
   // 成功率 = 充值成功筆數 / 總申請筆數
@@ -211,9 +217,10 @@ export const calculateMetrics = (records) => {
   const dropOrderCount = dropOrderRecords.length;
   const dropOrderRatio = successfulCount > 0 ? (dropOrderCount / successfulCount) * 100 : 0;
 
-  // 无效申请 = (銀行卡成功配對 + 支付寶成功配對) 且 AP = 0
+  // 无效申请 = (銀行卡成功配對 + 支付寶成功配對 + 微信成功配對) 且 AP = 0
   // 銀行卡：merchant 包含 "极速充提3" 且排除支付寶/微信
   // 支付寶：merchant 包含 "支付宝" 或 "支付寶"
+  // 微信：merchant 包含 "微信"
   // 成功配對：bankCardCode 有值
   const invalidApplicationRecords = allRecords.filter(r => {
     const hasJiSu = r.merchant.includes('极速充提3');
@@ -224,19 +231,21 @@ export const calculateMetrics = (records) => {
     const isBankCardMatched = hasJiSu && !hasAlipay && !hasWechat && r.bankCardCode;
     // 支付寶成功配對：包含支付宝/支付寶，有 bankCardCode
     const isAlipayMatched = hasAlipay && r.bankCardCode;
+    // 微信成功配對：包含微信，有 bankCardCode
+    const isWechatMatched = hasWechat && r.bankCardCode;
 
     // AP = 0
-    return (isBankCardMatched || isAlipayMatched) && r.receivedAmount === 0;
+    return (isBankCardMatched || isAlipayMatched || isWechatMatched) && r.receivedAmount === 0;
   });
   const invalidApplicationCount = invalidApplicationRecords.length;
   const invalidApplicationRatio = totalApplicationCount > 0 ? (invalidApplicationCount / totalApplicationCount) * 100 : 0;
 
-  // ===== 充值分鐘分析 =====
-  // 總申請（总充值成功--含掉单）= 狀態剔除未充值 且 AP≠0
-  const minuteAnalysisRecords = allRecords.filter(r =>
-    !r.status.includes('未充值') && r.receivedAmount !== 0
-  );
-  const minuteAnalysisTotalCount = minuteAnalysisRecords.length;
+  // ===== 充值成功時間區段 =====
+  // 使用成功配對記錄（與重要訊息一致：銀行卡+支付寶+微信 成功配對）
+  // 总充值成功（含掉单）= 成功配對 且 AP>0，加上硬編碼值 +170
+  const minuteAnalysisRecords = allMatchedRecords.filter(r => r.receivedAmount > 0);
+  const minuteAnalysisRawCount = minuteAnalysisRecords.length;
+  const minuteAnalysisTotalCount = minuteAnalysisRawCount + 170; // +70 一般宝 +100 极速提宝
   const minuteAnalysisTotalAmount = minuteAnalysisRecords.reduce((sum, r) => sum + r.receivedAmount, 0);
 
   // 有處理時間的成功記錄
@@ -274,20 +283,20 @@ export const calculateMetrics = (records) => {
   const minuteOver30MinAmount = minuteOver30Min.reduce((sum, r) => sum + r.receivedAmount, 0);
   const minuteOver30MinRatio = minuteAnalysisTotalCount > 0 ? (minuteOver30Min.length / minuteAnalysisTotalCount) * 100 : 0;
 
-  // 无效申请 = AP=0
-  const minuteInvalidRecords = allRecords.filter(r => r.receivedAmount === 0);
+  // 无效申请 = 成功配對 且 AP=0（與重要訊息一致）
+  const minuteInvalidRecords = allMatchedRecords.filter(r => r.receivedAmount === 0);
   const minuteInvalidCount = minuteInvalidRecords.length;
   const minuteTotalForRatio = minuteAnalysisTotalCount + minuteInvalidCount;
   const minuteInvalidRatio = minuteTotalForRatio > 0 ? (minuteInvalidCount / minuteTotalForRatio) * 100 : 0;
 
-  // 掉单 = 狀態有補單字眼 且 AP≠0
+  // 掉单 = 成功配對 且 AP>0 且狀態有補單字眼（與重要訊息一致）
   const minuteDropRecords = minuteAnalysisRecords.filter(r =>
     r.status && (r.status.includes('補') || r.status.includes('补'))
   );
   const minuteDropCount = minuteDropRecords.length;
   const minuteDropRatio = minuteAnalysisTotalCount > 0 ? (minuteDropCount / minuteAnalysisTotalCount) * 100 : 0;
 
-  // 平均時間 = AP≠0的筆數的平均時間
+  // 平均時間 = 成功配對 且 AP>0 的平均時間
   const minuteAvgTime = minuteAnalysisWithTime.length > 0
     ? minuteAnalysisWithTime.reduce((sum, r) => sum + r.processingTime, 0) / minuteAnalysisWithTime.length
     : 0;
@@ -412,7 +421,7 @@ export const calculateMetrics = (records) => {
   const amountRanges = [100, 200, 300, 500, 1000, 1500, 2000, 3000, 5000, 6000, 7000, 8000, 9000, 10000, 15000, 20000, 30000];
   const noCreditDowngradeByAmount = {};
   amountRanges.forEach(amt => {
-    noCreditDowngradeByAmount[amt] = noCreditDowngradeRecords.filter(r => r.amount === amt).length;
+    noCreditDowngradeByAmount[amt] = noCreditDowngradeRecords.filter(r => Math.round(r.amount) === amt).length;
   });
 
   // 没信评降等配卡 - 平均時間
@@ -427,7 +436,7 @@ export const calculateMetrics = (records) => {
     : 0;
   // 其他金額
   const knownAmounts = new Set(amountRanges);
-  noCreditDowngradeByAmount['other'] = noCreditDowngradeRecords.filter(r => !knownAmounts.has(r.amount)).length;
+  noCreditDowngradeByAmount['other'] = noCreditDowngradeRecords.filter(r => !knownAmounts.has(Math.round(r.amount))).length;
 
   const noCreditDowngradeTotal = noCreditDowngradeRecords.length;
 
@@ -489,6 +498,49 @@ export const calculateMetrics = (records) => {
   }).length;
 
   const c2cOver11MinSuccessCount = c2cOver11MinBuDanCount + c2cMerchantConfirmCount;
+
+  // ===== 三方代收（銀行卡）=====
+  // 條件：bankCardCode 非 gb/auction 開頭（不區分大小寫），或是特定三方代收代碼
+  // 充值成功：receivedAmount > 0
+  const thirdPartyRecords = jisuRecords.filter(r => {
+    if (!r.bankCardCode || r.receivedAmount <= 0) return false;
+    const code = r.bankCardCode.toLowerCase();
+    // 排除 gb 和 auction 開頭，但 GB-DahaomenJFB 是三方代收要保留
+    if (r.bankCardCode === 'GB-DahaomenJFB') return true;
+    if (code.startsWith('gb') || code.startsWith('auction')) return false;
+    return true;
+  });
+  const thirdPartyCount = thirdPartyRecords.length;
+  const thirdPartyAmount = thirdPartyRecords.reduce((sum, r) => sum + r.receivedAmount, 0);
+
+  // 各三方代收明細
+  // GB-DahaomenJFB
+  const thirdPartyDahaomenRecords = jisuRecords.filter(r =>
+    r.bankCardCode === 'GB-DahaomenJFB' && r.receivedAmount > 0
+  );
+  const thirdPartyDahaomenCount = thirdPartyDahaomenRecords.length;
+  const thirdPartyDahaomenAmount = thirdPartyDahaomenRecords.reduce((sum, r) => sum + r.receivedAmount, 0);
+
+  // 汇通 = HTc2cdeposit
+  const thirdPartyHuitongRecords = jisuRecords.filter(r =>
+    r.bankCardCode === 'HTc2cdeposit' && r.receivedAmount > 0
+  );
+  const thirdPartyHuitongCount = thirdPartyHuitongRecords.length;
+  const thirdPartyHuitongAmount = thirdPartyHuitongRecords.reduce((sum, r) => sum + r.receivedAmount, 0);
+
+  // 豆豆 = DDFdeposit
+  const thirdPartyDoudouRecords = jisuRecords.filter(r =>
+    r.bankCardCode === 'DDFdeposit' && r.receivedAmount > 0
+  );
+  const thirdPartyDoudouCount = thirdPartyDoudouRecords.length;
+  const thirdPartyDoudouAmount = thirdPartyDoudouRecords.reduce((sum, r) => sum + r.receivedAmount, 0);
+
+  // UC聚合 = UC1020
+  const thirdPartyUCRecords = jisuRecords.filter(r =>
+    r.bankCardCode === 'UC1020' && r.receivedAmount > 0
+  );
+  const thirdPartyUCCount = thirdPartyUCRecords.length;
+  const thirdPartyUCAmount = thirdPartyUCRecords.reduce((sum, r) => sum + r.receivedAmount, 0);
 
   // ===== 支付寶商戶數據 =====
   const alipayRecords = records.filter(r => {
@@ -640,10 +692,10 @@ export const calculateMetrics = (records) => {
   // 支付寶 - 没信评降等配卡 依據金額區間計算筆數
   const alipayNoCreditDowngradeByAmount = {};
   amountRanges.forEach(amt => {
-    alipayNoCreditDowngradeByAmount[amt] = alipayNoCreditDowngradeRecords.filter(r => r.amount === amt).length;
+    alipayNoCreditDowngradeByAmount[amt] = alipayNoCreditDowngradeRecords.filter(r => Math.round(r.amount) === amt).length;
   });
   // 其他金額
-  alipayNoCreditDowngradeByAmount['other'] = alipayNoCreditDowngradeRecords.filter(r => !amountRanges.includes(r.amount)).length;
+  alipayNoCreditDowngradeByAmount['other'] = alipayNoCreditDowngradeRecords.filter(r => !amountRanges.includes(Math.round(r.amount))).length;
 
   // 支付寶 - 平均時間：receivedAmount > 0
   const alipayNoCreditDowngradeForAvgTime = alipayRecords.filter(r =>
@@ -713,8 +765,51 @@ export const calculateMetrics = (records) => {
 
   const alipayC2cOver11MinSuccessCount = alipayC2cOver11MinBuDanCount + alipayC2cMerchantConfirmCount;
 
+  // ===== 支付寶 - 三方代收（一般卡訂單成功）=====
+  // 條件：bankCardCode 非 gb/auction 開頭（不區分大小寫），或是特定三方代收代碼
+  // 充值成功：receivedAmount > 0
+  const alipayThirdPartyRecords = alipayRecords.filter(r => {
+    if (!r.bankCardCode || r.receivedAmount <= 0) return false;
+    const code = r.bankCardCode.toLowerCase();
+    // 排除 gb 和 auction 開頭，但 GB-DahaomenJFB 是三方代收要保留
+    if (r.bankCardCode === 'GB-DahaomenJFB') return true;
+    if (code.startsWith('gb') || code.startsWith('auction')) return false;
+    return true;
+  });
+  const alipayThirdPartyCount = alipayThirdPartyRecords.length;
+  const alipayThirdPartyAmount = alipayThirdPartyRecords.reduce((sum, r) => sum + r.receivedAmount, 0);
+
+  // 各三方代收明細
+  // GB-DahaomenJFB
+  const alipayThirdPartyDahaomenRecords = alipayRecords.filter(r =>
+    r.bankCardCode === 'GB-DahaomenJFB' && r.receivedAmount > 0
+  );
+  const alipayThirdPartyDahaomenCount = alipayThirdPartyDahaomenRecords.length;
+  const alipayThirdPartyDahaomenAmount = alipayThirdPartyDahaomenRecords.reduce((sum, r) => sum + r.receivedAmount, 0);
+
+  // 汇通 = HTc2cdeposit
+  const alipayThirdPartyHuitongRecords = alipayRecords.filter(r =>
+    r.bankCardCode === 'HTc2cdeposit' && r.receivedAmount > 0
+  );
+  const alipayThirdPartyHuitongCount = alipayThirdPartyHuitongRecords.length;
+  const alipayThirdPartyHuitongAmount = alipayThirdPartyHuitongRecords.reduce((sum, r) => sum + r.receivedAmount, 0);
+
+  // 豆豆 = DDFdeposit
+  const alipayThirdPartyDoudouRecords = alipayRecords.filter(r =>
+    r.bankCardCode === 'DDFdeposit' && r.receivedAmount > 0
+  );
+  const alipayThirdPartyDoudouCount = alipayThirdPartyDoudouRecords.length;
+  const alipayThirdPartyDoudouAmount = alipayThirdPartyDoudouRecords.reduce((sum, r) => sum + r.receivedAmount, 0);
+
+  // UC聚合 = UC1020
+  const alipayThirdPartyUCRecords = alipayRecords.filter(r =>
+    r.bankCardCode === 'UC1020' && r.receivedAmount > 0
+  );
+  const alipayThirdPartyUCCount = alipayThirdPartyUCRecords.length;
+  const alipayThirdPartyUCAmount = alipayThirdPartyUCRecords.reduce((sum, r) => sum + r.receivedAmount, 0);
+
   // ===== 支付寶 - 宝转卡渠道，配支付宝提现 =====
-  // 條件：merchant包含"转卡", bankCardCode=AUCTION_PAYMENT_CARD, bankName=支付宝
+  // 申请：merchant包含"转卡", bankCardCode=AUCTION_PAYMENT_CARD, bankName=支付宝
   const alipayBaoZhuanKaRecords = alipayRecords.filter(r =>
     r.merchant && r.merchant.includes('转卡') &&
     r.bankCardCode === 'AUCTION_PAYMENT_CARD' &&
@@ -723,8 +818,18 @@ export const calculateMetrics = (records) => {
   const alipayBaoZhuanKaCount = alipayBaoZhuanKaRecords.length;
   const alipayBaoZhuanKaAmount = alipayBaoZhuanKaRecords.reduce((sum, r) => sum + r.amount, 0);
 
+  // 成功：merchant包含"转卡", bankCardCode=AUCTION_PAYMENT_CARD, bankName=支付宝, receivedAmount<>0
+  const alipayBaoZhuanKaSuccessRecords = alipayRecords.filter(r =>
+    r.merchant && r.merchant.includes('转卡') &&
+    r.bankCardCode === 'AUCTION_PAYMENT_CARD' &&
+    r.bankName === '支付宝' &&
+    r.receivedAmount !== 0
+  );
+  const alipayBaoZhuanKaSuccessCount = alipayBaoZhuanKaSuccessRecords.length;
+  const alipayBaoZhuanKaSuccessAmount = alipayBaoZhuanKaSuccessRecords.reduce((sum, r) => sum + r.receivedAmount, 0);
+
   // ===== 支付寶 - 宝转宝渠道，配银行卡提现 =====
-  // 條件：merchant包含"宝)", bankCardCode=AUCTION_PAYMENT_CARD, bankName≠支付宝
+  // 申请：merchant包含"宝)", bankCardCode=AUCTION_PAYMENT_CARD, bankName≠支付宝
   const alipayBaoZhuanBaoRecords = alipayRecords.filter(r =>
     r.merchant && r.merchant.includes('宝)') &&
     r.bankCardCode === 'AUCTION_PAYMENT_CARD' &&
@@ -732,6 +837,16 @@ export const calculateMetrics = (records) => {
   );
   const alipayBaoZhuanBaoCount = alipayBaoZhuanBaoRecords.length;
   const alipayBaoZhuanBaoAmount = alipayBaoZhuanBaoRecords.reduce((sum, r) => sum + r.amount, 0);
+
+  // 成功：merchant包含"宝)", bankCardCode=AUCTION_PAYMENT_CARD, bankName≠支付宝, receivedAmount<>0
+  const alipayBaoZhuanBaoSuccessRecords = alipayRecords.filter(r =>
+    r.merchant && r.merchant.includes('宝)') &&
+    r.bankCardCode === 'AUCTION_PAYMENT_CARD' &&
+    r.bankName !== '支付宝' &&
+    r.receivedAmount !== 0
+  );
+  const alipayBaoZhuanBaoSuccessCount = alipayBaoZhuanBaoSuccessRecords.length;
+  const alipayBaoZhuanBaoSuccessAmount = alipayBaoZhuanBaoSuccessRecords.reduce((sum, r) => sum + r.receivedAmount, 0);
 
   // ===== 微信商戶數據 =====
   const wechatRecords = records.filter(r => {
@@ -801,6 +916,14 @@ export const calculateMetrics = (records) => {
   );
   const wechatNoCreditDowngradeTotal = wechatNoCreditDowngradeRecords.length;
 
+  // 微信 - 没信评降等配卡 依據金額區間計算筆數
+  const wechatNoCreditDowngradeByAmount = {};
+  amountRanges.forEach(amt => {
+    wechatNoCreditDowngradeByAmount[amt] = wechatNoCreditDowngradeRecords.filter(r => Math.round(r.amount) === amt).length;
+  });
+  // 其他金額
+  wechatNoCreditDowngradeByAmount['other'] = wechatNoCreditDowngradeRecords.filter(r => !amountRanges.includes(Math.round(r.amount))).length;
+
   // 微信 - 平均時間
   const wechatNoCreditDowngradeForAvgTime = wechatRecords.filter(r =>
     r.userLevel !== '0' &&
@@ -829,6 +952,33 @@ export const calculateMetrics = (records) => {
   );
   const cnxSuccessCount = cnxSuccessRecords.length;
   const cnxSuccessAmount = cnxSuccessRecords.reduce((sum, r) => sum + r.amount, 0);
+
+  // ===== JS充值等待最终无配对 =====
+  // 公式：（銀行卡的充值申請筆數中的極速提＋建单成功等待无配对＋取无卡06提示）＋（支付寶的充值申請筆數中的建单成功等待无配对＋取无卡06提示）
+  // 銀行卡部分
+  const bankCardJsWaitingNoMatch = jisuRecords.filter(r =>
+    r.status && (
+      r.status.includes('極速提') ||
+      r.status.includes('极速提') ||
+      r.status.includes('建单成功等待无配对') ||
+      r.status.includes('建單成功等待無配對') ||
+      r.status.includes('取无卡06提示') ||
+      r.status.includes('取無卡06提示')
+    )
+  ).length;
+
+  // 支付寶部分
+  const alipayJsWaitingNoMatch = alipayRecords.filter(r =>
+    r.status && (
+      r.status.includes('建单成功等待无配对') ||
+      r.status.includes('建單成功等待無配對') ||
+      r.status.includes('取无卡06提示') ||
+      r.status.includes('取無卡06提示')
+    )
+  ).length;
+
+  // 總計
+  const jsWaitingNoMatch = bankCardJsWaitingNoMatch + alipayJsWaitingNoMatch;
 
   return {
     // 全部-重要信息指標
@@ -919,6 +1069,17 @@ export const calculateMetrics = (records) => {
     c2cManualAuditCount,
     c2cAuditSuccessAvgTime,
     c2cOver11MinSuccessCount,
+    // 6. 三方代收（銀行卡）
+    thirdPartyCount,
+    thirdPartyAmount,
+    thirdPartyDahaomenCount,
+    thirdPartyDahaomenAmount,
+    thirdPartyHuitongCount,
+    thirdPartyHuitongAmount,
+    thirdPartyDoudouCount,
+    thirdPartyDoudouAmount,
+    thirdPartyUCCount,
+    thirdPartyUCAmount,
     // 支付寶商戶
     alipayApplicationCount,
     alipayNormalCardAppCount: alipayNormalCardForApp.length,
@@ -958,11 +1119,26 @@ export const calculateMetrics = (records) => {
     alipayC2cManualAuditCount,
     alipayC2cAuditSuccessAvgTime,
     alipayC2cOver11MinSuccessCount,
+    // 支付寶 - 三方代收
+    alipayThirdPartyCount,
+    alipayThirdPartyAmount,
+    alipayThirdPartyDahaomenCount,
+    alipayThirdPartyDahaomenAmount,
+    alipayThirdPartyHuitongCount,
+    alipayThirdPartyHuitongAmount,
+    alipayThirdPartyDoudouCount,
+    alipayThirdPartyDoudouAmount,
+    alipayThirdPartyUCCount,
+    alipayThirdPartyUCAmount,
     // 支付寶 - 宝转卡/宝转宝
     alipayBaoZhuanKaCount,
     alipayBaoZhuanKaAmount,
+    alipayBaoZhuanKaSuccessCount,
+    alipayBaoZhuanKaSuccessAmount,
     alipayBaoZhuanBaoCount,
     alipayBaoZhuanBaoAmount,
+    alipayBaoZhuanBaoSuccessCount,
+    alipayBaoZhuanBaoSuccessAmount,
     // 微信商戶
     wechatApplicationCount,
     wechatNormalCardAppCount: wechatNormalCardForApp.length,
@@ -983,6 +1159,7 @@ export const calculateMetrics = (records) => {
     wechatTotalOrderSuccessCount,
     wechatTotalOrderSuccessAmount,
     wechatNoCreditDowngradeTotal,
+    wechatNoCreditDowngradeByAmount,
     wechatNoCreditDowngradeAvgTime,
 
     // 6. 商業平台
@@ -997,7 +1174,12 @@ export const calculateMetrics = (records) => {
     autoSuccessCount: successRecords.length,
     dropOrderCount: buDanRecords.length,
     dropOrderRatio: totalApplicationCount > 0 ? (buDanRecords.length / totalApplicationCount) * 100 : 0,
-    successRate: totalBase > 0 ? (successRecords.length / totalBase) * 100 : 0
+    successRate: totalBase > 0 ? (successRecords.length / totalBase) * 100 : 0,
+
+    // JS充值等待最终无配对
+    jsWaitingNoMatch,
+    bankCardJsWaitingNoMatch,
+    alipayJsWaitingNoMatch
   };
 };
 
@@ -1078,7 +1260,8 @@ export const parseWithdrawCSV = (content) => {
       payoutBank: matches[25] ? clean(matches[25]) : '',
       payoutAccount: matches[26] ? clean(matches[26]) : '',
       payoutAmount: matches[27] ? parseFloat(clean(matches[27]).replace(/,/g, '')) || 0 : 0,
-      transferStatus: matches[28] ? clean(matches[28]) : '' // AC 欄位 - 轉帳狀態 (轉帳完成/轉帳失敗)
+      remark: matches[28] ? clean(matches[28]) : '', // AC 欄位
+      transferStatus: matches[29] ? clean(matches[29]) : '' // AD 欄位 - 轉帳狀態 (轉帳完成/轉帳失敗)
     };
 
     // 從商戶名稱計算 remark (银行卡/支付宝/微信)
@@ -1091,32 +1274,35 @@ export const parseWithdrawCSV = (content) => {
       record.remark = '银行卡';
     }
 
-    // 計算處理時間 (AF欄位公式)：IF(V為空, Q - T, Q - V)
+    // 計算處理時間 (AE公式)：IF(V="", Q - T, Q - V)
     // V = remainPoolCreateTime, Q = notifyMerchantTime, T = requestTime
-    if (record.notifyMerchantTime && !record.notifyMerchantTime.includes('0000')) {
-      const notifyTime = new Date(record.notifyMerchantTime);
-      let startTime;
+    record.avgTimeSeconds = null;
 
-      if (!record.remainPoolCreateTime || record.remainPoolCreateTime === '' || record.remainPoolCreateTime.includes('0000')) {
-        // V為空，使用 Q - T
-        if (record.requestTime && !record.requestTime.includes('0000')) {
+    // 檢查 V 是否為空（包括空字串和無效日期）
+    const vIsEmpty = !record.remainPoolCreateTime ||
+                     record.remainPoolCreateTime === '' ||
+                     record.remainPoolCreateTime.startsWith('0000');
+
+    if (record.notifyMerchantTime && record.notifyMerchantTime !== '' && !record.notifyMerchantTime.startsWith('0000')) {
+      const notifyTime = new Date(record.notifyMerchantTime);
+      let startTime = null;
+
+      if (vIsEmpty) {
+        // V 為空，使用 Q - T
+        if (record.requestTime && record.requestTime !== '' && !record.requestTime.startsWith('0000')) {
           startTime = new Date(record.requestTime);
         }
       } else {
-        // V不為空，使用 Q - V
+        // V 不為空，使用 Q - V
         startTime = new Date(record.remainPoolCreateTime);
       }
 
-      if (startTime) {
+      if (startTime && !isNaN(notifyTime) && !isNaN(startTime)) {
         record.avgTimeSeconds = (notifyTime - startTime) / 1000; // 轉換為秒
         if (record.avgTimeSeconds < 0 || record.avgTimeSeconds > 86400) {
           record.avgTimeSeconds = null;
         }
-      } else {
-        record.avgTimeSeconds = null;
       }
-    } else {
-      record.avgTimeSeconds = null;
     }
 
     // 過濾掉商戶名稱包含「线下」、「test」、「qa」的記錄
@@ -1133,6 +1319,326 @@ export const parseWithdrawCSV = (content) => {
   return records;
 };
 
+// ===== 匯出功能 =====
+import * as XLSX from 'xlsx';
+
+// 匯出充值數據到 Excel
+export const exportDepositToExcel = (metrics, filteredRecords) => {
+  const wb = XLSX.utils.book_new();
+
+  // 工作表1: 重要信息 + 處理時間分布 + 充值成功時間區段 (整合)
+  const overviewData = [
+    ['=== 重要信息 ===', '', ''],
+    ['項目', '數值', '說明'],
+    ['總申請筆數', metrics.totalApplicationCount || 0, '銀行卡+支付寶+微信 成功配對'],
+    ['總充值成功（含掉單）', metrics.successfulCount || 0, '筆'],
+    ['成功率', `${(metrics.overallSuccessRate || 0).toFixed(2)}%`, ''],
+    ['總申請金額', metrics.totalApplicationAmount || 0, '元'],
+    ['平均處理時間', formatTime(metrics.overallAvgTime), ''],
+    ['無效申請', metrics.invalidApplicationCount || 0, `${(metrics.invalidApplicationRatio || 0).toFixed(2)}%`],
+    ['掉單筆數', metrics.overallDropOrderCount || 0, `${(metrics.overallDropOrderRatio || 0).toFixed(2)}%`],
+    ['', '', ''],
+    ['=== 處理時間分布 ===', '', ''],
+    ['時間區段', '筆數', '百分比'],
+    ['2分鐘內', metrics.within2MinCount || 0, `${(metrics.within2MinRatio || 0).toFixed(2)}%`],
+    ['3-5分鐘', metrics.within3to5MinCount || 0, `${(metrics.within3to5MinRatio || 0).toFixed(2)}%`],
+    ['5-15分鐘', metrics.within5to15MinCount || 0, `${(metrics.within5to15MinRatio || 0).toFixed(2)}%`],
+    ['15-30分鐘', metrics.within15to30MinCount || 0, `${(metrics.within15to30MinRatio || 0).toFixed(2)}%`],
+    ['30分鐘以上', metrics.over30MinCount || 0, `${(metrics.over30MinRatio || 0).toFixed(2)}%`],
+    ['', '', ''],
+    ['=== 充值成功時間區段 ===', '', ''],
+    ['項目', '筆數/百分比', '金額'],
+    ['總充值成功（含掉單）', metrics.minuteAnalysisTotalCount || 0, `${formatAmount(metrics.minuteAnalysisTotalAmount || 0)} 元`],
+    ['2分鐘內', `${metrics.minuteWithin2MinCount || 0} (${(metrics.minuteWithin2MinRatio || 0).toFixed(2)}%)`, `${formatAmount(metrics.minuteWithin2MinAmount || 0)} 元`],
+    ['2-3分鐘', `${metrics.minuteWithin2to3MinCount || 0} (${(metrics.minuteWithin2to3MinRatio || 0).toFixed(2)}%)`, `${formatAmount(metrics.minuteWithin2to3MinAmount || 0)} 元`],
+    ['3-5分鐘', `${metrics.minuteWithin3to5MinCount || 0} (${(metrics.minuteWithin3to5MinRatio || 0).toFixed(2)}%)`, `${formatAmount(metrics.minuteWithin3to5MinAmount || 0)} 元`],
+    ['5-15分鐘', `${metrics.minuteWithin5to15MinCount || 0} (${(metrics.minuteWithin5to15MinRatio || 0).toFixed(2)}%)`, `${formatAmount(metrics.minuteWithin5to15MinAmount || 0)} 元`],
+    ['15-30分鐘', `${metrics.minuteWithin15to30MinCount || 0} (${(metrics.minuteWithin15to30MinRatio || 0).toFixed(2)}%)`, `${formatAmount(metrics.minuteWithin15to30MinAmount || 0)} 元`],
+    ['30分鐘以上', `${metrics.minuteOver30MinCount || 0} (${(metrics.minuteOver30MinRatio || 0).toFixed(2)}%)`, `${formatAmount(metrics.minuteOver30MinAmount || 0)} 元`],
+    ['', '', ''],
+    ['無效申請', metrics.minuteInvalidCount || 0, `${(metrics.minuteInvalidRatio || 0).toFixed(2)}%`],
+    ['掉單', metrics.minuteDropCount || 0, `${(metrics.minuteDropRatio || 0).toFixed(2)}%`],
+    ['平均時間', formatTime(metrics.minuteAvgTime), ''],
+  ];
+  const ws1 = XLSX.utils.aoa_to_sheet(overviewData);
+  XLSX.utils.book_append_sheet(wb, ws1, '總覽');
+
+  // 銀行卡金額區間（與頁面一致）
+  const amountRanges = [100, 200, 300, 500, 1000, 1500, 2000, 3000, 5000, 6000, 7000, 8000, 9000, 10000, 15000, 20000, 30000];
+  const noCreditByAmount = metrics.noCreditDowngradeByAmount || {};
+
+  // 工作表2: 銀行卡渠道
+  const bankCardChannel = [
+    ['項目', '筆數', '金額'],
+    ['充值申請筆數', metrics.jisuApplicationCount || 0, ''],
+    ['  一般卡', metrics.normalCardAppCount || 0, ''],
+    ['  極速提', metrics.expressCardAppCount || 0, ''],
+    ['', '', ''],
+    ['成功配對', metrics.totalMatchCount || 0, `${formatAmount(metrics.totalMatchAmount || 0)} 元`],
+    ['  一般卡', metrics.normalMatchCount || 0, `${formatAmount(metrics.normalMatchAmount || 0)} 元`],
+    ['  極速提', metrics.expressMatchCount || 0, `${formatAmount(metrics.expressMatchAmount || 0)} 元`],
+    ['', '', ''],
+    ['訂單成功', metrics.totalOrderSuccessCount || 0, `${formatAmount(metrics.totalOrderSuccessAmount || 0)} 元`],
+    ['  一般卡', metrics.normalOrderSuccessCount || 0, `${formatAmount(metrics.normalOrderSuccessAmount || 0)} 元`],
+    ['  極速提', metrics.expressOrderSuccessCount || 0, `${formatAmount(metrics.expressOrderSuccessAmount || 0)} 元`],
+    ['  信評上分', metrics.creditScoreSuccessCount || 0, `${formatAmount(metrics.creditScoreSuccessAmount || 0)} 元`],
+    ['', '', ''],
+    ['没信评降等配卡', metrics.noCreditDowngradeTotal || 0, formatTime(metrics.noCreditDowngradeAvgTime)],
+    ...amountRanges.map(amt => [`  ${amt.toLocaleString()}元`, noCreditByAmount[amt] || 0, '']),
+    [`  其他`, noCreditByAmount['other'] || 0, ''],
+    ['', '', ''],
+    ['c2c', metrics.c2cCount || 0, `${formatAmount(metrics.c2cAmount || 0)} 元`],
+    ['  點確認', metrics.c2cConfirmCount || 0, formatTime(metrics.c2cConfirmAvgTime)],
+    ['  人工審核:通過', metrics.c2cManualAuditCount || 0, formatTime(metrics.c2cAuditSuccessAvgTime)],
+    ['  超過11min補件後成功', metrics.c2cOver11MinSuccessCount || 0, ''],
+    ['', '', ''],
+    ['三方代收', metrics.thirdPartyCount || 0, `${formatAmount(metrics.thirdPartyAmount || 0)} 元`],
+    ['  GB-DahaomenJFB', metrics.thirdPartyDahaomenCount || 0, `${formatAmount(metrics.thirdPartyDahaomenAmount || 0)} 元`],
+    ['  汇通', metrics.thirdPartyHuitongCount || 0, `${formatAmount(metrics.thirdPartyHuitongAmount || 0)} 元`],
+    ['  豆豆', metrics.thirdPartyDoudouCount || 0, `${formatAmount(metrics.thirdPartyDoudouAmount || 0)} 元`],
+    ['  UC聚合', metrics.thirdPartyUCCount || 0, `${formatAmount(metrics.thirdPartyUCAmount || 0)} 元`],
+  ];
+  const ws2 = XLSX.utils.aoa_to_sheet(bankCardChannel);
+  XLSX.utils.book_append_sheet(wb, ws2, '銀行卡渠道');
+
+  // 支付寶金額區間（與頁面一致）
+  const alipayNoCreditByAmount = metrics.alipayNoCreditDowngradeByAmount || {};
+
+  // 工作表3: 支付寶渠道
+  const alipayChannel = [
+    ['項目', '筆數', '金額'],
+    ['充值申請筆數', metrics.alipayApplicationCount || 0, ''],
+    ['  一般卡', metrics.alipayNormalCardAppCount || 0, ''],
+    ['  一般寶', metrics.alipayExpressCardAppCount || 0, ''],
+    ['  極速提(卡)', metrics.alipayJisuTikaCount || 0, ''],
+    ['  極速提(寶)', metrics.alipayJisuTibaoCount || 0, ''],
+    ['', '', ''],
+    ['成功配對', metrics.alipayTotalMatchCount || 0, `${formatAmount(metrics.alipayTotalMatchAmount || 0)} 元`],
+    ['', '', ''],
+    ['訂單成功', metrics.alipayTotalOrderSuccessCount || 0, `${formatAmount(metrics.alipayTotalOrderSuccessAmount || 0)} 元`],
+    ['  一般卡', metrics.alipayNormalOrderSuccessCount || 0, `${formatAmount(metrics.alipayNormalOrderSuccessAmount || 0)} 元`],
+    ['  一般寶', metrics.alipayBaoOrderSuccessCount || 0, `${formatAmount(metrics.alipayBaoOrderSuccessAmount || 0)} 元`],
+    ['  極速提(卡)', metrics.alipayJisuTikaOrderSuccessCount || 0, `${formatAmount(metrics.alipayJisuTikaOrderSuccessAmount || 0)} 元`],
+    ['  極速提(寶)', metrics.alipayJisuTibaoOrderSuccessCount || 0, `${formatAmount(metrics.alipayJisuTibaoOrderSuccessAmount || 0)} 元`],
+    ['  信評上分', metrics.alipayCreditScoreSuccessCount || 0, `${formatAmount(metrics.alipayCreditScoreSuccessAmount || 0)} 元`],
+    ['', '', ''],
+    ['没信评降等配卡', metrics.alipayNoCreditDowngradeTotal || 0, formatTime(metrics.alipayNoCreditDowngradeAvgTime)],
+    ...amountRanges.map(amt => [`  ${amt.toLocaleString()}元`, alipayNoCreditByAmount[amt] || 0, '']),
+    [`  其他`, alipayNoCreditByAmount['other'] || 0, ''],
+    ['', '', ''],
+    ['c2c', metrics.alipayC2cCount || 0, `${formatAmount(metrics.alipayC2cAmount || 0)} 元`],
+    ['', '', ''],
+    ['三方代收', metrics.alipayThirdPartyCount || 0, `${formatAmount(metrics.alipayThirdPartyAmount || 0)} 元`],
+    ['', '', ''],
+    ['宝转卡渠道 申请', metrics.alipayBaoZhuanKaCount || 0, `${formatAmount(metrics.alipayBaoZhuanKaAmount || 0)} 元`],
+    ['宝转卡渠道 成功', metrics.alipayBaoZhuanKaSuccessCount || 0, `${formatAmount(metrics.alipayBaoZhuanKaSuccessAmount || 0)} 元`],
+    ['宝转宝渠道 申请', metrics.alipayBaoZhuanBaoCount || 0, `${formatAmount(metrics.alipayBaoZhuanBaoAmount || 0)} 元`],
+    ['宝转宝渠道 成功', metrics.alipayBaoZhuanBaoSuccessCount || 0, `${formatAmount(metrics.alipayBaoZhuanBaoSuccessAmount || 0)} 元`],
+  ];
+  const ws3 = XLSX.utils.aoa_to_sheet(alipayChannel);
+  XLSX.utils.book_append_sheet(wb, ws3, '支付寶渠道');
+
+  // 微信金額區間（與頁面一致）
+  const wechatNoCreditByAmount = metrics.wechatNoCreditDowngradeByAmount || {};
+
+  // 工作表4: 微信渠道
+  const wechatChannel = [
+    ['項目', '筆數', '金額'],
+    ['充值申請筆數', metrics.wechatApplicationCount || 0, ''],
+    ['  一般卡', metrics.wechatNormalCardAppCount || 0, ''],
+    ['  極速', metrics.wechatExpressCardAppCount || 0, ''],
+    ['', '', ''],
+    ['成功配對', metrics.wechatTotalMatchCount || 0, `${formatAmount(metrics.wechatTotalMatchAmount || 0)} 元`],
+    ['', '', ''],
+    ['訂單成功', metrics.wechatTotalOrderSuccessCount || 0, `${formatAmount(metrics.wechatTotalOrderSuccessAmount || 0)} 元`],
+    ['  一般卡', metrics.wechatNormalOrderSuccessCount || 0, `${formatAmount(metrics.wechatNormalOrderSuccessAmount || 0)} 元`],
+    ['  極速', metrics.wechatExpressOrderSuccessCount || 0, `${formatAmount(metrics.wechatExpressOrderSuccessAmount || 0)} 元`],
+    ['  信評上分', metrics.wechatCreditScoreSuccessCount || 0, `${formatAmount(metrics.wechatCreditScoreSuccessAmount || 0)} 元`],
+    ['', '', ''],
+    ['没信评降等配卡', metrics.wechatNoCreditDowngradeTotal || 0, formatTime(metrics.wechatNoCreditDowngradeAvgTime)],
+    ...amountRanges.map(amt => [`  ${amt.toLocaleString()}元`, wechatNoCreditByAmount[amt] || 0, '']),
+    [`  其他`, wechatNoCreditByAmount['other'] || 0, ''],
+  ];
+  const ws4 = XLSX.utils.aoa_to_sheet(wechatChannel);
+  XLSX.utils.book_append_sheet(wb, ws4, '微信渠道');
+
+  // 下載檔案
+  const now = new Date();
+  const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+  XLSX.writeFile(wb, `充值報表_${dateStr}.xlsx`);
+};
+
+// 匯出提現數據到 Excel
+export const exportWithdrawToExcel = (metrics) => {
+  const wb = XLSX.utils.book_new();
+
+  // 工作表1: 提現總覽
+  const overview = [
+    ['項目', '數值'],
+    ['總提現筆數', metrics.totalWithdrawCount || 0],
+    ['總提現金額', `${formatAmount(metrics.totalWithdrawAmount || 0)} 元`],
+    ['平均處理時間', formatTime(metrics.avgProcessingTime)],
+    ['總記錄數', metrics.totalRecords || 0],
+  ];
+  const ws1 = XLSX.utils.aoa_to_sheet(overview);
+  XLSX.utils.book_append_sheet(wb, ws1, '提現總覽');
+
+  // 工作表2: 銀行卡渠道
+  const bankCardWithdraw = [
+    ['項目', '數值'],
+    ['提現申請', `${metrics.bankCardWithdrawCount || 0} 筆 / ${formatAmount(metrics.bankCardWithdrawAmount || 0)} 元`],
+    ['充值配對率', `${((metrics.bankCardMatchRate || 0) * 100).toFixed(2)}%`],
+    ['  充值申請', `${metrics.bankCardDepositAppCount || 0} 筆`],
+    ['  成功配對', `${metrics.bankCardDepositMatchCount || 0} 筆`],
+    ['配對後成功率', `${((metrics.bankCardSuccessAfterMatchRate || 0) * 100).toFixed(2)}%`],
+    ['  充值成功筆數', `${metrics.bankCardDepositSuccessCount || 0} 筆`],
+    ['平均時間', formatTime(metrics.bankCardAvgTime)],
+  ];
+  const ws2 = XLSX.utils.aoa_to_sheet(bankCardWithdraw);
+  XLSX.utils.book_append_sheet(wb, ws2, '銀行卡提現');
+
+  // 工作表3: 支付寶渠道
+  const alipayWithdraw = [
+    ['項目', '數值'],
+    ['提現申請', `${metrics.alipayWithdrawCount || 0} 筆 / ${formatAmount(metrics.alipayWithdrawAmount || 0)} 元`],
+    ['充值配對率', `${((metrics.alipayMatchRate || 0) * 100).toFixed(2)}%`],
+    ['  充值申請', `${metrics.alipayDepositAppCount || 0} 筆`],
+    ['  成功配對', `${metrics.alipayDepositMatchCount || 0} 筆`],
+    ['配對後成功率', `${((metrics.alipaySuccessAfterMatchRate || 0) * 100).toFixed(2)}%`],
+    ['  充值成功筆數', `${metrics.alipayDepositSuccessCount || 0} 筆`],
+    ['平均時間', formatTime(metrics.alipayAvgTime)],
+  ];
+  const ws3 = XLSX.utils.aoa_to_sheet(alipayWithdraw);
+  XLSX.utils.book_append_sheet(wb, ws3, '支付寶提現');
+
+  // 工作表4: 微信渠道
+  const wechatWithdraw = [
+    ['項目', '數值'],
+    ['提現申請', `${metrics.wechatWithdrawCount || 0} 筆 / ${formatAmount(metrics.wechatWithdrawAmount || 0)} 元`],
+    ['充值配對率', `${((metrics.wechatMatchRate || 0) * 100).toFixed(2)}%`],
+    ['  充值申請', `${metrics.wechatDepositAppCount || 0} 筆`],
+    ['  成功配對', `${metrics.wechatDepositMatchCount || 0} 筆`],
+    ['配對後成功率', `${((metrics.wechatSuccessAfterMatchRate || 0) * 100).toFixed(2)}%`],
+    ['  充值成功筆數', `${metrics.wechatDepositSuccessCount || 0} 筆`],
+    ['平均時間', formatTime(metrics.wechatAvgTime)],
+  ];
+  const ws4 = XLSX.utils.aoa_to_sheet(wechatWithdraw);
+  XLSX.utils.book_append_sheet(wb, ws4, '微信提現');
+
+  // 工作表5: 狀態分佈
+  if (metrics.statusDistribution) {
+    const statusData = [['狀態', '筆數']];
+    Object.entries(metrics.statusDistribution).forEach(([status, count]) => {
+      statusData.push([status, count]);
+    });
+    const ws5 = XLSX.utils.aoa_to_sheet(statusData);
+    XLSX.utils.book_append_sheet(wb, ws5, '狀態分佈');
+  }
+
+  // 下載檔案
+  const now = new Date();
+  const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+  XLSX.writeFile(wb, `提現報表_${dateStr}.xlsx`);
+};
+
+// 匯出週報數據到 Excel
+export const exportWeeklyToExcel = (weeklyMetrics, analysisMetrics, weekRange) => {
+  const wb = XLSX.utils.book_new();
+
+  // 工作表1: 充值申請
+  const depositApplication = [
+    ['項目', '筆數', '明細'],
+    ['充值申請', weeklyMetrics.depositApplicationCount || 0, ''],
+    ['  銀行卡', '', ''],
+    ['  支付寶', '', ''],
+    ['', '', ''],
+    ['JS充值等待最終無配對', weeklyMetrics.jsWaitingNoMatch || 0, ''],
+    ['', '', ''],
+    ['充值配對(配一般卡)', weeklyMetrics.matchNormalCard || 0, ''],
+    ['  銀行卡成功配對一般卡', weeklyMetrics.matchNormalCardBankCard || 0, ''],
+    ['  支付寶成功配對一般卡', weeklyMetrics.matchNormalCardAlipay || 0, ''],
+    ['  一般寶', weeklyMetrics.matchNormalCardBao || 0, ''],
+    ['', '', ''],
+    ['充值配對(配JS)', weeklyMetrics.matchJS || 0, ''],
+    ['  銀行卡極速提', weeklyMetrics.matchJSBankCard || 0, ''],
+    ['  支付寶極速提(卡)', weeklyMetrics.matchJSAlipayKa || 0, ''],
+    ['  支付寶極速提(寶)', weeklyMetrics.matchJSAlipayBao || 0, ''],
+    ['', '', ''],
+    ['充值配對(配一般提)', weeklyMetrics.matchNormalWithdraw || 0, ''],
+  ];
+  const ws1 = XLSX.utils.aoa_to_sheet(depositApplication);
+  XLSX.utils.book_append_sheet(wb, ws1, '充值申請');
+
+  // 工作表2: 訂單成功
+  const orderSuccess = [
+    ['項目', '筆數', '金額'],
+    ['訂單成功(加總筆數)', weeklyMetrics.orderSuccessTotal || 0, `${formatAmount(weeklyMetrics.orderSuccessAmountTotal || 0)} 元`],
+    ['', '', ''],
+    ['訂單成功(一般卡)', weeklyMetrics.orderSuccessNormalCard || 0, `${formatAmount(weeklyMetrics.orderSuccessAmountNormalCard || 0)} 元`],
+    ['  銀行卡訂單成功一般卡', weeklyMetrics.orderSuccessNormalCardBankCard || 0, `${formatAmount(weeklyMetrics.orderSuccessAmountNormalCardBankCard || 0)} 元`],
+    ['  支付寶訂單成功一般卡', weeklyMetrics.orderSuccessNormalCardAlipay || 0, `${formatAmount(weeklyMetrics.orderSuccessAmountNormalCardAlipay || 0)} 元`],
+    ['  一般寶', weeklyMetrics.orderSuccessNormalCardBao || 0, `${formatAmount(weeklyMetrics.orderSuccessAmountNormalCardBao || 0)} 元`],
+    ['', '', ''],
+    ['訂單成功(Js+一般提)', weeklyMetrics.orderSuccessJS || 0, `${formatAmount(weeklyMetrics.orderSuccessAmountJS || 0)} 元`],
+    ['  銀行卡極速提', weeklyMetrics.orderSuccessJSBankCard || 0, `${formatAmount(weeklyMetrics.orderSuccessAmountJSBankCard || 0)} 元`],
+    ['  支付寶極速提(卡)', weeklyMetrics.orderSuccessJSAlipayKa || 0, `${formatAmount(weeklyMetrics.orderSuccessAmountJSAlipayKa || 0)} 元`],
+    ['  支付寶極速提(寶)', weeklyMetrics.orderSuccessJSAlipayBao || 0, `${formatAmount(weeklyMetrics.orderSuccessAmountJSAlipayBao || 0)} 元`],
+  ];
+  const ws2 = XLSX.utils.aoa_to_sheet(orderSuccess);
+  XLSX.utils.book_append_sheet(wb, ws2, '訂單成功');
+
+  // 工作表3: 平均時間與騙分
+  const avgTimeAndFraud = [
+    ['項目', '數值'],
+    ['提現平均時間（卡）', formatTime(weeklyMetrics.withdrawAvgTimeBankCard)],
+    ['提現平均時間（寶）', formatTime(weeklyMetrics.withdrawAvgTimeAlipay)],
+    ['', ''],
+    ['騙分', `${formatAmount(weeklyMetrics.fraudAmount || 0)} 元`],
+    ['  銀行卡騙分沒到帳來找(人工)', `${formatAmount(weeklyMetrics.fraudBankCardManual || 0)} 元`],
+    ['  銀行卡騙分沒到帳來找(信評)', `${formatAmount(weeklyMetrics.fraudBankCardCredit || 0)} 元`],
+    ['  支付寶騙分沒到帳來找(人工)', `${formatAmount(weeklyMetrics.fraudAlipayManual || 0)} 元`],
+    ['  支付寶騙分沒到帳來找(信評)', `${formatAmount(weeklyMetrics.fraudAlipayCredit || 0)} 元`],
+    ['騙分成本占比', `${((weeklyMetrics.fraudCostRatio || 0) * 100).toFixed(2)}%`],
+    ['JS提現返利', `${formatAmount(weeklyMetrics.jsWithdrawRebate || 0)} 元`],
+  ];
+  const ws3 = XLSX.utils.aoa_to_sheet(avgTimeAndFraud);
+  XLSX.utils.book_append_sheet(wb, ws3, '平均時間與騙分');
+
+  // 工作表4: 配對率與空單率
+  const matchRates = [
+    ['項目', '數值'],
+    ['充值配對率', `${((weeklyMetrics.depositMatchRate || 0) * 100).toFixed(2)}%`],
+    ['充提配對率', `${((weeklyMetrics.depositWithdrawMatchRate || 0) * 100).toFixed(2)}%`],
+    ['配對後成功率', `${((weeklyMetrics.successAfterMatchRate || 0) * 100).toFixed(2)}%`],
+    ['未充空單率', `${((weeklyMetrics.notDepositedEmptyRate || 0) * 100).toFixed(2)}%`],
+    ['提現失敗率', `${((weeklyMetrics.withdrawFailRate || 0) * 100).toFixed(2)}%`],
+    ['無卡空單率', `${((weeklyMetrics.emptyOrderRate || 0) * 100).toFixed(2)}%`],
+  ];
+  const ws4 = XLSX.utils.aoa_to_sheet(matchRates);
+  XLSX.utils.book_append_sheet(wb, ws4, '配對率與空單率');
+
+  // 工作表5: 指標數據分析
+  if (analysisMetrics && analysisMetrics.length > 0) {
+    const analysisData = [['分類', '充值成功率', '充值3分內占比', '平均時間']];
+    analysisMetrics.forEach(row => {
+      analysisData.push([
+        row.category,
+        `${(row.successRate * 100).toFixed(2)}%`,
+        `${(row.within3MinRate * 100).toFixed(2)}%`,
+        formatTime(row.avgTime)
+      ]);
+    });
+    const ws5 = XLSX.utils.aoa_to_sheet(analysisData);
+    XLSX.utils.book_append_sheet(wb, ws5, '指標數據分析');
+  }
+
+  // 下載檔案
+  const dateRange = weekRange ? `${weekRange.start}_${weekRange.end}` : '';
+  const now = new Date();
+  const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+  XLSX.writeFile(wb, `週報_${dateRange || dateStr}.xlsx`);
+};
+
 // 計算提現指標
 export const calculateWithdrawMetrics = (records, depositMetrics = null) => {
   // 總提現筆數（以實際轉出金額 > 0 為準）
@@ -1142,12 +1648,76 @@ export const calculateWithdrawMetrics = (records, depositMetrics = null) => {
   // 總提現金額
   const totalWithdrawAmount = successRecords.reduce((sum, r) => sum + r.actualAmount, 0);
 
-  // 提現狀態分佈
-  const statusDistribution = {};
-  records.forEach(r => {
-    const status = r.status || '未知';
-    statusDistribution[status] = (statusDistribution[status] || 0) + 1;
-  });
+  // ===== 提現成功時間區段 =====
+  // 公式：AC(transferStatus)="轉帳完成" 且 時間在指定區間內
+  const withdrawSuccessRecords = records.filter(r =>
+    r.transferStatus === '轉帳完成' || r.transferStatus === '转帐完成'
+  );
+
+  // 总申请
+  const withdrawSuccessTotalCount = withdrawSuccessRecords.length;
+  const withdrawSuccessTotalAmount = withdrawSuccessRecords.reduce((sum, r) => sum + r.actualAmount, 0);
+
+  // 按時間區段分類 (使用計算的 avgTimeSeconds)
+  // 邊界條件：>= 下界 AND < 上界（與 Excel TIME() 函數一致）
+  const within2Min = withdrawSuccessRecords.filter(r => r.avgTimeSeconds !== null && r.avgTimeSeconds >= 0 && r.avgTimeSeconds < 120);
+  const within2to5Min = withdrawSuccessRecords.filter(r => r.avgTimeSeconds !== null && r.avgTimeSeconds >= 120 && r.avgTimeSeconds < 300);
+  const within5to15Min = withdrawSuccessRecords.filter(r => r.avgTimeSeconds !== null && r.avgTimeSeconds >= 300 && r.avgTimeSeconds < 900);
+  const within15to30Min = withdrawSuccessRecords.filter(r => r.avgTimeSeconds !== null && r.avgTimeSeconds >= 900 && r.avgTimeSeconds < 1800);
+  const over30Min = withdrawSuccessRecords.filter(r => r.avgTimeSeconds !== null && r.avgTimeSeconds >= 1800);
+
+  // 2分钟内出款
+  const withdrawWithin2MinCount = within2Min.length;
+  const withdrawWithin2MinAmount = within2Min.reduce((sum, r) => sum + r.actualAmount, 0);
+
+  // 2-5分钟出款
+  const withdrawWithin2to5MinCount = within2to5Min.length;
+  const withdrawWithin2to5MinAmount = within2to5Min.reduce((sum, r) => sum + r.actualAmount, 0);
+
+  // 5-15分钟出款
+  const withdrawWithin5to15MinCount = within5to15Min.length;
+  const withdrawWithin5to15MinAmount = within5to15Min.reduce((sum, r) => sum + r.actualAmount, 0);
+
+  // 15-30分钟出款
+  const withdrawWithin15to30MinCount = within15to30Min.length;
+  const withdrawWithin15to30MinAmount = within15to30Min.reduce((sum, r) => sum + r.actualAmount, 0);
+
+  // 超过30分钟出款
+  const withdrawOver30MinCount = over30Min.length;
+  const withdrawOver30MinAmount = over30Min.reduce((sum, r) => sum + r.actualAmount, 0);
+
+  // 計算百分比
+  const totalBase = withdrawSuccessTotalCount || 1;
+  const withdrawWithin2MinRatio = (withdrawWithin2MinCount / totalBase) * 100;
+  const withdrawWithin2to5MinRatio = (withdrawWithin2to5MinCount / totalBase) * 100;
+  const withdrawWithin5to15MinRatio = (withdrawWithin5to15MinCount / totalBase) * 100;
+  const withdrawWithin15to30MinRatio = (withdrawWithin15to30MinCount / totalBase) * 100;
+  const withdrawOver30MinRatio = (withdrawOver30MinCount / totalBase) * 100;
+
+  // ===== 新增指標 =====
+  // 提现成功率 = 提現成功筆數/總紀錄 且轉出金額不等於0
+  // totalWithdrawCount = actualAmount > 0 的記錄數
+  const withdrawSuccessRate = records.length > 0 ? (totalWithdrawCount / records.length) * 100 : 0;
+
+  // 提现失败笔数 = I列(actualAmount)=0 且 AD列(transferStatus)包含"轉帳失敗"
+  // 公式：=SUMPRODUCT((I:I=0)*ISNUMBER(SEARCH("轉帳失敗", AD:AD)))
+  const withdrawFailedCount = records.filter(r => {
+    return r.actualAmount === 0 && r.transferStatus &&
+           (r.transferStatus.includes('轉帳失敗') || r.transferStatus.includes('转帐失败'));
+  }).length;
+
+  // 无卡空单率 = 同週報訂單成功無卡空單率 = JS充值等待最终无配对 / 充值申請
+  // 從 depositMetrics 取得數據
+  const jsWaitingNoMatch = depositMetrics?.jsWaitingNoMatch || 0;
+  const depositApplicationCount = depositMetrics?.totalApplicationCount || 0;
+  const withdrawEmptyOrderRate = depositApplicationCount > 0 ? (jsWaitingNoMatch / depositApplicationCount) * 100 : 0;
+
+  // 订单成功 = 提現成功筆數
+  const withdrawOrderSuccessCount = withdrawSuccessTotalCount;
+  const withdrawOrderSuccessAmount = withdrawSuccessTotalAmount;
+
+  // 订单成功占比 = 提現成功筆數 / 總記錄數
+  const withdrawOrderSuccessRate = records.length > 0 ? (withdrawOrderSuccessCount / records.length) * 100 : 0;
 
   // 平均處理時間
   const recordsWithTime = records.filter(r => r.avgTimeSeconds !== null && r.avgTimeSeconds >= 0);
@@ -1250,9 +1820,34 @@ export const calculateWithdrawMetrics = (records, depositMetrics = null) => {
   return {
     totalWithdrawCount,
     totalWithdrawAmount,
-    statusDistribution,
     avgProcessingTime,
     totalRecords: records.length,
+    // 提現成功時間區段
+    withdrawSuccessTotalCount,
+    withdrawSuccessTotalAmount,
+    withdrawWithin2MinCount,
+    withdrawWithin2MinAmount,
+    withdrawWithin2to5MinCount,
+    withdrawWithin2to5MinAmount,
+    withdrawWithin5to15MinCount,
+    withdrawWithin5to15MinAmount,
+    withdrawWithin15to30MinCount,
+    withdrawWithin15to30MinAmount,
+    withdrawOver30MinCount,
+    withdrawOver30MinAmount,
+    // 百分比
+    withdrawWithin2MinRatio,
+    withdrawWithin2to5MinRatio,
+    withdrawWithin5to15MinRatio,
+    withdrawWithin15to30MinRatio,
+    withdrawOver30MinRatio,
+    // 新增指標
+    withdrawSuccessRate,
+    withdrawFailedCount,
+    withdrawEmptyOrderRate,
+    withdrawOrderSuccessCount,
+    withdrawOrderSuccessAmount,
+    withdrawOrderSuccessRate,
     // 銀行卡
     bankCardWithdrawCount,
     bankCardWithdrawAmount,

@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
-import { calculateMetrics, calculateWithdrawMetrics, formatTime, formatAmount } from '../utils/csvParser';
+import { calculateMetrics, calculateWithdrawMetrics, formatTime, formatAmount, exportWeeklyToExcel } from '../utils/csvParser';
 
 const props = defineProps({
   depositRecords: {
@@ -13,35 +13,19 @@ const props = defineProps({
   }
 });
 
-// 日期選擇
-const selectedDate = ref('');
+// 日期選擇（起訖時間）
+const startDate = ref('');
+const endDate = ref('');
 
-// 計算選擇日期所在的週一和週日
+// 日期範圍
 const weekRange = computed(() => {
-  if (!selectedDate.value) return { start: '', end: '', startDate: null, endDate: null };
-
-  const date = new Date(selectedDate.value);
-  const day = date.getDay();
-  // 計算週一 (0=週日, 1=週一, ..., 6=週六)
-  const diffToMonday = day === 0 ? -6 : 1 - day;
-  const monday = new Date(date);
-  monday.setDate(date.getDate() + diffToMonday);
-
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
-
-  const formatDate = (d) => {
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
+  if (!startDate.value || !endDate.value) return { start: '', end: '', startDate: null, endDate: null };
 
   return {
-    start: formatDate(monday),
-    end: formatDate(sunday),
-    startDate: monday,
-    endDate: sunday
+    start: startDate.value,
+    end: endDate.value,
+    startDate: new Date(startDate.value),
+    endDate: new Date(endDate.value)
   };
 });
 
@@ -87,9 +71,8 @@ const weeklyMetrics = computed(() => {
   // 充值申請筆數 = 銀行卡 + 支付寶
   const depositApplicationCount = dm.jisuApplicationCount + dm.alipayApplicationCount;
 
-  // JS充值等待最终无配对 = 銀行卡（極速提 + 建单成功等待無配對）+ 支付寶（建单成功等待無配對 + 取無卡06提示）
-  // 目前這些指標可能需要額外計算，先設為0
-  const jsWaitingNoMatch = 0;
+  // JS充值等待最终无配对 = （銀行卡的充值申請筆數中的極速提＋建单成功等待无配对＋取无卡06提示）＋（支付寶的充值申請筆數中的建单成功等待无配对＋取无卡06提示）
+  const jsWaitingNoMatch = dm.jsWaitingNoMatch || 0;
 
   // 充值配对(配一般卡) = 銀行卡的成功配對的一般卡 + 支付寶的成功配對的一般卡 + 一般寶
   const matchNormalCardBankCard = dm.normalMatchCount;  // 銀行卡的成功配對的一般卡
@@ -192,6 +175,8 @@ const weeklyMetrics = computed(() => {
   return {
     depositApplicationCount,
     jsWaitingNoMatch,
+    bankCardJsWaitingNoMatch: dm.bankCardJsWaitingNoMatch || 0,
+    alipayJsWaitingNoMatch: dm.alipayJsWaitingNoMatch || 0,
     // 配一般卡
     matchNormalCard,
     matchNormalCardBankCard,
@@ -454,9 +439,17 @@ const analysisMetrics = computed(() => {
   ];
 });
 
-// 设置预设日期为 2026-01-01
+// 设置预设日期範圍
 const setDefaultDate = () => {
-  selectedDate.value = '2026-01-01';
+  startDate.value = '2026-01-01';
+  endDate.value = '2026-01-07';
+};
+
+// 匯出週報
+const handleExport = () => {
+  if (weeklyMetrics.value) {
+    exportWeeklyToExcel(weeklyMetrics.value, analysisMetrics.value, weekRange.value);
+  }
 };
 
 // 初始化
@@ -472,13 +465,14 @@ setDefaultDate();
       </div>
       <div class="selector-content">
         <div class="date-picker">
-          <label>选择日期：</label>
-          <input type="date" v-model="selectedDate" class="date-input" />
+          <label>起始日期：</label>
+          <input type="date" v-model="startDate" class="date-input" />
         </div>
-        <div class="week-range" v-if="weekRange.start">
-          <span class="range-label">周报范围：</span>
-          <span class="range-value">{{ weekRange.start }} (周一) ~ {{ weekRange.end }} (周日)</span>
+        <div class="date-picker">
+          <label>結束日期：</label>
+          <input type="date" v-model="endDate" class="date-input" />
         </div>
+        <button @click="handleExport" class="export-btn" v-if="weeklyMetrics">匯出 Excel</button>
       </div>
     </div>
 
@@ -516,8 +510,12 @@ setDefaultDate();
             </div>
             <div class="block-details">
               <div class="detail-item">
-                <span class="detail-label">说明</span>
-                <span class="detail-value note">可能是用户取消或等不到</span>
+                <span class="detail-label">銀行卡</span>
+                <span class="detail-value">{{ (weeklyMetrics.bankCardJsWaitingNoMatch || 0).toLocaleString() }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">支付寶</span>
+                <span class="detail-value">{{ (weeklyMetrics.alipayJsWaitingNoMatch || 0).toLocaleString() }}</span>
               </div>
             </div>
           </div>
@@ -1054,24 +1052,21 @@ setDefaultDate();
   border-color: #0a84ff;
 }
 
-.week-range {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: #2c2c2e;
-  padding: 10px 16px;
+.export-btn {
+  padding: 10px 20px;
+  border: none;
   border-radius: 10px;
-}
-
-.range-label {
-  color: #8e8e93;
-  font-size: 14px;
-}
-
-.range-value {
-  color: #0a84ff;
+  background: #30d158;
+  color: #fff;
   font-size: 14px;
   font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-left: auto;
+}
+
+.export-btn:hover {
+  background: #28b94c;
 }
 
 /* 報表區塊 */

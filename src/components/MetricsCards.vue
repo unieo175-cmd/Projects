@@ -24,6 +24,9 @@ const showGeneral = ref(true);
 const showJisu = ref(true);
 const showAlipay = ref(true);
 const showWechat = ref(true);
+const showWechatC2c = ref(false);
+const showWechatThirdParty = ref(false);
+const showWechatFraud = ref(false);
 const showC2c = ref(true);
 const showFraud = ref(true);
 const showCommercial = ref(true);
@@ -33,6 +36,9 @@ const showAlipayNoCreditDowngradeDetails = ref(false);
 const showAlipayC2c = ref(true);
 const showAlipayFraud = ref(true);
 const showMinuteAnalysis = ref(true);
+const showThirdParty = ref(true);
+const showAlipayThirdParty = ref(true);
+const showWechatNoCreditDowngradeDetails = ref(false);
 
 // 金額區間列表
 const amountRanges = [100, 200, 300, 500, 1000, 1500, 2000, 3000, 5000, 6000, 7000, 8000, 9000, 10000, 15000, 20000, 30000];
@@ -213,10 +219,10 @@ const timeCards = computed(() => [
         </div>
       </div>
 
-      <!-- 充值分鐘分析 -->
+      <!-- 充值成功時間區段 -->
       <div class="metrics-section">
         <div class="section-header" @click="showMinuteAnalysis = !showMinuteAnalysis">
-          <h3 class="section-title">充值分鐘分析</h3>
+          <h3 class="section-title">充值成功時間區段</h3>
           <span class="toggle-icon">{{ showMinuteAnalysis ? '▼' : '▶' }}</span>
         </div>
         <div v-show="showMinuteAnalysis" class="minute-analysis-content">
@@ -224,13 +230,13 @@ const timeCards = computed(() => [
             <thead>
               <tr>
                 <th>項目</th>
-                <th>筆數</th>
-                <th>金額/百分比</th>
+                <th>筆數/百分比</th>
+                <th>金額</th>
               </tr>
             </thead>
             <tbody>
               <tr class="highlight-row">
-                <td>總申請（总充值成功--含掉单）</td>
+                <td>总充值成功（含掉单）</td>
                 <td>{{ (metrics.minuteAnalysisTotalCount || 0).toLocaleString() }}</td>
                 <td>{{ formatAmount(metrics.minuteAnalysisTotalAmount || 0) }} 元</td>
               </tr>
@@ -425,6 +431,33 @@ const timeCards = computed(() => [
           <div class="detail-item">
             <span class="detail-label">卡验及人验</span>
             <span class="detail-value">0 笔</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 三方代收 区域 -->
+      <div class="metrics-section">
+        <div class="section-header" @click="showThirdParty = !showThirdParty">
+          <h3 class="section-title">三方代收（一般卡訂單成功）</h3>
+          <span class="section-value">{{ (metrics.thirdPartyCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.thirdPartyAmount || 0) }} 元</span>
+          <span class="toggle-icon">{{ showThirdParty ? '▼' : '▶' }}</span>
+        </div>
+        <div v-show="showThirdParty" class="c2c-content">
+          <div class="detail-item">
+            <span class="detail-label">GB-DahaomenJFB</span>
+            <span class="detail-value">{{ (metrics.thirdPartyDahaomenCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.thirdPartyDahaomenAmount || 0) }} 元</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">汇通 (HTc2cdeposit)</span>
+            <span class="detail-value">{{ (metrics.thirdPartyHuitongCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.thirdPartyHuitongAmount || 0) }} 元</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">豆豆 (DDFdeposit)</span>
+            <span class="detail-value">{{ (metrics.thirdPartyDoudouCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.thirdPartyDoudouAmount || 0) }} 元</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">UC聚合 (UC1020)</span>
+            <span class="detail-value">{{ (metrics.thirdPartyUCCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.thirdPartyUCAmount || 0) }} 元</span>
           </div>
         </div>
       </div>
@@ -650,6 +683,33 @@ const timeCards = computed(() => [
         </div>
       </div>
 
+      <!-- 三方代收 区域（支付寶） -->
+      <div class="metrics-section">
+        <div class="section-header" @click="showAlipayThirdParty = !showAlipayThirdParty">
+          <h3 class="section-title">三方代收（一般卡訂單成功）</h3>
+          <span class="section-value">{{ (metrics.alipayThirdPartyCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.alipayThirdPartyAmount || 0) }} 元</span>
+          <span class="toggle-icon">{{ showAlipayThirdParty ? '▼' : '▶' }}</span>
+        </div>
+        <div v-show="showAlipayThirdParty" class="c2c-content">
+          <div class="detail-item">
+            <span class="detail-label">GB-DahaomenJFB</span>
+            <span class="detail-value">{{ (metrics.alipayThirdPartyDahaomenCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.alipayThirdPartyDahaomenAmount || 0) }} 元</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">汇通 (HTc2cdeposit)</span>
+            <span class="detail-value">{{ (metrics.alipayThirdPartyHuitongCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.alipayThirdPartyHuitongAmount || 0) }} 元</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">豆豆 (DDFdeposit)</span>
+            <span class="detail-value">{{ (metrics.alipayThirdPartyDoudouCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.alipayThirdPartyDoudouAmount || 0) }} 元</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">UC聚合 (UC1020)</span>
+            <span class="detail-value">{{ (metrics.alipayThirdPartyUCCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.alipayThirdPartyUCAmount || 0) }} 元</span>
+          </div>
+        </div>
+      </div>
+
       <!-- 骗分没到账来找 区域 -->
       <div class="metrics-section">
         <div class="section-header" @click="showAlipayFraud = !showAlipayFraud">
@@ -686,7 +746,7 @@ const timeCards = computed(() => [
           </div>
           <div class="detail-item">
             <span class="detail-label">成功</span>
-            <span class="detail-value">0 笔 / 0 元</span>
+            <span class="detail-value">{{ (metrics.alipayBaoZhuanKaSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.alipayBaoZhuanKaSuccessAmount || 0) }} 元</span>
           </div>
 
           <div class="detail-header">宝转宝渠道，配银行卡提现</div>
@@ -696,7 +756,7 @@ const timeCards = computed(() => [
           </div>
           <div class="detail-item">
             <span class="detail-label">成功</span>
-            <span class="detail-value">0 笔 / 0 元</span>
+            <span class="detail-value">{{ (metrics.alipayBaoZhuanBaoSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.alipayBaoZhuanBaoSuccessAmount || 0) }} 元</span>
           </div>
 
           <div class="detail-item summary-item">
@@ -734,6 +794,14 @@ const timeCards = computed(() => [
               <div class="detail-item">
                 <span class="detail-label">极速</span>
                 <span class="detail-value">{{ (metrics.wechatExpressCardAppCount || 0).toLocaleString() }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">建单成功等待无配对</span>
+                <span class="detail-value">0</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">取无卡06提示</span>
+                <span class="detail-value">0</span>
               </div>
             </div>
           </div>
@@ -775,15 +843,125 @@ const timeCards = computed(() => [
                 <span class="detail-label">信评上分</span>
                 <span class="detail-value">{{ (metrics.wechatCreditScoreSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.wechatCreditScoreSuccessAmount || 0) }} 元 / {{ formatTime(metrics.wechatCreditScoreAvgTime) }}</span>
               </div>
+              <div class="detail-item sub-item">
+                <span class="detail-label">其中信评不含图文复核</span>
+                <span class="detail-value">0 笔 / 00:00:00</span>
+              </div>
             </div>
           </div>
 
           <!-- 4. 没信评降等配卡 -->
           <div class="jisu-block">
-            <div class="block-header">
+            <div class="block-header clickable" @click="showWechatNoCreditDowngradeDetails = !showWechatNoCreditDowngradeDetails">
               <span class="block-title">没信评降等配卡</span>
-              <span class="block-value">{{ (metrics.wechatNoCreditDowngradeTotal || 0).toLocaleString() }} 笔 / {{ formatTime(metrics.wechatNoCreditDowngradeAvgTime) }}</span>
+              <span class="block-value">
+                {{ (metrics.wechatNoCreditDowngradeTotal || 0).toLocaleString() }} 笔 / {{ formatTime(metrics.wechatNoCreditDowngradeAvgTime) }}
+                <span class="toggle-arrow">{{ showWechatNoCreditDowngradeDetails ? '▼' : '▶' }}</span>
+              </span>
             </div>
+            <div v-show="showWechatNoCreditDowngradeDetails" class="block-details amount-list">
+              <div
+                v-for="amt in amountRanges"
+                :key="amt"
+                class="detail-item"
+              >
+                <span class="detail-label">{{ amt.toLocaleString() }} 元</span>
+                <span class="detail-value">{{ (metrics.wechatNoCreditDowngradeByAmount?.[amt] || 0).toLocaleString() }} 笔</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">其他金额</span>
+                <span class="detail-value">{{ (metrics.wechatNoCreditDowngradeByAmount?.['other'] || 0).toLocaleString() }} 笔</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- c2c 区域（微信） -->
+      <div class="metrics-section">
+        <div class="section-header" @click="showWechatC2c = !showWechatC2c">
+          <h3 class="section-title">c2c</h3>
+          <span class="section-value">0 笔 / 0 元</span>
+          <span class="toggle-icon">{{ showWechatC2c ? '▼' : '▶' }}</span>
+        </div>
+        <div v-show="showWechatC2c" class="c2c-content">
+          <div class="detail-item">
+            <span class="detail-label">点确认（用户确认到账）</span>
+            <span class="detail-value">0 笔</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">点确认（用户确认到账）-平均时间</span>
+            <span class="detail-value">00:00:00</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">人工审核:通过</span>
+            <span class="detail-value">0 笔</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">审核-成功平均时间</span>
+            <span class="detail-value">00:00:00</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">超过11min补件后才成功</span>
+            <span class="detail-value">0 笔</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">骗分拉黑</span>
+            <span class="detail-value">0 笔</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">卡验及人验</span>
+            <span class="detail-value">0 笔</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 三方代收 区域（微信） -->
+      <div class="metrics-section">
+        <div class="section-header" @click="showWechatThirdParty = !showWechatThirdParty">
+          <h3 class="section-title">三方代收（一般卡訂單成功）</h3>
+          <span class="section-value">0 笔 / 0 元</span>
+          <span class="toggle-icon">{{ showWechatThirdParty ? '▼' : '▶' }}</span>
+        </div>
+        <div v-show="showWechatThirdParty" class="c2c-content">
+          <div class="detail-item">
+            <span class="detail-label">GB-DahaomenJFB</span>
+            <span class="detail-value">0 笔 / 0 元</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">汇通 (HTc2cdeposit)</span>
+            <span class="detail-value">0 笔 / 0 元</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">豆豆 (DDFdeposit)</span>
+            <span class="detail-value">0 笔 / 0 元</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">UC聚合 (UC1020)</span>
+            <span class="detail-value">0 笔 / 0 元</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 骗分没到账来找 区域（微信） -->
+      <div class="metrics-section">
+        <div class="section-header" @click="showWechatFraud = !showWechatFraud">
+          <h3 class="section-title">骗分没到账来找</h3>
+          <span class="section-value">0 笔 / 0 元</span>
+          <span class="toggle-icon">{{ showWechatFraud ? '▼' : '▶' }}</span>
+        </div>
+        <div v-show="showWechatFraud" class="c2c-content">
+          <div class="detail-item">
+            <span class="detail-label">人工</span>
+            <span class="detail-value">0 笔 / 0 元</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">信评</span>
+            <span class="detail-value">0 笔 / 0 元</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">没上传回单重复出款充值上分</span>
+            <span class="detail-value">0 笔 / 0 元</span>
           </div>
         </div>
       </div>

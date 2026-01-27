@@ -5,7 +5,7 @@ import MetricsCards from './components/MetricsCards.vue';
 import WithdrawMetricsCards from './components/WithdrawMetricsCards.vue';
 import WeeklyReport from './components/WeeklyReport.vue';
 import Charts from './components/Charts.vue';
-import { parseCSV, calculateMetrics, parseWithdrawCSV, calculateWithdrawMetrics } from './utils/csvParser';
+import { parseCSV, calculateMetrics, parseWithdrawCSV, calculateWithdrawMetrics, exportDepositToExcel, exportWithdrawToExcel } from './utils/csvParser';
 
 const allRecords = ref([]);
 const filteredRecords = ref([]);
@@ -156,6 +156,14 @@ onMounted(() => {
 const handleFilter = (filtered) => {
   filteredRecords.value = filtered;
 };
+
+const handleExport = () => {
+  if (activeTab.value === 'deposit') {
+    exportDepositToExcel(metrics.value, filteredRecords.value);
+  } else if (activeTab.value === 'withdraw') {
+    exportWithdrawToExcel(metrics.value);
+  }
+};
 </script>
 
 <template>
@@ -214,7 +222,7 @@ const handleFilter = (filtered) => {
           <WeeklyReport :depositRecords="depositRecords" :withdrawRecords="withdrawRecords" />
         </template>
         <template v-else>
-          <SearchFilter :records="allRecords" @filter="handleFilter" />
+          <SearchFilter :records="allRecords" @filter="handleFilter" @export="handleExport" />
           <MetricsCards v-if="activeTab === 'deposit'" :metrics="metrics" @channelChange="handleChannelChange" />
           <WithdrawMetricsCards v-else :metrics="metrics" />
           <Charts v-if="activeTab === 'deposit' && activeChannel === 'all'" :records="filteredRecords" />
