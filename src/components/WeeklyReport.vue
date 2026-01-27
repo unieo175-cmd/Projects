@@ -428,14 +428,57 @@ const analysisMetrics = computed(() => {
   const creditAvgTime = creditP10 > 0 ? creditTotalTime / creditP10 : 0;
   const creditMetrics = { successRate: creditSuccessRate, within3MinRate: creditWithin3MinRate, avgTime: creditAvgTime };
 
+  // ===== 提現數據計算 =====
+  const withdrawData = props.withdrawRecords;
+
+  // 計算提現類別指標
+  const calculateWithdrawCategoryMetrics = (records) => {
+    if (records.length === 0) return { successCount: 0, successAmount: 0, avgTime: 0 };
+
+    // 提現成功：transferStatus = "轉帳完成" 且 payoutAmount > 0
+    const successRecords = records.filter(r =>
+      r.transferStatus === '轉帳完成' && r.payoutAmount > 0
+    );
+    const successCount = successRecords.length;
+    const successAmount = successRecords.reduce((sum, r) => sum + r.payoutAmount, 0);
+
+    // 平均時間：transferStatus = "轉帳完成" 的記錄
+    const recordsWithTime = successRecords.filter(r =>
+      r.avgTimeSeconds !== null && r.avgTimeSeconds >= 0
+    );
+    const avgTime = recordsWithTime.length > 0
+      ? recordsWithTime.reduce((sum, r) => sum + r.avgTimeSeconds, 0) / recordsWithTime.length
+      : 0;
+
+    return { successCount, successAmount, avgTime };
+  };
+
+  // 整體提現
+  const withdrawOverall = calculateWithdrawCategoryMetrics(withdrawData);
+
+  // 支付寶提現 (remark = "支付宝")
+  const withdrawAlipay = calculateWithdrawCategoryMetrics(
+    withdrawData.filter(r => r.remark === '支付宝')
+  );
+
+  // 微信提現 (remark = "微信")
+  const withdrawWechat = calculateWithdrawCategoryMetrics(
+    withdrawData.filter(r => r.remark === '微信')
+  );
+
+  // 銀行卡提現 (remark = "银行卡")
+  const withdrawBankCard = calculateWithdrawCategoryMetrics(
+    withdrawData.filter(r => r.remark === '银行卡')
+  );
+
   return [
-    { category: '整體', successRate: overallMetrics.successRate, within3MinRate: overallMetrics.within3MinRate, avgTime: overallMetrics.avgTime },
-    { category: '支付寶', successRate: alipayMetrics.successRate, within3MinRate: alipayMetrics.within3MinRate, avgTime: alipayMetrics.avgTime },
-    { category: '微信', successRate: wechatMetrics.successRate, within3MinRate: wechatMetrics.within3MinRate, avgTime: wechatMetrics.avgTime },
-    { category: '金寶', successRate: gbMetrics.successRate, within3MinRate: gbMetrics.within3MinRate, avgTime: gbMetrics.avgTime },
-    { category: '極速', successRate: auctionMetrics.successRate, within3MinRate: auctionMetrics.within3MinRate, avgTime: auctionMetrics.avgTime },
-    { category: '第三方', successRate: thirdPartyMetrics.successRate, within3MinRate: thirdPartyMetrics.within3MinRate, avgTime: thirdPartyMetrics.avgTime },
-    { category: '非正向信评', successRate: creditMetrics.successRate, within3MinRate: creditMetrics.within3MinRate, avgTime: creditMetrics.avgTime }
+    { category: '整體', successRate: overallMetrics.successRate, within3MinRate: overallMetrics.within3MinRate, avgTime: overallMetrics.avgTime, withdrawSuccessCount: withdrawOverall.successCount, withdrawSuccessAmount: withdrawOverall.successAmount, withdrawAvgTime: withdrawOverall.avgTime },
+    { category: '支付寶', successRate: alipayMetrics.successRate, within3MinRate: alipayMetrics.within3MinRate, avgTime: alipayMetrics.avgTime, withdrawSuccessCount: withdrawAlipay.successCount, withdrawSuccessAmount: withdrawAlipay.successAmount, withdrawAvgTime: withdrawAlipay.avgTime },
+    { category: '微信', successRate: wechatMetrics.successRate, within3MinRate: wechatMetrics.within3MinRate, avgTime: wechatMetrics.avgTime, withdrawSuccessCount: withdrawWechat.successCount, withdrawSuccessAmount: withdrawWechat.successAmount, withdrawAvgTime: withdrawWechat.avgTime },
+    { category: '金寶', successRate: gbMetrics.successRate, within3MinRate: gbMetrics.within3MinRate, avgTime: gbMetrics.avgTime, withdrawSuccessCount: 0, withdrawSuccessAmount: 0, withdrawAvgTime: 0 },
+    { category: '極速', successRate: auctionMetrics.successRate, within3MinRate: auctionMetrics.within3MinRate, avgTime: auctionMetrics.avgTime, withdrawSuccessCount: withdrawBankCard.successCount, withdrawSuccessAmount: withdrawBankCard.successAmount, withdrawAvgTime: withdrawBankCard.avgTime },
+    { category: '第三方', successRate: thirdPartyMetrics.successRate, within3MinRate: thirdPartyMetrics.within3MinRate, avgTime: thirdPartyMetrics.avgTime, withdrawSuccessCount: 0, withdrawSuccessAmount: 0, withdrawAvgTime: 0 },
+    { category: '非正向信评', successRate: creditMetrics.successRate, within3MinRate: creditMetrics.within3MinRate, avgTime: creditMetrics.avgTime, withdrawSuccessCount: 0, withdrawSuccessAmount: 0, withdrawAvgTime: 0 }
   ];
 });
 
@@ -979,8 +1022,16 @@ setDefaultDate();
             <thead>
               <tr>
                 <th>分类</th>
-                <th>充值成功率</th>
-                <th>充值3分内占比</th>
+                <th colspan="3" class="group-header deposit-header">充值数据</th>
+                <th colspan="3" class="group-header withdraw-header">提现数据</th>
+              </tr>
+              <tr>
+                <th></th>
+                <th>成功率</th>
+                <th>3分内占比</th>
+                <th>平均时间</th>
+                <th>成功笔数</th>
+                <th>成功金额</th>
                 <th>平均时间</th>
               </tr>
             </thead>
@@ -990,6 +1041,9 @@ setDefaultDate();
                 <td class="rate-cell">{{ (row.successRate * 100).toFixed(2) }}%</td>
                 <td class="rate-cell">{{ (row.within3MinRate * 100).toFixed(2) }}%</td>
                 <td class="time-cell">{{ formatTime(row.avgTime) }}</td>
+                <td class="withdraw-cell">{{ row.withdrawSuccessCount.toLocaleString() }}</td>
+                <td class="withdraw-cell">{{ formatAmount(row.withdrawSuccessAmount) }}</td>
+                <td class="withdraw-time-cell">{{ formatTime(row.withdrawAvgTime) }}</td>
               </tr>
             </tbody>
           </table>
@@ -1332,6 +1386,29 @@ setDefaultDate();
 
 .analysis-table .time-cell {
   color: #4a4a9e;
+  font-family: monospace;
+}
+
+.analysis-table .group-header {
+  text-align: center;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.analysis-table .deposit-header {
+  background: #5cb85c;
+}
+
+.analysis-table .withdraw-header {
+  background: #4a4a9e;
+}
+
+.analysis-table .withdraw-cell {
+  color: #4a4a9e;
+  font-family: monospace;
+}
+
+.analysis-table .withdraw-time-cell {
+  color: #ff9f0a;
   font-family: monospace;
 }
 
