@@ -168,71 +168,82 @@ const handleExport = () => {
 
 <template>
   <div class="app">
-    <header class="header">
-      <div class="header-content">
-        <h1>💳 数据分析</h1>
-        <div class="tab-container">
-          <button
-            class="tab-btn"
-            :class="{ active: activeTab === 'deposit' }"
-            @click="activeTab = 'deposit'"
-          >
-            充值
-          </button>
-          <button
-            class="tab-btn"
-            :class="{ active: activeTab === 'withdraw' }"
-            @click="activeTab = 'withdraw'"
-          >
-            提现
-          </button>
-          <button
-            class="tab-btn"
-            :class="{ active: activeTab === 'weekly' }"
-            @click="activeTab = 'weekly'"
-          >
-            周报
-          </button>
-        </div>
-        <div class="data-info">
-          <span class="data-date">📅 数据日期：{{ dataDate }}</span>
-        </div>
+    <!-- 左側導航 -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h1>数据分析</h1>
       </div>
-    </header>
+      <nav class="sidebar-nav">
+        <button
+          class="nav-item"
+          :class="{ active: activeTab === 'deposit' }"
+          @click="activeTab = 'deposit'"
+        >
+          <span class="nav-icon">📊</span>
+          <span class="nav-text">充值分析報表</span>
+        </button>
+        <button
+          class="nav-item"
+          :class="{ active: activeTab === 'withdraw' }"
+          @click="activeTab = 'withdraw'"
+        >
+          <span class="nav-icon">💰</span>
+          <span class="nav-text">提现分析報表</span>
+        </button>
+        <button
+          class="nav-item"
+          :class="{ active: activeTab === 'weekly' }"
+          @click="activeTab = 'weekly'"
+        >
+          <span class="nav-icon">📈</span>
+          <span class="nav-text">周报</span>
+        </button>
+      </nav>
+    </aside>
 
-    <main class="main">
-      <div v-if="isLoading" class="loading">
-        <div class="progress-container">
-          <div class="progress-bar">
-            <div class="progress-fill" :style="{ width: loadingProgress + '%' }"></div>
+    <!-- 主內容區 -->
+    <div class="main-wrapper">
+      <header class="header">
+        <div class="header-content">
+          <h2 class="page-title">
+            {{ activeTab === 'deposit' ? '充值分析報表' : activeTab === 'withdraw' ? '提现分析報表' : '周报' }}
+          </h2>
+          <div class="data-info">
+            <span class="data-date">📅 数据日期：{{ dataDate }}</span>
           </div>
-          <div class="progress-text">{{ loadingProgress }}%</div>
         </div>
-        <p class="loading-status">{{ loadingStatus }}</p>
-      </div>
+      </header>
 
-      <div v-else-if="allRecords.length === 0" class="empty-state">
-        <div class="empty-icon">📊</div>
-        <h2>无法加载数据</h2>
-        <p>请确认数据来源是否正确</p>
-      </div>
+      <main class="main">
+        <div v-if="isLoading" class="loading">
+          <div class="progress-container">
+            <div class="progress-bar">
+              <div class="progress-fill" :style="{ width: loadingProgress + '%' }"></div>
+            </div>
+            <div class="progress-text">{{ loadingProgress }}%</div>
+          </div>
+          <p class="loading-status">{{ loadingStatus }}</p>
+        </div>
 
-      <template v-else>
-        <template v-if="activeTab === 'weekly'">
-          <WeeklyReport :depositRecords="depositRecords" :withdrawRecords="withdrawRecords" />
-        </template>
+        <div v-else-if="allRecords.length === 0" class="empty-state">
+          <div class="empty-icon">📊</div>
+          <h2>无法加载数据</h2>
+          <p>请确认数据来源是否正确</p>
+        </div>
+
         <template v-else>
-          <SearchFilter :records="allRecords" @filter="handleFilter" @export="handleExport" />
-          <MetricsCards v-if="activeTab === 'deposit'" :metrics="metrics" @channelChange="handleChannelChange" />
-          <WithdrawMetricsCards v-else :metrics="metrics" />
-          <Charts v-if="activeTab === 'deposit' && activeChannel === 'all'" :records="filteredRecords" />
+          <template v-if="activeTab === 'weekly'">
+            <WeeklyReport :depositRecords="depositRecords" :withdrawRecords="withdrawRecords" />
+          </template>
+          <template v-else>
+            <SearchFilter :records="allRecords" @filter="handleFilter" @export="handleExport" />
+            <MetricsCards v-if="activeTab === 'deposit'" :metrics="metrics" @channelChange="handleChannelChange" />
+            <WithdrawMetricsCards v-else :metrics="metrics" />
+            <Charts v-if="activeTab === 'deposit' && activeChannel === 'all'" :records="filteredRecords" />
+          </template>
         </template>
-      </template>
-    </main>
-
-    <footer class="footer">
-      <p>Payment Analytics Dashboard © 2026</p>
-    </footer>
+      </main>
+    </div>
   </div>
 </template>
 
@@ -245,28 +256,98 @@ const handleExport = () => {
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-  background: #000;
-  color: #fff;
+  background: #f5f7fa;
+  color: #333;
   min-height: 100vh;
 }
 
 .app {
   min-height: 100vh;
   display: flex;
+}
+
+/* 左側導航欄 */
+.sidebar {
+  width: 220px;
+  background: linear-gradient(180deg, #4a4a9e 0%, #3a3a8e 100%);
+  min-height: 100vh;
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 200;
+  display: flex;
   flex-direction: column;
 }
 
+.sidebar-header {
+  padding: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-header h1 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  padding: 12px 0;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-left: 3px solid transparent;
+}
+
+.nav-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.nav-item.active {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  border-left-color: #fff;
+}
+
+.nav-icon {
+  font-size: 18px;
+}
+
+.nav-text {
+  font-weight: 500;
+}
+
+/* 主內容區 */
+.main-wrapper {
+  flex: 1;
+  margin-left: 220px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
 .header {
-  background: #1c1c1e;
-  border-bottom: 1px solid #3a3a3c;
+  background: linear-gradient(135deg, #4a4a9e 0%, #5a5abe 100%);
   position: sticky;
   top: 0;
   z-index: 100;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .header-content {
-  max-width: 1400px;
-  margin: 0 auto;
   padding: 16px 24px;
   display: flex;
   justify-content: space-between;
@@ -275,9 +356,10 @@ body {
   gap: 16px;
 }
 
-.header h1 {
-  font-size: 24px;
-  font-weight: 700;
+.page-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #fff;
 }
 
 .data-info {
@@ -288,46 +370,15 @@ body {
 
 .data-date,
 .record-count {
-  color: #8e8e93;
-  font-size: 14px;
-  background: #2c2c2e;
-  padding: 8px 16px;
-  border-radius: 8px;
-}
-
-.tab-container {
-  display: flex;
-  gap: 8px;
-  background: #2c2c2e;
-  padding: 4px;
-  border-radius: 10px;
-}
-
-.tab-btn {
-  padding: 10px 24px;
-  border: none;
-  background: transparent;
-  color: #8e8e93;
-  font-size: 14px;
-  font-weight: 600;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.tab-btn:hover {
-  color: #fff;
-}
-
-.tab-btn.active {
-  background: #0a84ff;
-  color: #fff;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 13px;
+  background: rgba(255, 255, 255, 0.15);
+  padding: 6px 14px;
+  border-radius: 6px;
 }
 
 .main {
   flex: 1;
-  max-width: 1400px;
-  margin: 0 auto;
   padding: 24px;
   width: 100%;
 }
@@ -339,6 +390,9 @@ body {
   justify-content: center;
   min-height: 400px;
   gap: 20px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .progress-container {
@@ -352,14 +406,14 @@ body {
 .progress-bar {
   width: 100%;
   height: 8px;
-  background: #3a3a3c;
+  background: #e8e8e8;
   border-radius: 4px;
   overflow: hidden;
 }
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #0a84ff, #30d158);
+  background: linear-gradient(90deg, #4a4a9e, #5cb85c);
   border-radius: 4px;
   transition: width 0.3s ease;
 }
@@ -367,11 +421,11 @@ body {
 .progress-text {
   font-size: 32px;
   font-weight: 700;
-  color: #0a84ff;
+  color: #4a4a9e;
 }
 
 .loading-status {
-  color: #8e8e93;
+  color: #666;
   font-size: 16px;
 }
 
@@ -382,6 +436,9 @@ body {
   justify-content: center;
   min-height: 500px;
   text-align: center;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .empty-icon {
@@ -393,33 +450,43 @@ body {
   font-size: 28px;
   font-weight: 600;
   margin-bottom: 12px;
+  color: #333;
 }
 
 .empty-state p {
-  color: #8e8e93;
+  color: #666;
   font-size: 16px;
   margin-bottom: 32px;
 }
 
-.footer {
-  background: #1c1c1e;
-  border-top: 1px solid #3a3a3c;
-  padding: 20px;
-  text-align: center;
-}
-
-.footer p {
-  color: #8e8e93;
-  font-size: 14px;
-}
-
 @media (max-width: 768px) {
+  .sidebar {
+    width: 60px;
+  }
+
+  .sidebar-header h1 {
+    display: none;
+  }
+
+  .nav-text {
+    display: none;
+  }
+
+  .nav-item {
+    justify-content: center;
+    padding: 14px;
+  }
+
+  .main-wrapper {
+    margin-left: 60px;
+  }
+
   .header-content {
     padding: 12px 16px;
   }
 
-  .header h1 {
-    font-size: 18px;
+  .page-title {
+    font-size: 16px;
   }
 
   .main {

@@ -971,79 +971,82 @@ const timeCards = computed(() => [
 
 <style scoped>
 .metrics-container {
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 /* 渠道切換按鈕 */
 .channel-tabs {
   display: flex;
-  gap: 8px;
+  gap: 4px;
   margin-bottom: 20px;
-  background: #1c1c1e;
-  padding: 8px;
-  border-radius: 12px;
+  background: #fff;
+  padding: 6px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .channel-tab {
   flex: 1;
-  padding: 12px 20px;
+  padding: 10px 16px;
   border: none;
   background: transparent;
-  color: #8e8e93;
+  color: #666;
   font-size: 14px;
-  font-weight: 600;
-  border-radius: 8px;
+  font-weight: 500;
+  border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .channel-tab:hover {
-  color: #fff;
-  background: #2c2c2e;
+  color: #333;
+  background: #f5f5f5;
 }
 
 .channel-tab.active {
-  background: #0a84ff;
+  background: #4a4a9e;
   color: #fff;
 }
 
 .metrics-section {
-  margin-bottom: 20px;
-  background: #1c1c1e;
-  border-radius: 16px;
+  margin-bottom: 16px;
+  background: #fff;
+  border-radius: 8px;
   overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 20px;
+  padding: 14px 20px;
   cursor: pointer;
   user-select: none;
   transition: background 0.2s;
+  border-bottom: 1px solid #f0f0f0;
 }
 
 .section-header:hover {
-  background: #2c2c2e;
+  background: #fafafa;
 }
 
 .section-title {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
-  color: #fff;
+  color: #333;
   margin: 0;
 }
 
 .toggle-icon {
-  color: #8e8e93;
+  color: #999;
   font-size: 12px;
 }
 
 .section-value {
-  font-size: 16px;
-  font-weight: 700;
-  color: #0a84ff;
+  font-size: 15px;
+  font-weight: 600;
+  color: #4a4a9e;
   flex: 1;
   text-align: right;
   margin-right: 12px;
@@ -1053,14 +1056,14 @@ const timeCards = computed(() => [
 .c2c-content {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 0 20px 16px;
+  gap: 8px;
+  padding: 16px 20px;
 }
 
 .metrics-grid {
   display: grid;
   gap: 12px;
-  padding: 0 16px 16px;
+  padding: 16px;
 }
 
 .four-grid {
@@ -1076,35 +1079,36 @@ const timeCards = computed(() => [
 }
 
 .metric-card {
-  background: #2c2c2e;
-  border-radius: 12px;
-  padding: 16px;
+  background: #f8f9fa;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 14px;
   transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .metric-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .card-header {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .card-icon {
-  font-size: 16px;
+  font-size: 14px;
 }
 
 .card-title {
-  font-size: 13px;
-  color: #8e8e93;
+  font-size: 12px;
+  color: #666;
 }
 
 .card-value {
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 700;
   display: flex;
   align-items: baseline;
@@ -1112,51 +1116,52 @@ const timeCards = computed(() => [
 }
 
 .card-unit {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 400;
-  color: #8e8e93;
+  color: #999;
 }
 
 /* 極速區域樣式 */
 .jisu-content {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  padding: 0 16px 16px;
+  gap: 12px;
+  padding: 16px;
 }
 
 .jisu-block {
-  background: #2c2c2e;
-  border-radius: 12px;
-  padding: 16px;
+  background: #f8f9fa;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 14px;
 }
 
 .block-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #3a3a3c;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e8e8e8;
 }
 
 .block-header.clickable {
   cursor: pointer;
   transition: background 0.2s;
-  margin: -16px -16px 16px -16px;
-  padding: 16px;
-  border-radius: 12px 12px 0 0;
-  border-bottom: 1px solid #3a3a3c;
+  margin: -14px -14px 12px -14px;
+  padding: 14px;
+  border-radius: 8px 8px 0 0;
+  border-bottom: 1px solid #e8e8e8;
 }
 
 .block-header.clickable:hover {
-  background: #3a3a3c;
+  background: #f0f0f0;
 }
 
 .toggle-arrow {
   margin-left: 8px;
   font-size: 12px;
-  color: #8e8e93;
+  color: #999;
 }
 
 .amount-list {
@@ -1165,21 +1170,21 @@ const timeCards = computed(() => [
 }
 
 .block-title {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
-  color: #fff;
+  color: #333;
 }
 
 .block-value {
-  font-size: 16px;
-  font-weight: 700;
-  color: #0a84ff;
+  font-size: 14px;
+  font-weight: 600;
+  color: #4a4a9e;
 }
 
 .block-details {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .detail-item {
@@ -1190,68 +1195,69 @@ const timeCards = computed(() => [
 
 .detail-label {
   font-size: 13px;
-  color: #8e8e93;
+  color: #666;
 }
 
 .detail-value {
   font-size: 13px;
-  color: #fff;
+  color: #333;
   font-family: monospace;
 }
 
 .detail-item.sub-item {
-  padding-left: 20px;
+  padding-left: 16px;
 }
 
 .detail-item.sub-item .detail-label {
-  color: #6e6e73;
+  color: #999;
 }
 
 .detail-header {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
-  color: #0a84ff;
+  color: #4a4a9e;
   margin-top: 10px;
   padding-top: 10px;
-  border-top: 1px solid #3a3a3c;
+  border-top: 1px solid #e8e8e8;
 }
 
 .detail-item.summary-item {
-  margin-top: 16px;
-  padding-top: 12px;
-  border-top: 1px solid #3a3a3c;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #e8e8e8;
 }
 
 .detail-item.summary-item .detail-label {
   font-weight: 600;
-  color: #fff;
+  color: #333;
 }
 
 .detail-value.highlight {
-  color: #30d158;
+  color: #5cb85c;
   font-weight: 700;
-  font-size: 16px;
+  font-size: 15px;
 }
 
 /* 充值分鐘分析樣式 */
 .minute-analysis-content {
-  padding: 0 20px 16px;
+  padding: 16px 20px;
 }
 
 .minute-table {
   width: 100%;
   border-collapse: collapse;
-  background: #2c2c2e;
-  border-radius: 12px;
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
   overflow: hidden;
 }
 
 .minute-table th {
-  background: #3a3a3c;
-  color: #8e8e93;
+  background: #5cb85c;
+  color: #fff;
   font-size: 13px;
   font-weight: 600;
-  padding: 14px 16px;
+  padding: 12px 16px;
   text-align: left;
 }
 
@@ -1261,43 +1267,47 @@ const timeCards = computed(() => [
 }
 
 .minute-table td {
-  padding: 14px 16px;
+  padding: 12px 16px;
   font-size: 14px;
-  color: #fff;
-  border-bottom: 1px solid #3a3a3c;
+  color: #333;
+  border-bottom: 1px solid #f0f0f0;
 }
 
 .minute-table td:nth-child(2) {
   text-align: right;
-  color: #0a84ff;
+  color: #4a4a9e;
   font-weight: 600;
 }
 
 .minute-table td:nth-child(3) {
   text-align: right;
-  color: #8e8e93;
+  color: #666;
 }
 
 .minute-table tr:last-child td {
   border-bottom: none;
 }
 
+.minute-table tr:hover {
+  background: #fafafa;
+}
+
 .minute-table tr.highlight-row {
-  background: #1a3a5c;
+  background: #e8f5e9;
 }
 
 .minute-table tr.highlight-row td {
-  color: #fff;
+  color: #333;
   font-weight: 600;
 }
 
 .minute-table tr.highlight-row td:nth-child(2) {
-  color: #30d158;
+  color: #5cb85c;
 }
 
 .minute-table tr.divider-row td {
-  padding: 8px 0;
-  background: #1c1c1e;
+  padding: 6px 0;
+  background: #f5f5f5;
   border-bottom: none;
 }
 
@@ -1337,7 +1347,7 @@ const timeCards = computed(() => [
   }
 
   .card-value {
-    font-size: 20px;
+    font-size: 18px;
   }
 }
 </style>

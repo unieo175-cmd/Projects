@@ -193,13 +193,14 @@ const maxBankAmount = computed(() => {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 16px;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 .chart-card {
-  background: #1c1c1e;
-  border-radius: 16px;
+  background: #fff;
+  border-radius: 8px;
   padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .chart-card.wide {
@@ -207,8 +208,8 @@ const maxBankAmount = computed(() => {
 }
 
 .chart-card h3 {
-  color: #fff;
-  font-size: 16px;
+  color: #333;
+  font-size: 15px;
   font-weight: 600;
   margin-bottom: 16px;
 }
@@ -241,15 +242,15 @@ const maxBankAmount = computed(() => {
 
 .donut-total {
   display: block;
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 700;
-  color: #fff;
+  color: #333;
 }
 
 .donut-label {
   display: block;
   font-size: 12px;
-  color: #8e8e93;
+  color: #666;
 }
 
 .legend {
@@ -271,14 +272,14 @@ const maxBankAmount = computed(() => {
 }
 
 .legend-label {
-  color: #fff;
-  font-size: 14px;
+  color: #333;
+  font-size: 13px;
   flex: 1;
 }
 
 .legend-value {
-  color: #8e8e93;
-  font-size: 14px;
+  color: #666;
+  font-size: 13px;
   font-family: monospace;
 }
 
@@ -286,7 +287,7 @@ const maxBankAmount = computed(() => {
 .bar-chart {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .bar-row {
@@ -298,7 +299,7 @@ const maxBankAmount = computed(() => {
 .bar-label {
   width: 80px;
   font-size: 12px;
-  color: #8e8e93;
+  color: #666;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -311,11 +312,11 @@ const maxBankAmount = computed(() => {
   position: absolute;
   left: 0;
   bottom: 100%;
-  background: #3a3a3c;
+  background: #333;
   color: #fff;
   padding: 6px 10px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 11px;
   white-space: nowrap;
   z-index: 10;
   margin-bottom: 4px;
@@ -328,14 +329,14 @@ const maxBankAmount = computed(() => {
 .bar-container {
   flex: 1;
   height: 20px;
-  background: #2c2c2e;
+  background: #f0f0f0;
   border-radius: 4px;
   overflow: hidden;
 }
 
 .bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #0a84ff, #5e5ce6);
+  background: linear-gradient(90deg, #4a4a9e, #6a6abe);
   border-radius: 4px;
   transition: width 0.3s;
 }
@@ -344,7 +345,7 @@ const maxBankAmount = computed(() => {
   width: 60px;
   text-align: right;
   font-size: 12px;
-  color: #fff;
+  color: #333;
   font-family: monospace;
 }
 
@@ -372,7 +373,7 @@ const maxBankAmount = computed(() => {
   bottom: 100%;
   left: 50%;
   transform: translateX(-50%);
-  background: #3a3a3c;
+  background: #333;
   color: #fff;
   padding: 6px 10px;
   border-radius: 6px;
@@ -389,7 +390,7 @@ const maxBankAmount = computed(() => {
 
 .hour-fill {
   width: 100%;
-  background: linear-gradient(180deg, #0a84ff, #5e5ce6);
+  background: linear-gradient(180deg, #4a4a9e, #6a6abe);
   border-radius: 2px 2px 0 0;
   margin-top: auto;
   transition: height 0.3s;
@@ -398,7 +399,7 @@ const maxBankAmount = computed(() => {
 
 .hour-label {
   font-size: 10px;
-  color: #8e8e93;
+  color: #666;
   margin-top: 8px;
 }
 

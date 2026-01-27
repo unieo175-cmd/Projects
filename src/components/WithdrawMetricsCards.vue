@@ -333,67 +333,70 @@ const activeChannel = ref('all'); // 'all', 'bankCard', 'alipay', 'wechat'
 
 <style scoped>
 .metrics-container {
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 /* 渠道切換按鈕 */
 .channel-tabs {
   display: flex;
-  gap: 8px;
+  gap: 4px;
   margin-bottom: 20px;
-  background: #1c1c1e;
-  padding: 8px;
-  border-radius: 12px;
+  background: #fff;
+  padding: 6px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .channel-tab {
   flex: 1;
-  padding: 12px 20px;
+  padding: 10px 16px;
   border: none;
   background: transparent;
-  color: #8e8e93;
+  color: #666;
   font-size: 14px;
-  font-weight: 600;
-  border-radius: 8px;
+  font-weight: 500;
+  border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .channel-tab:hover {
-  color: #fff;
-  background: #2c2c2e;
+  color: #333;
+  background: #f5f5f5;
 }
 
 .channel-tab.active {
-  background: #0a84ff;
+  background: #4a4a9e;
   color: #fff;
 }
 
 .metrics-section {
-  margin-bottom: 20px;
-  background: #1c1c1e;
-  border-radius: 16px;
+  margin-bottom: 16px;
+  background: #fff;
+  border-radius: 8px;
   overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 20px;
+  padding: 14px 20px;
+  border-bottom: 1px solid #f0f0f0;
 }
 
 .section-title {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
-  color: #fff;
+  color: #333;
   margin: 0;
 }
 
 .metrics-grid {
   display: grid;
   gap: 12px;
-  padding: 0 16px 16px;
+  padding: 16px;
 }
 
 .four-grid {
@@ -401,35 +404,36 @@ const activeChannel = ref('all'); // 'all', 'bankCard', 'alipay', 'wechat'
 }
 
 .metric-card {
-  background: #2c2c2e;
-  border-radius: 12px;
-  padding: 16px;
+  background: #f8f9fa;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 14px;
   transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .metric-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .card-header {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .card-icon {
-  font-size: 16px;
+  font-size: 14px;
 }
 
 .card-title {
-  font-size: 13px;
-  color: #8e8e93;
+  font-size: 12px;
+  color: #666;
 }
 
 .card-value {
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 700;
   display: flex;
   align-items: baseline;
@@ -437,14 +441,14 @@ const activeChannel = ref('all'); // 'all', 'bankCard', 'alipay', 'wechat'
 }
 
 .card-unit {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 400;
-  color: #8e8e93;
+  color: #999;
 }
 
 .card-formula {
-  font-size: 11px;
-  color: #6e6e73;
+  font-size: 10px;
+  color: #999;
   margin-top: 6px;
   font-style: italic;
 }
@@ -453,8 +457,8 @@ const activeChannel = ref('all'); // 'all', 'bankCard', 'alipay', 'wechat'
 .withdraw-content {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 0 20px 16px;
+  gap: 8px;
+  padding: 16px 20px;
 }
 
 .detail-item {
@@ -464,45 +468,48 @@ const activeChannel = ref('all'); // 'all', 'bankCard', 'alipay', 'wechat'
 }
 
 .detail-label {
-  font-size: 14px;
-  color: #8e8e93;
+  font-size: 13px;
+  color: #666;
 }
 
 .detail-value {
-  font-size: 14px;
-  color: #fff;
+  font-size: 13px;
+  color: #333;
   font-family: monospace;
 }
 
 .detail-item.sub-item {
-  padding-left: 20px;
+  padding-left: 16px;
 }
 
 .detail-item.sub-item .detail-label {
-  color: #6e6e73;
+  color: #999;
 }
 
 /* 提現成功時間區段 - 表格樣式 */
 .minute-analysis-content {
-  padding: 0 16px 16px;
+  padding: 16px;
 }
 
 .minute-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 14px;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 .minute-table th,
 .minute-table td {
   padding: 12px 16px;
   text-align: left;
-  border-bottom: 1px solid #3a3a3c;
+  border-bottom: 1px solid #f0f0f0;
 }
 
 .minute-table th {
-  background: #3a3a3c;
-  color: #8e8e93;
+  background: #5cb85c;
+  color: #fff;
   font-weight: 600;
 }
 
@@ -514,48 +521,50 @@ const activeChannel = ref('all'); // 'all', 'bankCard', 'alipay', 'wechat'
 }
 
 .minute-table td {
-  color: #fff;
+  color: #333;
 }
 
 .minute-table td:nth-child(2) {
-  color: #0a84ff;
+  color: #4a4a9e;
   font-family: monospace;
+  font-weight: 600;
 }
 
 .minute-table td:nth-child(3) {
-  color: #30d158;
+  color: #5cb85c;
   font-family: monospace;
 }
 
 .minute-table tr:hover {
-  background: #2c2c2e;
+  background: #fafafa;
 }
 
 .minute-table tr.highlight-row {
-  background: #1a3a5c;
+  background: #e8f5e9;
 }
 
 .minute-table tr.highlight-row:hover {
-  background: #1a4a6c;
+  background: #dcedc8;
 }
 
 .minute-table tr.divider-row td {
   padding: 4px;
-  border-bottom: 2px solid #3a3a3c;
+  background: #f5f5f5;
+  border-bottom: none;
 }
 
 .minute-table tr.sub-row {
-  background: #252528;
+  background: #fafafa;
 }
 
 .minute-table tr.sub-row td.indent {
   padding-left: 32px;
-  color: #8e8e93;
+  color: #666;
 }
 
 .minute-table td.formula-text {
-  font-size: 11px;
-  color: #6e6e73;
+  font-size: 10px;
+  color: #999;
   font-style: italic;
   font-family: inherit;
 }

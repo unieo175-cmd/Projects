@@ -170,10 +170,11 @@ const handleMerchantBlur = () => {
 
 <style scoped>
 .search-filter {
-  background: #1c1c1e;
-  border-radius: 16px;
+  background: #fff;
+  border-radius: 8px;
   padding: 20px;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .filter-row {
@@ -194,8 +195,8 @@ const handleMerchantBlur = () => {
 }
 
 .filter-label {
-  font-size: 12px;
-  color: #8e8e93;
+  font-size: 13px;
+  color: #666;
   font-weight: 500;
 }
 
@@ -210,29 +211,30 @@ const handleMerchantBlur = () => {
   left: 14px;
   top: 50%;
   transform: translateY(-50%);
-  width: 20px;
-  height: 20px;
-  color: #8e8e93;
+  width: 18px;
+  height: 18px;
+  color: #999;
 }
 
 .search-input {
   width: 100%;
-  padding: 12px 12px 12px 44px;
-  border: 1px solid #3a3a3c;
-  border-radius: 10px;
-  background: #2c2c2e;
-  color: #fff;
-  font-size: 15px;
+  padding: 10px 12px 10px 42px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: #fff;
+  color: #333;
+  font-size: 14px;
   outline: none;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .search-input:focus {
-  border-color: #0a84ff;
+  border-color: #4a4a9e;
+  box-shadow: 0 0 0 3px rgba(74, 74, 158, 0.1);
 }
 
 .search-input::placeholder {
-  color: #8e8e93;
+  color: #999;
 }
 
 /* Merchant Filter Dropdown */
@@ -246,22 +248,23 @@ const handleMerchantBlur = () => {
 
 .merchant-search-input {
   width: 100%;
-  padding: 12px 16px;
-  border: 1px solid #3a3a3c;
-  border-radius: 10px;
-  background: #2c2c2e;
-  color: #fff;
-  font-size: 15px;
+  padding: 10px 14px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: #fff;
+  color: #333;
+  font-size: 14px;
   outline: none;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .merchant-search-input:focus {
-  border-color: #0a84ff;
+  border-color: #4a4a9e;
+  box-shadow: 0 0 0 3px rgba(74, 74, 158, 0.1);
 }
 
 .merchant-search-input::placeholder {
-  color: #8e8e93;
+  color: #999;
 }
 
 .merchant-dropdown {
@@ -270,20 +273,20 @@ const handleMerchantBlur = () => {
   left: 0;
   right: 0;
   margin-top: 4px;
-  background: #2c2c2e;
-  border: 1px solid #3a3a3c;
-  border-radius: 10px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
   max-height: 300px;
   overflow-y: auto;
   z-index: 1000;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .dropdown-item {
-  padding: 12px 16px;
+  padding: 10px 14px;
   cursor: pointer;
   font-size: 14px;
-  color: #fff;
+  color: #333;
   transition: background 0.15s;
   white-space: nowrap;
   overflow: hidden;
@@ -291,17 +294,18 @@ const handleMerchantBlur = () => {
 }
 
 .dropdown-item:hover {
-  background: #3a3a3c;
+  background: #f5f5f5;
 }
 
 .dropdown-item.active {
-  background: #0a84ff;
+  background: #4a4a9e;
+  color: #fff;
 }
 
 .dropdown-empty {
   padding: 16px;
   text-align: center;
-  color: #8e8e93;
+  color: #999;
   font-size: 14px;
 }
 
@@ -312,53 +316,56 @@ const handleMerchantBlur = () => {
 }
 
 .date-range label {
-  color: #8e8e93;
+  color: #666;
   font-size: 14px;
 }
 
 .date-input {
   padding: 10px 14px;
-  border: 1px solid #3a3a3c;
-  border-radius: 10px;
-  background: #2c2c2e;
-  color: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: #fff;
+  color: #333;
   font-size: 14px;
   outline: none;
+  transition: border-color 0.2s;
 }
 
 .date-input:focus {
-  border-color: #0a84ff;
+  border-color: #4a4a9e;
+  box-shadow: 0 0 0 3px rgba(74, 74, 158, 0.1);
 }
 
 .reset-btn {
   padding: 10px 20px;
-  border: none;
-  border-radius: 10px;
-  background: #3a3a3c;
-  color: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: #fff;
+  color: #666;
   font-size: 14px;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s;
 }
 
 .reset-btn:hover {
-  background: #48484a;
+  background: #f5f5f5;
+  border-color: #ccc;
 }
 
 .export-btn {
   padding: 10px 20px;
   border: none;
-  border-radius: 10px;
-  background: #30d158;
+  border-radius: 6px;
+  background: #5cb85c;
   color: #fff;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
   transition: background 0.2s;
 }
 
 .export-btn:hover {
-  background: #28b94c;
+  background: #4cae4c;
 }
 
 @media (max-width: 768px) {
