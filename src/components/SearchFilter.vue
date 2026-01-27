@@ -10,7 +10,6 @@ const props = defineProps({
 
 const emit = defineEmits(['filter', 'export']);
 
-const searchQuery = ref('');
 const merchantFilter = ref('all');
 const merchantSearch = ref('');
 const showMerchantDropdown = ref(false);
@@ -40,18 +39,6 @@ const filteredMerchants = computed(() => {
 const applyFilters = () => {
   let filtered = [...props.records];
 
-  // Search query
-  if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase();
-    filtered = filtered.filter(r =>
-      r.id.toLowerCase().includes(query) ||
-      r.merchant.toLowerCase().includes(query) ||
-      r.userId.toLowerCase().includes(query) ||
-      r.bankName.toLowerCase().includes(query) ||
-      r.status.toLowerCase().includes(query)
-    );
-  }
-
   // Merchant filter
   if (merchantFilter.value !== 'all') {
     filtered = filtered.filter(r => r.merchant === merchantFilter.value);
@@ -68,15 +55,13 @@ const applyFilters = () => {
   emit('filter', filtered);
 };
 
-// Watch for changes and apply filters
-watch([searchQuery, merchantFilter, dateFrom, dateTo], applyFilters, { immediate: true });
+// Initial load
+watch(() => props.records, () => {
+  applyFilters();
+}, { immediate: true });
 
-const resetFilters = () => {
-  searchQuery.value = '';
-  merchantFilter.value = 'all';
-  merchantSearch.value = '';
-  dateFrom.value = '';
-  dateTo.value = '';
+const handleSearch = () => {
+  applyFilters();
 };
 
 const handleExport = () => {
@@ -104,19 +89,6 @@ const handleMerchantBlur = () => {
 <template>
   <div class="search-filter">
     <div class="filter-row">
-      <div class="search-box">
-        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="11" cy="11" r="8"></circle>
-          <path d="m21 21-4.35-4.35"></path>
-        </svg>
-        <input
-          v-model="searchQuery"
-          type="text"
-          placeholder="搜索流水号、商户、用户ID、银行..."
-          class="search-input"
-        />
-      </div>
-
       <!-- Merchant Filter with Searchable Dropdown -->
       <div class="filter-group merchant-filter">
         <label class="filter-label">商户名称</label>
@@ -152,9 +124,7 @@ const handleMerchantBlur = () => {
           </div>
         </div>
       </div>
-    </div>
 
-    <div class="filter-row">
       <div class="date-range">
         <label>从</label>
         <input v-model="dateFrom" type="date" class="date-input" />
@@ -162,7 +132,7 @@ const handleMerchantBlur = () => {
         <input v-model="dateTo" type="date" class="date-input" />
       </div>
 
-      <button @click="resetFilters" class="reset-btn">重置筛选</button>
+      <button @click="handleSearch" class="search-btn">查詢</button>
       <button @click="handleExport" class="export-btn">匯出 Excel</button>
     </div>
   </div>
@@ -184,10 +154,6 @@ const handleMerchantBlur = () => {
   align-items: flex-end;
 }
 
-.filter-row + .filter-row {
-  margin-top: 16px;
-}
-
 .filter-group {
   display: flex;
   flex-direction: column;
@@ -198,43 +164,6 @@ const handleMerchantBlur = () => {
   font-size: 13px;
   color: #666;
   font-weight: 500;
-}
-
-.search-box {
-  position: relative;
-  flex: 1;
-  min-width: 280px;
-}
-
-.search-icon {
-  position: absolute;
-  left: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 18px;
-  height: 18px;
-  color: #999;
-}
-
-.search-input {
-  width: 100%;
-  padding: 10px 12px 10px 42px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  background: #fff;
-  color: #333;
-  font-size: 14px;
-  outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.search-input:focus {
-  border-color: #4a4a9e;
-  box-shadow: 0 0 0 3px rgba(74, 74, 158, 0.1);
-}
-
-.search-input::placeholder {
-  color: #999;
 }
 
 /* Merchant Filter Dropdown */
@@ -336,20 +265,21 @@ const handleMerchantBlur = () => {
   box-shadow: 0 0 0 3px rgba(74, 74, 158, 0.1);
 }
 
-.reset-btn {
+.search-btn {
   padding: 10px 20px;
-  border: 1px solid #ddd;
+  border: none;
   border-radius: 6px;
-  background: #fff;
-  color: #666;
+  background: #4a4a9e;
+  color: #fff;
   font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background 0.2s;
+  margin-left: auto;
 }
 
-.reset-btn:hover {
-  background: #f5f5f5;
-  border-color: #ccc;
+.search-btn:hover {
+  background: #3a3a8e;
 }
 
 .export-btn {
@@ -369,10 +299,6 @@ const handleMerchantBlur = () => {
 }
 
 @media (max-width: 768px) {
-  .search-box {
-    min-width: 100%;
-  }
-
   .filter-group {
     flex: 1;
     min-width: 140px;
@@ -384,6 +310,12 @@ const handleMerchantBlur = () => {
 
   .date-range {
     width: 100%;
+  }
+
+  .search-btn,
+  .export-btn {
+    flex: 1;
+    margin-left: 0;
   }
 }
 </style>
