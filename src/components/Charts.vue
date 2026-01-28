@@ -148,8 +148,8 @@ const maxBankAmount = computed(() => {
 
 <template>
   <div class="charts-container">
-    <!-- Channel Distribution -->
-    <div class="chart-card">
+    <!-- Channel Distribution (暫時隱藏) -->
+    <div class="chart-card" v-if="false">
       <h3>充值渠道佔比</h3>
       <div class="donut-chart">
         <svg viewBox="0 0 100 100" class="donut">
@@ -366,7 +366,7 @@ const maxBankAmount = computed(() => {
 
 .bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #4a4a9e, #6a6abe);
+  background: linear-gradient(90deg, #FF9800, #FFB74D);
   border-radius: 4px;
   transition: width 0.3s;
 }

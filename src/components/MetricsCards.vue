@@ -56,42 +56,48 @@ const generalCards = computed(() => [
     value: (props.metrics.totalApplicationCount || 0).toLocaleString(),
     unit: `(成功率 ${(props.metrics.overallSuccessRate || 0).toFixed(2)}%)`,
     color: '#0a84ff',
-    icon: '📊'
+    icon: '📊',
+    formula: '極速銀行卡+支付寶+微信 成功配對筆數'
   },
   {
     title: '总充值成功（含掉单）',
     value: (props.metrics.successfulCount || 0).toLocaleString(),
     unit: '笔',
     color: '#30d158',
-    icon: '✅'
+    icon: '✅',
+    formula: '實際收到金額 > 0 的筆數'
   },
   {
     title: '总申请金额',
     value: formatAmount(props.metrics.totalApplicationAmount || 0),
     unit: '元',
     color: '#30d158',
-    icon: '💰'
+    icon: '💰',
+    formula: '實際收到金額 > 0 的金額加總'
   },
   {
     title: '平均处理时间',
     value: formatTime(props.metrics.overallAvgTime),
     unit: '',
     color: '#0a84ff',
-    icon: '⏱️'
+    icon: '⏱️',
+    formula: '實際收到金額 > 0 的處理時間平均'
   },
   {
     title: '无效申请',
     value: (props.metrics.invalidApplicationCount || 0).toLocaleString(),
     unit: `(${(props.metrics.invalidApplicationRatio || 0).toFixed(2)}%)`,
     color: '#ff453a',
-    icon: '❌'
+    icon: '❌',
+    formula: '狀態含"取消" 或 實際收到金額=0'
   },
   {
     title: '掉单笔数',
     value: (props.metrics.overallDropOrderCount || 0).toLocaleString(),
     unit: `(${(props.metrics.overallDropOrderRatio || 0).toFixed(2)}%)`,
     color: '#ff9f0a',
-    icon: '⚠️'
+    icon: '⚠️',
+    formula: '實際收到金額>0 且 狀態含"補"'
   }
 ]);
 
@@ -102,35 +108,40 @@ const timeCards = computed(() => [
     value: (props.metrics.within2MinCount || 0).toLocaleString(),
     unit: `(${(props.metrics.within2MinRatio || 0).toFixed(2)}%)`,
     color: '#30d158',
-    icon: '⚡'
+    icon: '⚡',
+    formula: '處理時間 <= 120秒'
   },
   {
     title: '3-5分钟',
     value: (props.metrics.within3to5MinCount || 0).toLocaleString(),
     unit: `(${(props.metrics.within3to5MinRatio || 0).toFixed(2)}%)`,
     color: '#5e5ce6',
-    icon: '🕐'
+    icon: '🕐',
+    formula: '處理時間 180~300秒'
   },
   {
     title: '5-15分钟',
     value: (props.metrics.within5to15MinCount || 0).toLocaleString(),
     unit: `(${(props.metrics.within5to15MinRatio || 0).toFixed(2)}%)`,
     color: '#ff9f0a',
-    icon: '🕑'
+    icon: '🕑',
+    formula: '處理時間 300~900秒'
   },
   {
     title: '15-30分钟',
     value: (props.metrics.within15to30MinCount || 0).toLocaleString(),
     unit: `(${(props.metrics.within15to30MinRatio || 0).toFixed(2)}%)`,
     color: '#ff9f0a',
-    icon: '🕒'
+    icon: '🕒',
+    formula: '處理時間 900~1800秒'
   },
   {
     title: '30分钟以上',
     value: (props.metrics.over30MinCount || 0).toLocaleString(),
     unit: `(${(props.metrics.over30MinRatio || 0).toFixed(2)}%)`,
     color: '#ff453a',
-    icon: '🕓'
+    icon: '🕓',
+    formula: '處理時間 > 1800秒'
   }
 ]);
 </script>
@@ -191,6 +202,7 @@ const timeCards = computed(() => [
               {{ card.value }}
               <span class="card-unit">{{ card.unit }}</span>
             </div>
+            <div v-if="card.formula" class="card-formula">{{ card.formula }}</div>
           </div>
         </div>
       </div>
@@ -215,6 +227,7 @@ const timeCards = computed(() => [
               {{ card.value }}
               <span class="card-unit">{{ card.unit }}</span>
             </div>
+            <div v-if="card.formula" class="card-formula">{{ card.formula }}</div>
           </div>
         </div>
       </div>
@@ -232,6 +245,7 @@ const timeCards = computed(() => [
                 <th>項目</th>
                 <th>筆數/百分比</th>
                 <th>金額</th>
+                <th>計算公式</th>
               </tr>
             </thead>
             <tbody>
@@ -239,54 +253,64 @@ const timeCards = computed(() => [
                 <td>总充值成功（含掉单）</td>
                 <td>{{ (metrics.minuteAnalysisTotalCount || 0).toLocaleString() }}</td>
                 <td>{{ formatAmount(metrics.minuteAnalysisTotalAmount || 0) }} 元</td>
+                <td class="formula-cell">實際收到金額 > 0 的筆數/金額</td>
               </tr>
               <tr>
                 <td>2分鐘內</td>
                 <td>{{ (metrics.minuteWithin2MinCount || 0).toLocaleString() }} ({{ (metrics.minuteWithin2MinRatio || 0).toFixed(2) }}%)</td>
                 <td>{{ formatAmount(metrics.minuteWithin2MinAmount || 0) }} 元</td>
+                <td class="formula-cell">處理時間 <= 120秒</td>
               </tr>
               <tr>
                 <td>2-3分鐘</td>
                 <td>{{ (metrics.minuteWithin2to3MinCount || 0).toLocaleString() }} ({{ (metrics.minuteWithin2to3MinRatio || 0).toFixed(2) }}%)</td>
                 <td>{{ formatAmount(metrics.minuteWithin2to3MinAmount || 0) }} 元</td>
+                <td class="formula-cell">處理時間 120~180秒</td>
               </tr>
               <tr>
                 <td>3-5分鐘</td>
                 <td>{{ (metrics.minuteWithin3to5MinCount || 0).toLocaleString() }} ({{ (metrics.minuteWithin3to5MinRatio || 0).toFixed(2) }}%)</td>
                 <td>{{ formatAmount(metrics.minuteWithin3to5MinAmount || 0) }} 元</td>
+                <td class="formula-cell">處理時間 180~300秒</td>
               </tr>
               <tr>
                 <td>5-15分鐘</td>
                 <td>{{ (metrics.minuteWithin5to15MinCount || 0).toLocaleString() }} ({{ (metrics.minuteWithin5to15MinRatio || 0).toFixed(2) }}%)</td>
                 <td>{{ formatAmount(metrics.minuteWithin5to15MinAmount || 0) }} 元</td>
+                <td class="formula-cell">處理時間 300~900秒</td>
               </tr>
               <tr>
                 <td>15-30分鐘</td>
                 <td>{{ (metrics.minuteWithin15to30MinCount || 0).toLocaleString() }} ({{ (metrics.minuteWithin15to30MinRatio || 0).toFixed(2) }}%)</td>
                 <td>{{ formatAmount(metrics.minuteWithin15to30MinAmount || 0) }} 元</td>
+                <td class="formula-cell">處理時間 900~1800秒</td>
               </tr>
               <tr>
                 <td>30分鐘以上</td>
                 <td>{{ (metrics.minuteOver30MinCount || 0).toLocaleString() }} ({{ (metrics.minuteOver30MinRatio || 0).toFixed(2) }}%)</td>
                 <td>{{ formatAmount(metrics.minuteOver30MinAmount || 0) }} 元</td>
+                <td class="formula-cell">處理時間 > 1800秒</td>
               </tr>
               <tr class="divider-row">
-                <td colspan="3"></td>
+                <td colspan="4"></td>
               </tr>
               <tr>
                 <td>无效申请</td>
                 <td>{{ (metrics.minuteInvalidCount || 0).toLocaleString() }}</td>
                 <td>-- / ({{ (metrics.minuteInvalidRatio || 0).toFixed(2) }}%)</td>
+                <td class="formula-cell">狀態含"取消" 或 實際收到金額=0</td>
               </tr>
               <tr>
                 <td>掉单</td>
                 <td>{{ (metrics.minuteDropCount || 0).toLocaleString() }}</td>
                 <td>-- / ({{ (metrics.minuteDropRatio || 0).toFixed(2) }}%)</td>
+                <td class="formula-cell">實際收到金額>0 且 狀態含"補"</td>
               </tr>
               <tr class="highlight-row">
                 <td>平均時間</td>
                 <td>{{ formatTime(metrics.minuteAvgTime) }}</td>
                 <td>--</td>
+                <td class="formula-cell">實際收到金額>0 的處理時間平均</td>
               </tr>
             </tbody>
           </table>
@@ -1180,6 +1204,16 @@ const timeCards = computed(() => [
   color: #999;
 }
 
+.card-formula {
+  font-size: 10px;
+  color: #999;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #e8e8e8;
+  font-family: monospace;
+  line-height: 1.4;
+}
+
 /* 極速區域樣式 */
 .jisu-content {
   display: grid;
@@ -1365,6 +1399,11 @@ const timeCards = computed(() => [
   text-align: right;
 }
 
+.minute-table th:nth-child(4) {
+  text-align: left;
+  font-weight: 500;
+}
+
 .minute-table td {
   padding: 12px 16px;
   font-size: 14px;
@@ -1408,6 +1447,13 @@ const timeCards = computed(() => [
   padding: 6px 0;
   background: #f5f5f5;
   border-bottom: none;
+}
+
+.minute-table td.formula-cell {
+  font-size: 11px;
+  color: #999;
+  font-family: monospace;
+  text-align: left;
 }
 
 @media (max-width: 1200px) {
