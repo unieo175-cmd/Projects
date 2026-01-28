@@ -45,6 +45,22 @@ const channelDistribution = computed(() => {
     thirdParty: { count: 0, amount: 0 }
   };
 
+  // 判斷是否為三方代收
+  const isThirdParty = (bankCardCode) => {
+    if (!bankCardCode) return false;
+    const code = bankCardCode.toLowerCase();
+    // 特定三方代收代碼
+    if (bankCardCode === 'GB-DahaomenJFB' || bankCardCode === 'HTc2cdeposit' ||
+        bankCardCode === 'DDFdeposit' || bankCardCode === 'UC1020') {
+      return true;
+    }
+    // 非 gb/auction 開頭的也是三方
+    if (!code.startsWith('gb') && !code.startsWith('auction')) {
+      return true;
+    }
+    return false;
+  };
+
   // 遍歷所有充值成功記錄 (receivedAmount > 0)
   props.records.filter(r => r.receivedAmount > 0).forEach(r => {
     const hasJiSu = r.merchant && r.merchant.includes('极速充提3');
@@ -58,9 +74,16 @@ const channelDistribution = computed(() => {
       dist.wechat.count++;
       dist.wechat.amount += r.receivedAmount;
     } else if (hasJiSu) {
-      dist.bankCard.count++;
-      dist.bankCard.amount += r.receivedAmount;
+      // 極速銀行卡需要進一步判斷是否為三方
+      if (isThirdParty(r.bankCardCode)) {
+        dist.thirdParty.count++;
+        dist.thirdParty.amount += r.receivedAmount;
+      } else {
+        dist.bankCard.count++;
+        dist.bankCard.amount += r.receivedAmount;
+      }
     } else {
+      // 非极速充提3的其他商戶歸類為三方
       dist.thirdParty.count++;
       dist.thirdParty.amount += r.receivedAmount;
     }
