@@ -290,15 +290,16 @@ const analysisMetrics = computed(() => {
     // 充值3分內占比 = 3分鐘內筆數 / 自動到帳筆數
     const within3MinRate = p4 > 0 ? within3MinCount / p4 : 0;
 
-    // 平均時間 = SUMIFS(AM, AP>0, AO=1, T<>0) / P4
-    const recordsWithTime = autoDepositRecords.filter(r =>
+    // 平均時間 = AVERAGEIFS(AN:AN, M:M, ">0")
+    // AN = processingTime, M = receivedAmount
+    // 計算所有 receivedAmount > 0 且 processingTime 有值的記錄平均時間
+    const recordsWithTime = totalDeposit.filter(r =>
       r.processingTime !== null &&
-      r.processingTime >= 0 &&
-      r.notifyMerchantTime &&
-      !r.notifyMerchantTime.includes('0000-00-00')
+      r.processingTime >= 0
     );
-    const totalTime = recordsWithTime.reduce((sum, r) => sum + r.processingTime, 0);
-    const avgTime = p4 > 0 ? totalTime / p4 : 0;
+    const avgTime = recordsWithTime.length > 0
+      ? recordsWithTime.reduce((sum, r) => sum + r.processingTime, 0) / recordsWithTime.length
+      : 0;
 
     return { successRate, within3MinRate, avgTime };
   };

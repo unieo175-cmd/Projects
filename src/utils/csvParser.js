@@ -199,15 +199,16 @@ export const calculateMetrics = (records) => {
   // 總申請金額 = 充值成功筆數的金額加總
   const totalApplicationAmount = successfulRecords.reduce((sum, r) => sum + r.receivedAmount, 0);
 
-  // 平均時間 = 充值成功筆數的 (通知時間 - 建立時間) 平均
-  const successfulWithTime = successfulRecords.filter(r =>
+  // 平均時間 = AVERAGEIFS(AN:AN, M:M, ">0")
+  // AN = processingTime, M = receivedAmount
+  // 計算所有 receivedAmount > 0 且 processingTime 有值的記錄平均時間
+  const recordsWithAmountAndTime = records.filter(r =>
+    r.receivedAmount > 0 &&
     r.processingTime !== null &&
-    r.processingTime >= 0 &&
-    r.notifyMerchantTime &&
-    !r.notifyMerchantTime.includes('0000-00-00')
+    r.processingTime >= 0
   );
-  const overallAvgTime = successfulWithTime.length > 0
-    ? successfulWithTime.reduce((sum, r) => sum + r.processingTime, 0) / successfulWithTime.length
+  const overallAvgTime = recordsWithAmountAndTime.length > 0
+    ? recordsWithAmountAndTime.reduce((sum, r) => sum + r.processingTime, 0) / recordsWithAmountAndTime.length
     : 0;
 
   // 掉單筆數 = 充值成功 (AP > 0) 且狀態包含「補」
