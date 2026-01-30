@@ -19,15 +19,15 @@ const props = defineProps({
 
 const emit = defineEmits(['channelChange']);
 
-// 渠道切換
+// 渠道切换
 const activeChannel = ref('all'); // 'all', 'bankCard', 'alipay', 'wechat'
 
-// 當渠道改變時通知父組件
+// 当渠道改变时通知父组件
 watch(activeChannel, (newChannel) => {
   emit('channelChange', newChannel);
 });
 
-// 控制區域顯示/隱藏
+// 控制区域显示/隐藏
 const showGeneral = ref(true);
 const showJisu = ref(true);
 const showAlipay = ref(true);
@@ -45,10 +45,10 @@ const showMinuteAnalysis = ref(true);
 const showThirdParty = ref(true);
 const showAlipayThirdParty = ref(true);
 
-// 金額區間列表
+// 金额区间列表
 const amountRanges = [100, 200, 300, 500, 1000, 1500, 2000, 3000, 5000, 6000, 7000, 8000, 9000, 10000, 15000, 20000, 30000];
 
-// 從 localStorage 讀取騙分統計數據
+// 从 localStorage 读取骗分统计数据
 const fraudStats = computed(() => {
   const defaultStats = {
     bankCard: { manualCount: 0, manualAmount: 0, creditCount: 0, creditAmount: 0, fraudBlacklistCount: 0, cardVerifyCount: 0 },
@@ -67,22 +67,22 @@ const fraudStats = computed(() => {
       return defaultStats;
     }
 
-    // 如果沒有選擇日期範圍，使用 dataDate 作為預設（單日）
+    // 如果没有选择日期范围，使用 dataDate 作为默认（单日）
     let dateFrom = props.dateRange?.dateFrom || '';
     let dateTo = props.dateRange?.dateTo || '';
 
-    // 如果兩個日期都是空的，使用 dataDate 作為單日篩選
+    // 如果两个日期都是空的，使用 dataDate 作为单日筛选
     if (!dateFrom && !dateTo && props.dataDate) {
       dateFrom = props.dataDate;
       dateTo = props.dataDate;
     }
 
-    // 如果只有開始日期沒有結束日期，視為單日篩選
+    // 如果只有开始日期没有结束日期，视为单日筛选
     if (dateFrom && !dateTo) {
       dateTo = dateFrom;
     }
 
-    // 過濾符合日期範圍的記錄
+    // 过滤符合日期范围的记录
     let filteredRecords = records;
     if (dateFrom || dateTo) {
       filteredRecords = records.filter(r => {
@@ -92,16 +92,16 @@ const fraudStats = computed(() => {
       });
     }
 
-  // 初始化結果
+  // 初始化结果
   const result = {
     bankCard: { manualCount: 0, manualAmount: 0, creditCount: 0, creditAmount: 0, fraudBlacklistCount: 0, cardVerifyCount: 0 },
     alipay: { manualCount: 0, manualAmount: 0, creditCount: 0, creditAmount: 0, noReceiptCount: 0, fraudBlacklistCount: 0, cardVerifyCount: 0 },
     wechat: { manualCount: 0, manualAmount: 0, creditCount: 0, creditAmount: 0 }
   };
 
-  // 加總所有符合條件的記錄
+  // 加总所有符合条件的记录
   filteredRecords.forEach(r => {
-    // 銀行卡
+    // 银行卡
     result.bankCard.manualCount += parseFloat(r.bankCardManualCount) || 0;
     result.bankCard.manualAmount += parseFloat(r.bankCardManualAmount) || 0;
     result.bankCard.creditCount += parseFloat(r.bankCardCreditCount) || 0;
@@ -109,7 +109,7 @@ const fraudStats = computed(() => {
     result.bankCard.fraudBlacklistCount += parseFloat(r.bankCardFraudBlacklistCount) || 0;
     result.bankCard.cardVerifyCount += parseFloat(r.bankCardCardVerifyCount) || 0;
 
-    // 支付寶
+    // 支付宝
     result.alipay.manualCount += parseFloat(r.alipayManualCount) || 0;
     result.alipay.manualAmount += parseFloat(r.alipayManualAmount) || 0;
     result.alipay.creditCount += parseFloat(r.alipayCreditCount) || 0;
@@ -121,18 +121,18 @@ const fraudStats = computed(() => {
 
     return result;
   } catch (e) {
-    console.error('讀取騙分統計數據失敗:', e);
+    console.error('读取骗分统计数据失败:', e);
     return defaultStats;
   }
 });
 
 // 第一区域：重要信息
 // 公式：
-// - 總申請筆數 = 所有充值筆數
-// - 成功率 = 充值成功筆數 (AP > 0) / 總申請筆數
-// - 總申請金額 = 充值成功筆數金額加總
-// - 平均時間 = 充值成功筆數的 (通知時間 - 建立時間) 平均
-// - 掉單筆數 = 充值成功 (AP > 0) 且狀態包含「補」
+// - 总申请笔数 = 所有充值笔数
+// - 成功率 = 充值成功笔数 (AP > 0) / 总申请笔数
+// - 总申请金额 = 充值成功笔数金额加总
+// - 平均时间 = 充值成功笔数的 (通知时间 - 建立时间) 平均
+// - 掉单笔数 = 充值成功 (AP > 0) 且状态包含「补」
 const generalCards = computed(() => [
   {
     title: '总申请笔数',
@@ -140,7 +140,7 @@ const generalCards = computed(() => [
     unit: `(成功率 ${(props.metrics.overallSuccessRate || 0).toFixed(2)}%)`,
     color: '#0a84ff',
     icon: '📊',
-    formula: '極速銀行卡+支付寶+微信 成功配對筆數'
+    formula: '极速银行卡+支付宝+微信 成功配对笔数'
   },
   {
     title: '总充值成功（含掉单）',
@@ -148,7 +148,7 @@ const generalCards = computed(() => [
     unit: '笔',
     color: '#30d158',
     icon: '✅',
-    formula: '實際收到金額 > 0 的筆數'
+    formula: '实际收到金额 > 0 的笔数'
   },
   {
     title: '总充值金额',
@@ -156,7 +156,7 @@ const generalCards = computed(() => [
     unit: '元',
     color: '#30d158',
     icon: '💰',
-    formula: '實際收到金額 > 0 的金額加總'
+    formula: '实际收到金额 > 0 的金额加总'
   },
   {
     title: '平均处理时间',
@@ -164,7 +164,7 @@ const generalCards = computed(() => [
     unit: '',
     color: '#0a84ff',
     icon: '⏱️',
-    formula: '實際收到金額 > 0 的處理時間平均'
+    formula: '实际收到金额 > 0 的处理时间平均'
   },
   {
     title: '无效申请',
@@ -172,7 +172,7 @@ const generalCards = computed(() => [
     unit: `(${(props.metrics.invalidApplicationRatio || 0).toFixed(2)}%)`,
     color: '#ff453a',
     icon: '❌',
-    formula: '狀態含"取消" 或 實際收到金額=0'
+    formula: '状态含"取消" 或 实际收到金额=0'
   },
   {
     title: '掉单笔数',
@@ -180,7 +180,7 @@ const generalCards = computed(() => [
     unit: `(${(props.metrics.overallDropOrderRatio || 0).toFixed(2)}%)`,
     color: '#ff9f0a',
     icon: '⚠️',
-    formula: '實際收到金額>0 且 狀態含"補"'
+    formula: '实际收到金额>0 且 状态含"補"'
   }
 ]);
 
@@ -192,7 +192,7 @@ const timeCards = computed(() => [
     unit: `(${(props.metrics.within2MinRatio || 0).toFixed(2)}%)`,
     color: '#30d158',
     icon: '⚡',
-    formula: '處理時間 <= 120秒'
+    formula: '处理时间 <= 120秒'
   },
   {
     title: '3-5分钟',
@@ -200,7 +200,7 @@ const timeCards = computed(() => [
     unit: `(${(props.metrics.within3to5MinRatio || 0).toFixed(2)}%)`,
     color: '#5e5ce6',
     icon: '🕐',
-    formula: '處理時間 180~300秒'
+    formula: '处理时间 180~300秒'
   },
   {
     title: '5-15分钟',
@@ -208,7 +208,7 @@ const timeCards = computed(() => [
     unit: `(${(props.metrics.within5to15MinRatio || 0).toFixed(2)}%)`,
     color: '#ff9f0a',
     icon: '🕑',
-    formula: '處理時間 300~900秒'
+    formula: '处理时间 300~900秒'
   },
   {
     title: '15-30分钟',
@@ -216,7 +216,7 @@ const timeCards = computed(() => [
     unit: `(${(props.metrics.within15to30MinRatio || 0).toFixed(2)}%)`,
     color: '#ff9f0a',
     icon: '🕒',
-    formula: '處理時間 900~1800秒'
+    formula: '处理时间 900~1800秒'
   },
   {
     title: '30分钟以上',
@@ -224,14 +224,14 @@ const timeCards = computed(() => [
     unit: `(${(props.metrics.over30MinRatio || 0).toFixed(2)}%)`,
     color: '#ff453a',
     icon: '🕓',
-    formula: '處理時間 > 1800秒'
+    formula: '处理时间 > 1800秒'
   }
 ]);
 </script>
 
 <template>
   <div class="metrics-container">
-    <!-- 渠道切換 -->
+    <!-- 渠道切换 -->
     <div class="channel-tabs">
       <button
         class="channel-tab"
@@ -315,70 +315,70 @@ const timeCards = computed(() => [
         </div>
       </div>
 
-      <!-- 充值成功時間區段 -->
+      <!-- 充值成功时间区段 -->
       <div class="metrics-section">
         <div class="section-header" @click="showMinuteAnalysis = !showMinuteAnalysis">
-          <h3 class="section-title">充值成功時間區段</h3>
+          <h3 class="section-title">充值成功时间区段</h3>
           <span class="toggle-icon">{{ showMinuteAnalysis ? '▼' : '▶' }}</span>
         </div>
         <div v-show="showMinuteAnalysis" class="minute-analysis-content">
           <table class="minute-table">
             <thead>
               <tr>
-                <th>項目</th>
-                <th>筆數/百分比</th>
-                <th>金額</th>
-                <th>計算公式</th>
+                <th>项目</th>
+                <th>笔数/百分比</th>
+                <th>金额</th>
+                <th>计算公式</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td>总申请筆數</td>
+                <td>总申请笔数</td>
                 <td>{{ (metrics.totalApplicationCount || 0).toLocaleString() }}</td>
                 <td>--</td>
-                <td class="formula-cell">銀行卡+支付寶+微信 總申請筆數</td>
+                <td class="formula-cell">银行卡+支付宝+微信 总申请笔数</td>
               </tr>
               <tr>
                 <td>总充值成功（含掉单）</td>
                 <td>{{ (metrics.minuteAnalysisTotalCount || 0).toLocaleString() }}</td>
                 <td>{{ formatAmount(metrics.minuteAnalysisTotalAmount || 0) }} 元</td>
-                <td class="formula-cell">實際收到金額 > 0 的筆數</td>
+                <td class="formula-cell">实际收到金额 > 0 的笔数</td>
               </tr>
               <tr>
-                <td>2分鐘內</td>
+                <td>2分钟内</td>
                 <td>{{ (metrics.minuteWithin2MinCount || 0).toLocaleString() }} ({{ (metrics.minuteWithin2MinRatio || 0).toFixed(2) }}%)</td>
                 <td>{{ formatAmount(metrics.minuteWithin2MinAmount || 0) }} 元</td>
-                <td class="formula-cell">處理時間 <= 120秒</td>
+                <td class="formula-cell">处理时间 <= 120秒</td>
               </tr>
               <tr>
-                <td>2-3分鐘</td>
+                <td>2-3分钟</td>
                 <td>{{ (metrics.minuteWithin2to3MinCount || 0).toLocaleString() }} ({{ (metrics.minuteWithin2to3MinRatio || 0).toFixed(2) }}%)</td>
                 <td>{{ formatAmount(metrics.minuteWithin2to3MinAmount || 0) }} 元</td>
-                <td class="formula-cell">處理時間 120~180秒</td>
+                <td class="formula-cell">处理时间 120~180秒</td>
               </tr>
               <tr>
-                <td>3-5分鐘</td>
+                <td>3-5分钟</td>
                 <td>{{ (metrics.minuteWithin3to5MinCount || 0).toLocaleString() }} ({{ (metrics.minuteWithin3to5MinRatio || 0).toFixed(2) }}%)</td>
                 <td>{{ formatAmount(metrics.minuteWithin3to5MinAmount || 0) }} 元</td>
-                <td class="formula-cell">處理時間 180~300秒</td>
+                <td class="formula-cell">处理时间 180~300秒</td>
               </tr>
               <tr>
-                <td>5-15分鐘</td>
+                <td>5-15分钟</td>
                 <td>{{ (metrics.minuteWithin5to15MinCount || 0).toLocaleString() }} ({{ (metrics.minuteWithin5to15MinRatio || 0).toFixed(2) }}%)</td>
                 <td>{{ formatAmount(metrics.minuteWithin5to15MinAmount || 0) }} 元</td>
-                <td class="formula-cell">處理時間 300~900秒</td>
+                <td class="formula-cell">处理时间 300~900秒</td>
               </tr>
               <tr>
-                <td>15-30分鐘</td>
+                <td>15-30分钟</td>
                 <td>{{ (metrics.minuteWithin15to30MinCount || 0).toLocaleString() }} ({{ (metrics.minuteWithin15to30MinRatio || 0).toFixed(2) }}%)</td>
                 <td>{{ formatAmount(metrics.minuteWithin15to30MinAmount || 0) }} 元</td>
-                <td class="formula-cell">處理時間 900~1800秒</td>
+                <td class="formula-cell">处理时间 900~1800秒</td>
               </tr>
               <tr>
-                <td>30分鐘以上</td>
+                <td>30分钟以上</td>
                 <td>{{ (metrics.minuteOver30MinCount || 0).toLocaleString() }} ({{ (metrics.minuteOver30MinRatio || 0).toFixed(2) }}%)</td>
                 <td>{{ formatAmount(metrics.minuteOver30MinAmount || 0) }} 元</td>
-                <td class="formula-cell">處理時間 > 1800秒</td>
+                <td class="formula-cell">处理时间 > 1800秒</td>
               </tr>
               <tr class="divider-row">
                 <td colspan="4"></td>
@@ -387,19 +387,19 @@ const timeCards = computed(() => [
                 <td>无效申请</td>
                 <td>{{ (metrics.minuteInvalidCount || 0).toLocaleString() }}</td>
                 <td>-- / ({{ (metrics.minuteInvalidRatio || 0).toFixed(2) }}%)</td>
-                <td class="formula-cell">到帳金額=0 且 銀行卡代號不為空</td>
+                <td class="formula-cell">到账金额=0 且 银行卡代号不为空</td>
               </tr>
               <tr>
                 <td>掉单</td>
                 <td>{{ (metrics.minuteDropCount || 0).toLocaleString() }}</td>
                 <td>-- / ({{ (metrics.minuteDropRatio || 0).toFixed(2) }}%)</td>
-                <td class="formula-cell">實際收到金額>0 且 狀態含"補"</td>
+                <td class="formula-cell">实际收到金额>0 且 状态含"補"</td>
               </tr>
               <tr class="highlight-row">
-                <td>平均處理時間</td>
+                <td>平均处理时间</td>
                 <td>{{ formatTime(metrics.minuteAvgTime) }}</td>
                 <td>--</td>
-                <td class="formula-cell">實際收到金額>0 的處理時間平均</td>
+                <td class="formula-cell">实际收到金额>0 的处理时间平均</td>
               </tr>
             </tbody>
           </table>
@@ -441,11 +441,11 @@ const timeCards = computed(() => [
               </div>
             </div>
             <div class="block-formula">
-              <strong>數據範圍：</strong>商戶不含支付寶/微信/test/qa/線下<br>
-              <strong>一般卡：</strong>銀行卡代號有值且≠AUCTION_PAYMENT_CARD<br>
-              <strong>极速提：</strong>銀行卡代號=AUCTION_PAYMENT_CARD<br>
-              <strong>建单成功等待无配对：</strong>有商戶名稱但銀行卡號為空的筆數<br>
-              <strong>取无卡06提示：</strong>數據來源：極速06統計表
+              <strong>数据范围：</strong>商户不含支付宝/微信/test/qa/线下<br>
+              <strong>一般卡：</strong>银行卡代号有值且≠AUCTION_PAYMENT_CARD<br>
+              <strong>极速提：</strong>银行卡代号=AUCTION_PAYMENT_CARD<br>
+              <strong>建单成功等待无配对：</strong>有商户名称但银行卡号为空的笔数<br>
+              <strong>取无卡06提示：</strong>数据来源：极速06统计表
             </div>
           </div>
 
@@ -466,8 +466,8 @@ const timeCards = computed(() => [
               </div>
             </div>
             <div class="block-formula">
-              <strong>成功配對：</strong>銀行卡代號有值的記錄<br>
-              <strong>金額：</strong>使用充值金額（申請金額）計算
+              <strong>成功配对：</strong>银行卡代号有值的记录<br>
+              <strong>金额：</strong>使用充值金额（申请金额）计算
             </div>
           </div>
 
@@ -491,16 +491,16 @@ const timeCards = computed(() => [
                 <span class="detail-value">{{ (metrics.creditScoreSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.creditScoreSuccessAmount || 0) }} 元 / {{ formatTime(metrics.creditScoreAvgTime) }}</span>
               </div>
               <div class="detail-item">
-                <span class="detail-label">平均處理時間</span>
+                <span class="detail-label">平均处理时间</span>
                 <span class="detail-value">{{ formatTime(metrics.noCreditDowngradeAvgTime) }}</span>
               </div>
             </div>
             <div class="block-formula">
-              <strong>訂單成功條件：</strong>正規化狀態有值、≠未充值、≠審核中(已超時)<br>
-              <strong>一般卡：</strong>銀行卡代號有值、≠AUCTION + 上述條件<br>
-              <strong>极速提：</strong>銀行卡代號=AUCTION、到帳金額>0 + 上述條件<br>
-              <strong>信评上分：</strong>到帳金額>0 且狀態包含「信用」<br>
-              <strong>平均處理時間：</strong>没信评降等配卡的平均處理時間
+              <strong>订单成功条件：</strong>正规化状态有值、≠未充值、≠审核中(已超时)<br>
+              <strong>一般卡：</strong>银行卡代号有值、≠AUCTION + 上述条件<br>
+              <strong>极速提：</strong>银行卡代号=AUCTION、到账金额>0 + 上述条件<br>
+              <strong>信评上分：</strong>到账金额>0 且状态包含「信用」<br>
+              <strong>平均处理时间：</strong>没信评降等配卡的平均处理时间
             </div>
           </div>
 
@@ -526,7 +526,7 @@ const timeCards = computed(() => [
                 <span class="detail-value">{{ (metrics.noCreditDowngradeByAmount?.['other'] || 0).toLocaleString() }} 笔</span>
               </div>
             </div>
-            <div class="block-formula">無信評降等配卡的筆數，按申請金額分組統計</div>
+            <div class="block-formula">无信评降等配卡的笔数，按申请金额分组统计</div>
           </div>
 
         </div>
@@ -545,7 +545,7 @@ const timeCards = computed(() => [
             <span class="detail-value">{{ (metrics.c2cConfirmCount || 0).toLocaleString() }} 笔</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">点确认（用户确认到账）-平均處理時間</span>
+            <span class="detail-label">点确认（用户确认到账）-平均处理时间</span>
             <span class="detail-value">{{ formatTimeMinutes(metrics.c2cConfirmAvgTime) }}</span>
           </div>
           <div class="detail-item">
@@ -553,21 +553,21 @@ const timeCards = computed(() => [
             <span class="detail-value">{{ (metrics.c2cManualAuditCount || 0).toLocaleString() }} 笔</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">审核-成功平均處理時間</span>
+            <span class="detail-label">审核-成功平均处理时间</span>
             <span class="detail-value">{{ formatTimeMinutes(metrics.c2cAuditSuccessAvgTime) }}</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">超过11min补件后才成功</span>
             <span class="detail-value">{{ (metrics.c2cOver11MinSuccessCount || 0).toLocaleString() }} 笔</span>
           </div>
-          <div class="section-formula">銀行卡代碼含"c2c" 的訂單成功筆數/金額</div>
+          <div class="section-formula">银行卡代码含"c2c" 的订单成功笔数/金额</div>
         </div>
       </div>
 
       <!-- 三方代收 区域 -->
       <div class="metrics-section">
         <div class="section-header" @click="showThirdParty = !showThirdParty">
-          <h3 class="section-title">三方代收（一般卡訂單成功）</h3>
+          <h3 class="section-title">三方代收（一般卡订单成功）</h3>
           <span class="section-value">{{ (metrics.thirdPartyCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.thirdPartyAmount || 0) }} 元</span>
           <span class="toggle-icon">{{ showThirdParty ? '▼' : '▶' }}</span>
         </div>
@@ -589,12 +589,12 @@ const timeCards = computed(() => [
             <span class="detail-value">{{ (metrics.thirdPartyOtherCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.thirdPartyOtherAmount || 0) }} 元</span>
           </div>
           <div class="section-formula">
-            數據範圍：商戶不含支付寶/微信/test/qa，排除線下充值商戶<br>
-            三方代收計算公式：<br>
-            - 汇通 = 銀行卡代號 HTc2c 開頭<br>
-            - 豆豆 = 銀行卡代號 DDF 開頭<br>
-            - UC聚合 = 銀行卡代號 uc1020 開頭<br>
-            - 其他 = 到帳金額 ≠ 0，包含 GB-Dahaomen/Dahaomen 開頭，排除汇通/豆豆/UC及 auction/gb 開頭
+            数据范围：商户不含支付宝/微信/test/qa，排除线下充值商户<br>
+            三方代收计算公式：<br>
+            - 汇通 = 银行卡代号 HTc2c 开头<br>
+            - 豆豆 = 银行卡代号 DDF 开头<br>
+            - UC聚合 = 银行卡代号 uc1020 开头<br>
+            - 其他 = 到账金额 ≠ 0，包含 GB-Dahaomen/Dahaomen 开头，排除汇通/豆豆/UC及 auction/gb 开头
           </div>
         </div>
       </div>
@@ -624,7 +624,7 @@ const timeCards = computed(() => [
             <span class="detail-label">卡验及人验</span>
             <span class="detail-value">{{ fraudStats.bankCard.cardVerifyCount.toLocaleString() }} 笔</span>
           </div>
-          <div class="section-formula">數據來源：騙分統計（依篩選日期範圍加總）</div>
+          <div class="section-formula">数据來源：骗分统计（依筛选日期范围加总）</div>
         </div>
       </div>
 
@@ -653,7 +653,7 @@ const timeCards = computed(() => [
             <span class="detail-label">充值成功笔数</span>
             <span class="detail-value">{{ (metrics.cnxSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.cnxSuccessAmount || 0) }} 元</span>
           </div>
-          <div class="section-formula">商戶含"CNX" 的充值申請/成功筆數金額</div>
+          <div class="section-formula">商户含"CNX" 的充值申請/成功笔数金额</div>
         </div>
       </div>
     </template>
@@ -700,13 +700,13 @@ const timeCards = computed(() => [
               </div>
             </div>
             <div class="block-formula">
-              <strong>數據範圍：</strong>商戶含「支付宝」或「支付寶」<br>
-              <strong>一般卡：</strong>銀行卡代號有值、≠AUCTION_PAYMENT_CARD、銀行名稱≠支付宝/支付宝(企)/微信支付<br>
-              <strong>一般宝：</strong>銀行卡代號有值、≠AUCTION_PAYMENT_CARD、銀行名稱=支付宝/支付宝(企)/微信支付<br>
-              <strong>极速提(卡)：</strong>銀行卡代號=AUCTION_PAYMENT_CARD、銀行名稱≠支付宝/支付宝(企)/微信支付<br>
-              <strong>极速提(宝)：</strong>銀行卡代號=AUCTION_PAYMENT_CARD、銀行名稱=支付宝/支付宝(企)/微信支付<br>
-              <strong>建单成功等待无配对：</strong>有商戶名稱但銀行卡號為空的筆數<br>
-              <strong>取无卡06提示：</strong>數據來源：極速06統計表
+              <strong>数据范围：</strong>商户含「支付宝」或「支付宝」<br>
+              <strong>一般卡：</strong>银行卡代号有值、≠AUCTION_PAYMENT_CARD、银行名称≠支付宝/支付宝(企)/微信支付<br>
+              <strong>一般宝：</strong>银行卡代号有值、≠AUCTION_PAYMENT_CARD、银行名称=支付宝/支付宝(企)/微信支付<br>
+              <strong>极速提(卡)：</strong>银行卡代号=AUCTION_PAYMENT_CARD、银行名称≠支付宝/支付宝(企)/微信支付<br>
+              <strong>极速提(宝)：</strong>银行卡代号=AUCTION_PAYMENT_CARD、银行名称=支付宝/支付宝(企)/微信支付<br>
+              <strong>建单成功等待无配对：</strong>有商户名称但银行卡号为空的笔数<br>
+              <strong>取无卡06提示：</strong>数据来源：极速06统计表
             </div>
           </div>
 
@@ -735,9 +735,9 @@ const timeCards = computed(() => [
               </div>
             </div>
             <div class="block-formula">
-              <strong>成功配對：</strong>銀行卡代號有值的記錄<br>
-              <strong>金額：</strong>使用充值金額（申請金額）計算<br>
-              <strong>分類邏輯：</strong>同充值申請的分類條件
+              <strong>成功配对：</strong>银行卡代号有值的记录<br>
+              <strong>金额：</strong>使用充值金额（申请金额）计算<br>
+              <strong>分类逻辑：</strong>同充值申请的分类条件
             </div>
           </div>
 
@@ -773,18 +773,18 @@ const timeCards = computed(() => [
                 <span class="detail-value">{{ (metrics.alipayCreditNoTuwenCount || 0).toLocaleString() }} 笔 / {{ formatTime(metrics.alipayCreditNoTuwenAvgTime) }}</span>
               </div>
               <div class="detail-item">
-                <span class="detail-label">平均處理時間</span>
+                <span class="detail-label">平均处理时间</span>
                 <span class="detail-value">{{ formatTime(metrics.alipayNoCreditDowngradeAvgTime) }}</span>
               </div>
             </div>
             <div class="block-formula">
-              <strong>訂單成功條件：</strong>正規化狀態有值、≠未充值、≠審核中(已超時)、≠圖文覆核(已超時)<br>
-              <strong>一般卡：</strong>銀行卡代號有值、≠AUCTION、銀行名稱≠支付宝/微信 + 上述條件<br>
-              <strong>一般宝：</strong>銀行卡代號有值、≠AUCTION、銀行名稱=支付宝/微信 + 上述條件<br>
-              <strong>极速提(卡)：</strong>銀行卡代號=AUCTION、銀行名稱≠支付宝/微信 + 上述條件<br>
-              <strong>极速提(宝)：</strong>銀行卡代號=AUCTION、銀行名稱=支付宝/微信 + 上述條件<br>
-              <strong>信评上分：</strong>正規化狀態包含「信用評分上分」<br>
-              <strong>平均處理時間：</strong>没信评降等配卡的平均處理時間
+              <strong>订单成功条件：</strong>正规化状态有值、≠未充值、≠审核中(已超时)、≠图文复核(已超时)<br>
+              <strong>一般卡：</strong>银行卡代号有值、≠AUCTION、银行名称≠支付宝/微信 + 上述条件<br>
+              <strong>一般宝：</strong>银行卡代号有值、≠AUCTION、银行名称=支付宝/微信 + 上述条件<br>
+              <strong>极速提(卡)：</strong>银行卡代号=AUCTION、银行名称≠支付宝/微信 + 上述条件<br>
+              <strong>极速提(宝)：</strong>银行卡代号=AUCTION、银行名称=支付宝/微信 + 上述条件<br>
+              <strong>信评上分：</strong>正规化状态包含「信用评分上分」<br>
+              <strong>平均处理时间：</strong>没信评降等配卡的平均处理时间
             </div>
           </div>
 
@@ -810,7 +810,7 @@ const timeCards = computed(() => [
                 <span class="detail-value">{{ (metrics.alipayNoCreditDowngradeByAmount?.['other'] || 0).toLocaleString() }} 笔</span>
               </div>
             </div>
-            <div class="block-formula">無信評降等配卡的筆數，按申請金額分組統計</div>
+            <div class="block-formula">无信评降等配卡的笔数，按申请金额分组统计</div>
           </div>
         </div>
       </div>
@@ -828,7 +828,7 @@ const timeCards = computed(() => [
             <span class="detail-value">{{ (metrics.alipayC2cConfirmCount || 0).toLocaleString() }} 笔</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">点确认（用户确认到账）-平均處理時間</span>
+            <span class="detail-label">点确认（用户确认到账）-平均处理时间</span>
             <span class="detail-value">{{ formatTimeMinutes(metrics.alipayC2cConfirmAvgTime) }}</span>
           </div>
           <div class="detail-item">
@@ -836,21 +836,21 @@ const timeCards = computed(() => [
             <span class="detail-value">{{ (metrics.alipayC2cManualAuditCount || 0).toLocaleString() }} 笔</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">审核-成功平均處理時間</span>
+            <span class="detail-label">审核-成功平均处理时间</span>
             <span class="detail-value">{{ formatTimeMinutes(metrics.alipayC2cAuditSuccessAvgTime) }}</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">超过11min补件后才成功</span>
             <span class="detail-value">{{ (metrics.alipayC2cOver11MinSuccessCount || 0).toLocaleString() }} 笔</span>
           </div>
-          <div class="section-formula">銀行卡代碼含"c2c" 的訂單成功筆數/金額</div>
+          <div class="section-formula">银行卡代码含"c2c" 的订单成功笔数/金额</div>
         </div>
       </div>
 
-      <!-- 三方代收 区域（支付寶） -->
+      <!-- 三方代收 区域（支付宝） -->
       <div class="metrics-section">
         <div class="section-header" @click="showAlipayThirdParty = !showAlipayThirdParty">
-          <h3 class="section-title">三方代收（一般卡訂單成功）</h3>
+          <h3 class="section-title">三方代收（一般卡订单成功）</h3>
           <span class="section-value">{{ (metrics.alipayThirdPartyCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.alipayThirdPartyAmount || 0) }} 元</span>
           <span class="toggle-icon">{{ showAlipayThirdParty ? '▼' : '▶' }}</span>
         </div>
@@ -872,12 +872,12 @@ const timeCards = computed(() => [
             <span class="detail-value">{{ (metrics.alipayThirdPartyOtherCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.alipayThirdPartyOtherAmount || 0) }} 元</span>
           </div>
           <div class="section-formula">
-            數據範圍：商戶含「支付寶」，排除線下充值商戶<br>
-            三方代收計算公式：<br>
-            - 汇通 = 銀行卡代號 HTc2c 開頭<br>
-            - 豆豆 = 銀行卡代號 DDF 開頭<br>
-            - UC聚合 = 銀行卡代號 uc1020 開頭<br>
-            - 其他 = 到帳金額 ≠ 0，包含 GB-Dahaomen/Dahaomen 開頭，排除汇通/豆豆/UC及 auction/gb 開頭
+            数据范围：商户含「支付宝」，排除线下充值商户<br>
+            三方代收计算公式：<br>
+            - 汇通 = 银行卡代号 HTc2c 开头<br>
+            - 豆豆 = 银行卡代号 DDF 开头<br>
+            - UC聚合 = 银行卡代号 uc1020 开头<br>
+            - 其他 = 到账金额 ≠ 0，包含 GB-Dahaomen/Dahaomen 开头，排除汇通/豆豆/UC及 auction/gb 开头
           </div>
         </div>
       </div>
@@ -911,7 +911,7 @@ const timeCards = computed(() => [
             <span class="detail-label">卡验及人验</span>
             <span class="detail-value">{{ fraudStats.alipay.cardVerifyCount.toLocaleString() }} 笔</span>
           </div>
-          <div class="section-formula">數據來源：騙分統計（依篩選日期範圍加總）</div>
+          <div class="section-formula">数据來源：骗分统计（依筛选日期范围加总）</div>
         </div>
       </div>
 
@@ -946,9 +946,9 @@ const timeCards = computed(() => [
             <span class="detail-value highlight">{{ (metrics.alipayOverallMatchRate || 0).toFixed(2) }}%</span>
           </div>
           <div class="section-formula">
-            整体 配对成功/提现申请 計算公式：<br>
-            分子 = 银行卡訂單成功極速提金額 + 支付寶訂單成功極速提(卡)金額 + 支付寶訂單成功極速提(宝)金額<br>
-            分母 = 支付寶提現申請金額 + 銀行卡提現申請金額（來自提現分析）
+            整体 配对成功/提现申请 计算公式：<br>
+            分子 = 银行卡订单成功极速提金额 + 支付宝订单成功极速提(卡)金额 + 支付宝订单成功极速提(宝)金额<br>
+            分母 = 支付宝提现申请金额 + 银行卡提现申请金额（来自提现分析）
           </div>
         </div>
       </div>
@@ -988,7 +988,7 @@ const timeCards = computed(() => [
               </div>
             </div>
             <div class="block-formula">
-              商戶含"微信"
+              商户含"微信"
             </div>
           </div>
 
@@ -1008,7 +1008,7 @@ const timeCards = computed(() => [
                 <span class="detail-value">{{ (metrics.wechatExpressMatchCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.wechatExpressMatchAmount || 0) }} 元</span>
               </div>
             </div>
-            <div class="block-formula">銀行卡代碼不為空 的筆數/申請金額</div>
+            <div class="block-formula">银行卡代码不为空 的笔数/申请金额</div>
           </div>
 
           <!-- 3. 订单成功笔数/金额 -->
@@ -1035,13 +1035,13 @@ const timeCards = computed(() => [
                 <span class="detail-value">0 笔 / 00:00:00</span>
               </div>
               <div class="detail-item">
-                <span class="detail-label">平均處理時間</span>
+                <span class="detail-label">平均处理时间</span>
                 <span class="detail-value">{{ formatTime(metrics.wechatNoCreditDowngradeAvgTime) }}</span>
               </div>
             </div>
             <div class="block-formula">
-              實際收到金額 > 0 的筆數/金額<br>
-              <strong>平均處理時間：</strong>没信评降等配卡的平均處理時間
+              实际收到金额 > 0 的笔数/金额<br>
+              <strong>平均处理时间：</strong>没信评降等配卡的平均处理时间
             </div>
           </div>
 
@@ -1067,7 +1067,7 @@ const timeCards = computed(() => [
                 <span class="detail-value">{{ (metrics.wechatNoCreditDowngradeByAmount?.['other'] || 0).toLocaleString() }} 笔</span>
               </div>
             </div>
-            <div class="block-formula">無信評降等配卡的筆數，按申請金額分組統計</div>
+            <div class="block-formula">无信评降等配卡的笔数，按申请金额分组统计</div>
           </div>
         </div>
       </div>
@@ -1085,7 +1085,7 @@ const timeCards = computed(() => [
             <span class="detail-value">0 笔</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">点确认（用户确认到账）-平均處理時間</span>
+            <span class="detail-label">点确认（用户确认到账）-平均处理时间</span>
             <span class="detail-value">00:00:00</span>
           </div>
           <div class="detail-item">
@@ -1093,21 +1093,21 @@ const timeCards = computed(() => [
             <span class="detail-value">0 笔</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">审核-成功平均處理時間</span>
+            <span class="detail-label">审核-成功平均处理时间</span>
             <span class="detail-value">00:00:00</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">超过11min补件后才成功</span>
             <span class="detail-value">0 笔</span>
           </div>
-          <div class="section-formula">銀行卡代碼含"c2c" 的訂單成功筆數/金額</div>
+          <div class="section-formula">银行卡代码含"c2c" 的订单成功笔数/金额</div>
         </div>
       </div>
 
       <!-- 三方代收 区域（微信） -->
       <div class="metrics-section">
         <div class="section-header" @click="showWechatThirdParty = !showWechatThirdParty">
-          <h3 class="section-title">三方代收（一般卡訂單成功）</h3>
+          <h3 class="section-title">三方代收（一般卡订单成功）</h3>
           <span class="section-value">0 笔 / 0 元</span>
           <span class="toggle-icon">{{ showWechatThirdParty ? '▼' : '▶' }}</span>
         </div>
@@ -1128,7 +1128,7 @@ const timeCards = computed(() => [
             <span class="detail-label">UC聚合 (UC1020)</span>
             <span class="detail-value">0 笔 / 0 元</span>
           </div>
-          <div class="section-formula">銀行卡代碼為特定三方代收代碼 的訂單成功筆數/金額</div>
+          <div class="section-formula">银行卡代码为特定三方代收代码 的订单成功笔数/金额</div>
         </div>
       </div>
 
@@ -1157,7 +1157,7 @@ const timeCards = computed(() => [
             <span class="detail-label">卡验及人验</span>
             <span class="detail-value">0 笔</span>
           </div>
-          <div class="section-formula">數據來源：騙分統計（依篩選日期範圍加總）</div>
+          <div class="section-formula">数据來源：骗分统计（依筛选日期范围加总）</div>
         </div>
       </div>
     </template>
@@ -1169,7 +1169,7 @@ const timeCards = computed(() => [
   margin-bottom: 20px;
 }
 
-/* 渠道切換按鈕 */
+/* 渠道切换按钮 */
 .channel-tabs {
   display: flex;
   gap: 4px;
@@ -1247,7 +1247,7 @@ const timeCards = computed(() => [
   margin-right: 12px;
 }
 
-/* c2c 區域樣式 */
+/* c2c 区域样式 */
 .c2c-content {
   display: flex;
   flex-direction: column;
@@ -1326,7 +1326,7 @@ const timeCards = computed(() => [
   line-height: 1.4;
 }
 
-/* 極速區域樣式 */
+/* 极速区域样式 */
 .jisu-content {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -1494,7 +1494,7 @@ const timeCards = computed(() => [
   font-family: monospace;
 }
 
-/* 說明區塊樣式 */
+/* 说明区块样式 */
 .jisu-block.note-block {
   background: #f8f9fa;
   border: 1px dashed #ddd;
@@ -1520,7 +1520,7 @@ const timeCards = computed(() => [
   margin-bottom: 4px;
 }
 
-/* 說明區塊（用於 section 底部） */
+/* 说明区块（用于 section 底部） */
 .section-note {
   padding: 12px 20px;
   background: #f8f9fa;
@@ -1534,7 +1534,7 @@ const timeCards = computed(() => [
   margin-bottom: 8px;
 }
 
-/* 充值分鐘分析樣式 */
+/* 充值分钟分析样式 */
 .minute-analysis-content {
   padding: 16px 20px;
 }

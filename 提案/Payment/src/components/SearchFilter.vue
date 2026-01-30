@@ -14,13 +14,13 @@ const merchantFilter = ref('all');
 const merchantSearch = ref('');
 const showMerchantDropdown = ref(false);
 
-// 日期預設為今日
+// 日期默认为今日
 const today = new Date().toISOString().split('T')[0];
 const dateFrom = ref(today);
 const dateTo = ref(today);
 
 
-// 日期範圍錯誤訊息
+// 日期范围错误信息
 const dateRangeError = ref('');
 
 // Get unique merchants with search
@@ -43,91 +43,91 @@ const filteredMerchants = computed(() => {
     .slice(0, 100);
 });
 
-// 驗證並自動修正日期範圍
+// 验证并自动修正日期范围
 const validateDateRange = () => {
   dateRangeError.value = '';
   return true;
 };
 
-// 開始日期變更時的防呆
+// 开始日期变更时的防呆
 const onDateFromChange = () => {
   if (!dateFrom.value) {
     dateFrom.value = today;
     return;
   }
 
-  // 開始日期不能超過今日
+  // 开始日期不能超过今日
   if (dateFrom.value > today) {
     dateFrom.value = today;
-    dateRangeError.value = '開始日期不能超過今日，已自動修正';
+    dateRangeError.value = '开始日期不能超过今日，已自动修正';
     setTimeout(() => { dateRangeError.value = ''; }, 2000);
   }
 
-  // 如果結束日期早於開始日期，自動修正結束日期
+  // 如果结束日期早于开始日期，自动修正结束日期
   if (dateTo.value && dateTo.value < dateFrom.value) {
     dateTo.value = dateFrom.value;
-    dateRangeError.value = '結束日期已自動修正為開始日期';
+    dateRangeError.value = '结束日期已自动修正为开始日期';
     setTimeout(() => { dateRangeError.value = ''; }, 2000);
   }
 
-  // 檢查日期範圍是否超過一個月
+  // 检查日期范围是否超过一个月
   if (dateFrom.value && dateTo.value) {
     const start = new Date(dateFrom.value);
     const end = new Date(dateTo.value);
     const diffDays = (end - start) / (1000 * 60 * 60 * 24);
 
     if (diffDays > 31) {
-      // 自動將結束日期設為開始日期 + 31 天
+      // 自动将结束日期设为开始日期 + 31 天
       const maxEnd = new Date(start);
       maxEnd.setDate(maxEnd.getDate() + 31);
       const maxEndStr = maxEnd.toISOString().split('T')[0];
       dateTo.value = maxEndStr > today ? today : maxEndStr;
-      dateRangeError.value = '日期範圍最大一個月，已自動修正';
+      dateRangeError.value = '日期范围最大一个月，已自动修正';
       setTimeout(() => { dateRangeError.value = ''; }, 2000);
     }
   }
 };
 
-// 結束日期變更時的防呆
+// 结束日期变更时的防呆
 const onDateToChange = () => {
   if (!dateTo.value) {
     dateTo.value = dateFrom.value || today;
     return;
   }
 
-  // 結束日期不能超過今日
+  // 结束日期不能超过今日
   if (dateTo.value > today) {
     dateTo.value = today;
-    dateRangeError.value = '結束日期不能超過今日，已自動修正';
+    dateRangeError.value = '结束日期不能超过今日，已自动修正';
     setTimeout(() => { dateRangeError.value = ''; }, 2000);
   }
 
-  // 結束日期不能早於開始日期
+  // 结束日期不能早于开始日期
   if (dateFrom.value && dateTo.value < dateFrom.value) {
     dateTo.value = dateFrom.value;
-    dateRangeError.value = '結束日期不能早於開始日期，已自動修正';
+    dateRangeError.value = '结束日期不能早于开始日期，已自动修正';
     setTimeout(() => { dateRangeError.value = ''; }, 2000);
   }
 
-  // 檢查日期範圍是否超過一個月
+  // 检查日期范围是否超过一个月
   if (dateFrom.value && dateTo.value) {
     const start = new Date(dateFrom.value);
     const end = new Date(dateTo.value);
     const diffDays = (end - start) / (1000 * 60 * 60 * 24);
 
     if (diffDays > 31) {
-      // 自動將開始日期設為結束日期 - 31 天
+      // 自动将开始日期设为结束日期 - 31 天
       const minStart = new Date(end);
       minStart.setDate(minStart.getDate() - 31);
       dateFrom.value = minStart.toISOString().split('T')[0];
-      dateRangeError.value = '日期範圍最大一個月，已自動修正';
+      dateRangeError.value = '日期范围最大一个月，已自动修正';
       setTimeout(() => { dateRangeError.value = ''; }, 2000);
     }
   }
 };
 
 const applyFilters = () => {
-  // 驗證日期範圍
+  // 验证日期范围
   if (!validateDateRange()) {
     return;
   }
@@ -240,11 +240,11 @@ const handleMerchantBlur = () => {
         />
       </div>
 
-      <button @click="handleSearch" class="search-btn">查詢</button>
-      <button @click="handleExport" class="export-btn">匯出 Excel</button>
+      <button @click="handleSearch" class="search-btn">查询</button>
+      <button @click="handleExport" class="export-btn">导出 Excel</button>
     </div>
 
-    <!-- 日期範圍錯誤訊息 -->
+    <!-- 日期范围错误信息 -->
     <div v-if="dateRangeError" class="date-error">
       {{ dateRangeError }}
     </div>

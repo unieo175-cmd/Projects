@@ -16,14 +16,14 @@ const props = defineProps({
 // 今日日期
 const today = new Date().toISOString().split('T')[0];
 
-// 日期選擇（起訖時間）
+// 日期选择（起讫时间）
 const startDate = ref('');
 const endDate = ref('');
 
-// 日期範圍錯誤訊息
+// 日期范围错误信息
 const dateRangeError = ref('');
 
-// 日期範圍
+// 日期范围
 const weekRange = computed(() => {
   if (!startDate.value || !endDate.value) return { start: '', end: '', startDate: null, endDate: null };
 
@@ -35,7 +35,7 @@ const weekRange = computed(() => {
   };
 });
 
-// 過濾選定週的充值記錄
+// 过滤选定周的充值记录
 const filteredDepositRecords = computed(() => {
   if (!weekRange.value.start || !weekRange.value.end) return [];
 
@@ -46,7 +46,7 @@ const filteredDepositRecords = computed(() => {
   });
 });
 
-// 過濾選定週的提現記錄
+// 过滤选定周的提现记录
 const filteredWithdrawRecords = computed(() => {
   if (!weekRange.value.start || !weekRange.value.end) return [];
 
@@ -57,76 +57,76 @@ const filteredWithdrawRecords = computed(() => {
   });
 });
 
-// 計算充值指標
+// 计算充值指标
 const depositMetrics = computed(() => {
   if (filteredDepositRecords.value.length === 0) return null;
   return calculateMetrics(filteredDepositRecords.value);
 });
 
-// 計算提現指標
+// 计算提现指标
 const withdrawMetrics = computed(() => {
   if (filteredWithdrawRecords.value.length === 0) return null;
   return calculateWithdrawMetrics(filteredWithdrawRecords.value, depositMetrics.value);
 });
 
-// 計算週報重要指標
+// 计算周报重要指标
 const weeklyMetrics = computed(() => {
   if (!depositMetrics.value) return null;
   const dm = depositMetrics.value;
 
-  // 充值申請筆數 = 銀行卡 + 支付寶
+  // 充值申请笔数 = 银行卡 + 支付宝
   const depositApplicationCount = dm.jisuApplicationCount + dm.alipayApplicationCount;
 
-  // JS充值等待最终无配对 = （銀行卡的充值申請筆數中的極速提＋建单成功等待无配对＋取无卡06提示）＋（支付寶的充值申請筆數中的建单成功等待无配对＋取无卡06提示）
+  // JS充值等待最终无配对 = （银行卡的充值申请笔数中的极速提＋建单成功等待无配对＋取无卡06提示）＋（支付宝的充值申请笔数中的建单成功等待无配对＋取无卡06提示）
   const jsWaitingNoMatch = dm.jsWaitingNoMatch || 0;
 
-  // 充值配对(配一般卡) = 銀行卡的成功配對的一般卡 + 支付寶的成功配對的一般卡 + 一般寶
-  const matchNormalCardBankCard = dm.normalMatchCount;  // 銀行卡的成功配對的一般卡
-  const matchNormalCardAlipay = dm.alipayNormalMatchCount;  // 支付寶的成功配對的一般卡
-  const matchNormalCardBao = dm.alipayExpressCardAppCount;  // 一般寶
+  // 充值配对(配一般卡) = 银行卡的成功配对的一般卡 + 支付宝的成功配对的一般卡 + 一般宝
+  const matchNormalCardBankCard = dm.normalMatchCount;  // 银行卡的成功配对的一般卡
+  const matchNormalCardAlipay = dm.alipayNormalMatchCount;  // 支付宝的成功配对的一般卡
+  const matchNormalCardBao = dm.alipayExpressCardAppCount;  // 一般宝
   const matchNormalCard = matchNormalCardBankCard + matchNormalCardAlipay + matchNormalCardBao;
 
-  // 充值配对(配JS) = 銀行卡極速提 + 支付寶極速提(卡) + 极速提(宝)
-  const matchJSBankCard = dm.expressMatchCount;  // 銀行卡極速提
-  const matchJSAlipayKa = dm.alipayJisuTikaCount;  // 支付寶極速提(卡)
-  const matchJSAlipayBao = dm.alipayJisuTibaoCount;  // 支付寶极速提(宝)
+  // 充值配对(配JS) = 银行卡极速提 + 支付宝极速提(卡) + 极速提(宝)
+  const matchJSBankCard = dm.expressMatchCount;  // 银行卡极速提
+  const matchJSAlipayKa = dm.alipayJisuTikaCount;  // 支付宝极速提(卡)
+  const matchJSAlipayBao = dm.alipayJisuTibaoCount;  // 支付宝极速提(宝)
   const matchJS = matchJSBankCard + matchJSAlipayKa + matchJSAlipayBao;
 
   // 充值配对(配一般提) = 0
   const matchNormalWithdraw = 0;
 
-  // 订单成功(一般卡) = 銀行卡的订单成功一般卡 + 支付寶的订单成功一般卡 + 一般宝
-  const orderSuccessNormalCardBankCard = dm.normalOrderSuccessCount;  // 銀行卡的订单成功一般卡
-  const orderSuccessNormalCardAlipay = dm.alipayNormalOrderSuccessCount;  // 支付寶的订单成功一般卡
+  // 订单成功(一般卡) = 银行卡的订单成功一般卡 + 支付宝的订单成功一般卡 + 一般宝
+  const orderSuccessNormalCardBankCard = dm.normalOrderSuccessCount;  // 银行卡的订单成功一般卡
+  const orderSuccessNormalCardAlipay = dm.alipayNormalOrderSuccessCount;  // 支付宝的订单成功一般卡
   const orderSuccessNormalCardBao = dm.alipayBaoOrderSuccessCount;  // 一般宝
   const orderSuccessNormalCard = orderSuccessNormalCardBankCard + orderSuccessNormalCardAlipay + orderSuccessNormalCardBao;
 
-  // 订单成功(Js+一般提) = 銀行卡極速提 + 支付寶極速提(卡) + 极速提(宝)
-  const orderSuccessJSBankCard = dm.expressOrderSuccessCount;  // 銀行卡極速提
-  const orderSuccessJSAlipayKa = dm.alipayJisuTikaOrderSuccessCount;  // 支付寶極速提(卡)
-  const orderSuccessJSAlipayBao = dm.alipayJisuTibaoOrderSuccessCount;  // 支付寶极速提(宝)
+  // 订单成功(Js+一般提) = 银行卡极速提 + 支付宝极速提(卡) + 极速提(宝)
+  const orderSuccessJSBankCard = dm.expressOrderSuccessCount;  // 银行卡极速提
+  const orderSuccessJSAlipayKa = dm.alipayJisuTikaOrderSuccessCount;  // 支付宝极速提(卡)
+  const orderSuccessJSAlipayBao = dm.alipayJisuTibaoOrderSuccessCount;  // 支付宝极速提(宝)
   const orderSuccessJS = orderSuccessJSBankCard + orderSuccessJSAlipayKa + orderSuccessJSAlipayBao;
 
   // 订单成功(加总笔数)
   const orderSuccessTotal = orderSuccessNormalCard + orderSuccessJS;
 
   // ===== 充值订单成功(金额) =====
-  // 配一般卡充值订单成功(金额) = 銀行卡訂單成功一般卡金額 + 支付寶訂單成功一般卡金額 + 一般寶金額
+  // 配一般卡充值订单成功(金额) = 银行卡订单成功一般卡金額 + 支付宝订单成功一般卡金額 + 一般宝金額
   const orderSuccessAmountNormalCardBankCard = dm.normalOrderSuccessAmount || 0;
   const orderSuccessAmountNormalCardAlipay = dm.alipayNormalOrderSuccessAmount || 0;
   const orderSuccessAmountNormalCardBao = dm.alipayBaoOrderSuccessAmount || 0;
   const orderSuccessAmountNormalCard = orderSuccessAmountNormalCardBankCard + orderSuccessAmountNormalCardAlipay + orderSuccessAmountNormalCardBao;
 
-  // 配极速充值订单成功(金额) = 銀行卡訂單成功極速提金額 + 支付寶訂單成功極速提(卡)金額 + 极速提(宝)金額
+  // 配极速充值订单成功(金额) = 银行卡订单成功极速提金額 + 支付宝订单成功极速提(卡)金額 + 极速提(宝)金額
   const orderSuccessAmountJSBankCard = dm.expressOrderSuccessAmount || 0;
   const orderSuccessAmountJSAlipayKa = dm.alipayJisuTikaOrderSuccessAmount || 0;
   const orderSuccessAmountJSAlipayBao = dm.alipayJisuTibaoOrderSuccessAmount || 0;
   const orderSuccessAmountJS = orderSuccessAmountJSBankCard + orderSuccessAmountJSAlipayKa + orderSuccessAmountJSAlipayBao;
 
-  // 充值订单成功(金额) = 公式候補，先顯示0
+  // 充值订单成功(金额) = 公式候补，先显示0
   const orderSuccessAmountOther = 0;
 
-  // 充值订单成功(金额)總計
+  // 充值订单成功(金额)总计
   const orderSuccessAmountTotal = orderSuccessAmountNormalCard + orderSuccessAmountJS + orderSuccessAmountOther;
 
   // 充值卡在待审核 = 0
@@ -135,37 +135,37 @@ const weeklyMetrics = computed(() => {
   // 未充值 = 0
   const notDeposited = 0;
 
-  // 无卡空单率 = JS充值等待最终无配对 / 充值申請
+  // 无卡空单率 = JS充值等待最终无配对 / 充值申请
   const emptyOrderRate = depositApplicationCount > 0 ? jsWaitingNoMatch / depositApplicationCount : 0;
 
-  // ===== 提現平均時間 =====
+  // ===== 提现平均时间 =====
   const wm = withdrawMetrics.value || {};
-  const withdrawAvgTimeBankCard = wm.bankCardAvgTime || 0;  // 提現平均時間（卡）
-  const withdrawAvgTimeAlipay = wm.alipayAvgTime || 0;  // 提現平均時間（寶）
+  const withdrawAvgTimeBankCard = wm.bankCardAvgTime || 0;  // 提现平均时间（卡）
+  const withdrawAvgTimeAlipay = wm.alipayAvgTime || 0;  // 提现平均时间（宝）
 
-  // ===== 騙分 =====
-  // 骗分 = 銀行卡的骗分没到账来找的人工 + 銀行卡的信评金額 + 支付寶的骗分没到账来找的人工 + 支付寶的信评金額
-  // 目前數據中沒有這些欄位，先設為0（待定義計算條件）
-  const fraudBankCardManual = 0;  // 銀行卡的骗分没到账来找的人工
-  const fraudBankCardCredit = 0;  // 銀行卡的信评金額
-  const fraudAlipayManual = 0;    // 支付寶的骗分没到账来找的人工
-  const fraudAlipayCredit = 0;    // 支付寶的信评金額
+  // ===== 骗分 =====
+  // 骗分 = 银行卡的骗分没到账来找的人工 + 银行卡的信评金额 + 支付宝的骗分没到账来找的人工 + 支付宝的信评金额
+  // 目前数据中没有这些栏位，先设为0（待定义计算条件）
+  const fraudBankCardManual = 0;  // 银行卡的骗分没到账来找的人工
+  const fraudBankCardCredit = 0;  // 银行卡的信评金额
+  const fraudAlipayManual = 0;    // 支付宝的骗分没到账来找的人工
+  const fraudAlipayCredit = 0;    // 支付宝的信评金额
   const fraudAmount = fraudBankCardManual + fraudBankCardCredit + fraudAlipayManual + fraudAlipayCredit;
 
-  // 骗分成本占比 = 騙分 / 配极速充值订单成功(金额)
+  // 骗分成本占比 = 骗分 / 配极速充值订单成功(金额)
   const fraudCostRatio = orderSuccessAmountJS > 0 ? fraudAmount / orderSuccessAmountJS : 0;
 
-  // JS提现返利 = 提現紀錄中的H欄(merchantRebate)加總金額
+  // JS提现返利 = 提现记录中的H栏(merchantRebate)加总金额
   const jsWithdrawRebate = filteredWithdrawRecords.value.reduce((sum, r) => sum + (r.merchantRebate || 0), 0);
 
-  // ===== 配對率＆空單率 =====
-  // 充值配对總數
+  // ===== 配对率＆空单率 =====
+  // 充值配对总数
   const totalMatch = matchNormalCard + matchJS + matchNormalWithdraw;
 
-  // 充值配对率 = (充值配对(配一般卡) + 充值配对(配JS) + 充值配对(配一般提)) / 充值申請 * 100%
+  // 充值配对率 = (充值配对(配一般卡) + 充值配对(配JS) + 充值配对(配一般提)) / 充值申请 * 100%
   const depositMatchRate = depositApplicationCount > 0 ? totalMatch / depositApplicationCount : 0;
 
-  // 充提配对率 = 公式待確認，先設為0
+  // 充提配对率 = 公式待确认，先设为0
   const depositWithdrawMatchRate = 0;
 
   // 配对后成功率 = (订单成功(一般卡) + 订单成功(Js+一般提)) / (充值配对(配一般卡) + 充值配对(配JS) + 充值配对(配一般提))
@@ -176,7 +176,7 @@ const weeklyMetrics = computed(() => {
   const notDepositedEmptyRate = jsAndNormalWithdrawMatch > 0 ? notDeposited / jsAndNormalWithdrawMatch : 0;
 
   // 提现失败率 = 提现失败笔数 / 总申请笔数
-  // 总申请 = 時間區間加總 + 提現失敗筆數（withdrawSuccessTotalCount 已包含）
+  // 总申请 = 时间区间加总 + 提现失败笔数（withdrawSuccessTotalCount 已包含）
   const withdrawFailedCount = wm.withdrawFailedCount || 0;
   const withdrawTotalApplication = wm.withdrawSuccessTotalCount || 0;
   const withdrawFailRate = withdrawTotalApplication > 0 ? withdrawFailedCount / withdrawTotalApplication : 0;
@@ -220,10 +220,10 @@ const weeklyMetrics = computed(() => {
     orderSuccessAmountJSAlipayKa,
     orderSuccessAmountJSAlipayBao,
     orderSuccessAmountOther,
-    // 提現平均時間
+    // 提现平均时间
     withdrawAvgTimeBankCard,
     withdrawAvgTimeAlipay,
-    // 騙分
+    // 骗分
     fraudAmount,
     fraudBankCardManual,
     fraudBankCardCredit,
@@ -231,7 +231,7 @@ const weeklyMetrics = computed(() => {
     fraudAlipayCredit,
     fraudCostRatio,
     jsWithdrawRebate,
-    // 配對率＆空單率
+    // 配对率＆空单率
     totalMatch,
     depositMatchRate,
     depositWithdrawMatchRate,
@@ -245,63 +245,63 @@ const weeklyMetrics = computed(() => {
   };
 });
 
-// ===== 指標數據分析 =====
-// 根據 Excel 公式計算：
-// - 總充值筆數 = AP > 0
-// - 自動到帳筆數 (P4/P5) = AP > 0 且 AO = 1
-// - 補單筆數：
-//   - 整體: AP > 0 且 狀態含「補單」或「确认到帐」
-//   - 分類: AP > 0 且 狀態含「補單」(不包含「确认到帐」)
-// - 3分鐘內筆數 = AP > 0 且 AN = 1
-// - 充值成功率 = 1 - 補單筆數 / 總充值筆數
-// - 充值3分內占比 = 3分鐘內筆數 / 自動到帳筆數
-// - 平均時間 = SUMIFS(AM, AP>0, AO=1, T<>0) / 自動到帳筆數
+// ===== 指标数据分析 =====
+// 根据 Excel 公式计算：
+// - 总充值笔数 = AP > 0
+// - 自动到账笔数 (P4/P5) = AP > 0 且 AO = 1
+// - 补单笔数：
+//   - 整体: AP > 0 且 状态含「补单」或「确认到帐」
+//   - 分类: AP > 0 且 状态含「补单」(不包含「确认到帐」)
+// - 3分钟内笔数 = AP > 0 且 AN = 1
+// - 充值成功率 = 1 - 补单笔数 / 总充值笔数
+// - 充值3分内占比 = 3分钟内笔数 / 自动到账笔数
+// - 平均时间 = SUMIFS(AM, AP>0, AO=1, T<>0) / 自动到账笔数
 const analysisMetrics = computed(() => {
-  // 使用按日期範圍篩選後的數據
+  // 使用按日期范围筛选后的数据
   const depositData = filteredDepositRecords.value;
   if (depositData.length === 0) return null;
 
-  // 計算各分類的指標 (根據 Excel 公式)
-  // isOverall: 是否為整體，整體的補單公式包含「确认到帐」，分類則只有「補單」
+  // 计算各分类的指标 (根据 Excel 公式)
+  // isOverall: 是否为整体，整体的补单公式包含「确认到帐」，分类则只有「补单」
   const calculateCategoryMetrics = (allRecords, isOverall = false) => {
     if (allRecords.length === 0) return { successRate: 0, within3MinRate: 0, avgTime: 0 };
 
-    // 總充值筆數 = AP > 0
+    // 总充值笔数 = AP > 0
     const totalDeposit = allRecords.filter(r => r.receivedAmount > 0);
     const totalDepositCount = totalDeposit.length;
     if (totalDepositCount === 0) return { successRate: 0, within3MinRate: 0, avgTime: 0 };
 
-    // 自動到帳筆數 (P4/P5) = AP > 0 且 AO = 1
+    // 自动到账笔数 (P4/P5) = AP > 0 且 AO = 1
     const autoDepositRecords = totalDeposit.filter(r => r.isAutoDeposit);
     const p4 = autoDepositRecords.length;
 
-    // 補單筆數
-    // - 整體: AP > 0 且 狀態含「補單」或「补单」或「确认到帐」或「確認到帳」
-    // - 分類: AP > 0 且 狀態含「補單」或「补单」(不包含「确认到帐」)
+    // 补单笔数
+    // - 整体: AP > 0 且 状态含「补单」或「补单」或「确认到帐」或「确认到账」
+    // - 分类: AP > 0 且 状态含「补单」或「补单」(不包含「确认到帐」)
     let buDanCount;
     if (isOverall) {
       buDanCount = totalDeposit.filter(r =>
-        r.status.includes('補單') || r.status.includes('补单') ||
-        r.status.includes('确认到帐') || r.status.includes('確認到帳')
+        r.status.includes('补单') || r.status.includes('补单') ||
+        r.status.includes('确认到帐') || r.status.includes('确认到账')
       ).length;
     } else {
       buDanCount = totalDeposit.filter(r =>
-        r.status.includes('補單') || r.status.includes('补单')
+        r.status.includes('补单') || r.status.includes('补单')
       ).length;
     }
 
-    // 3分鐘內筆數 = AP > 0 且 AN = 1 (不要求 AO = 1)
+    // 3分钟内笔数 = AP > 0 且 AN = 1 (不要求 AO = 1)
     const within3MinCount = totalDeposit.filter(r => r.isWithin3Min).length;
 
-    // 充值成功率 = 1 - 補單筆數 / 總充值筆數
+    // 充值成功率 = 1 - 补单笔数 / 总充值笔数
     const successRate = 1 - (buDanCount / totalDepositCount);
 
-    // 充值3分內占比 = 3分鐘內筆數 / 自動到帳筆數
+    // 充值3分内占比 = 3分钟内笔数 / 自动到账笔数
     const within3MinRate = p4 > 0 ? within3MinCount / p4 : 0;
 
-    // 平均時間 = AVERAGEIFS(AN:AN, M:M, ">0")
+    // 平均时间 = AVERAGEIFS(AN:AN, M:M, ">0")
     // AN = processingTime, M = receivedAmount
-    // 計算所有 receivedAmount > 0 且 processingTime 有值的記錄平均時間
+    // 计算所有 receivedAmount > 0 且 processingTime 有值的记录平均时间
     const recordsWithTime = totalDeposit.filter(r =>
       r.processingTime !== null &&
       r.processingTime >= 0
@@ -313,24 +313,24 @@ const analysisMetrics = computed(() => {
     return { successRate, within3MinRate, avgTime };
   };
 
-  // 1. 整體 (isOverall = true, 補單公式包含「确认到帐」)
+  // 1. 整体 (isOverall = true, 补单公式包含「确认到帐」)
   const overallMetrics = calculateCategoryMetrics(depositData, true);
 
-  // 2. 支付寶 (isOverall = false, 補單公式只有「補單」)
+  // 2. 支付宝 (isOverall = false, 补单公式只有「补单」)
   const alipayAll = depositData.filter(r =>
-    r.merchant && (r.merchant.includes('支付宝') || r.merchant.includes('支付寶'))
+    r.merchant && (r.merchant.includes('支付宝') || r.merchant.includes('支付宝'))
   );
   const alipayMetrics = calculateCategoryMetrics(alipayAll, false);
 
-  // 3. 微信 (isOverall = false, 補單公式只有「補單」)
+  // 3. 微信 (isOverall = false, 补单公式只有「补单」)
   const wechatAll = depositData.filter(r =>
     r.merchant && r.merchant.includes('微信')
   );
   const wechatMetrics = calculateCategoryMetrics(wechatAll, false);
 
-  // 4. 金寶 (特殊計算：3分鐘內筆數 和 P4 使用不同篩選條件)
-  // P4/總充值/補單：bankCardCode 包含 GB，排除 GB-DahaomenJFB2025
-  // 3分鐘內筆數：bankCardCode 包含 GB（不排除 GB-DahaomenJFB2025）
+  // 4. 金宝 (特殊计算：3分钟内笔数 和 P4 使用不同筛选条件)
+  // P4/总充值/补单：bankCardCode 包含 GB，排除 GB-DahaomenJFB2025
+  // 3分钟内笔数：bankCardCode 包含 GB（不排除 GB-DahaomenJFB2025）
   const gbAllForP4 = depositData.filter(r =>
     r.bankCardCode &&
     r.bankCardCode.includes('GB') &&
@@ -340,19 +340,19 @@ const analysisMetrics = computed(() => {
     r.bankCardCode &&
     r.bankCardCode.includes('GB')
   );
-  // 手動計算金寶指標
+  // 手动计算金宝指标
   const gbTotalDeposit = gbAllForP4.filter(r => r.receivedAmount > 0);
   const gbTotalDepositCount = gbTotalDeposit.length;
   const gbAutoDepositRecords = gbTotalDeposit.filter(r => r.isAutoDeposit);
   const gbP4 = gbAutoDepositRecords.length;
   const gbBuDanCount = gbTotalDeposit.filter(r =>
-    r.status.includes('補單') || r.status.includes('补单')
+    r.status.includes('补单') || r.status.includes('补单')
   ).length;
-  // 3分鐘內筆數 使用包含所有 GB 的數據
+  // 3分钟内笔数 使用包含所有 GB 的数据
   const gbWithin3MinCount = gbAllForWithin3Min.filter(r => r.receivedAmount > 0 && r.isWithin3Min).length;
   const gbSuccessRate = gbTotalDepositCount > 0 ? 1 - (gbBuDanCount / gbTotalDepositCount) : 0;
   const gbWithin3MinRate = gbP4 > 0 ? gbWithin3MinCount / gbP4 : 0;
-  // 平均時間 使用包含所有 GB 的數據 (不排除 GB-DahaomenJFB2025)
+  // 平均时间 使用包含所有 GB 的数据 (不排除 GB-DahaomenJFB2025)
   const gbRecordsWithTime = gbAllForWithin3Min.filter(r =>
     r.receivedAmount > 0 &&
     r.isAutoDeposit &&
@@ -365,9 +365,9 @@ const analysisMetrics = computed(() => {
   const gbAvgTime = gbP4 > 0 ? gbTotalTime / gbP4 : 0;
   const gbMetrics = { successRate: gbSuccessRate, within3MinRate: gbWithin3MinRate, avgTime: gbAvgTime };
 
-  // 5. 極速 (特殊計算：3分鐘內筆數 和 P8 使用不同篩選條件)
-  // P8/總充值/補單：bankCardCode 包含 AUCTION，排除 GB-DahaomenJFB2025
-  // 3分鐘內筆數：bankCardCode 包含 AUCTION（不排除 GB-DahaomenJFB2025）
+  // 5. 极速 (特殊计算：3分钟内笔数 和 P8 使用不同筛选条件)
+  // P8/总充值/补单：bankCardCode 包含 AUCTION，排除 GB-DahaomenJFB2025
+  // 3分钟内笔数：bankCardCode 包含 AUCTION（不排除 GB-DahaomenJFB2025）
   const auctionAllForP8 = depositData.filter(r =>
     r.bankCardCode &&
     r.bankCardCode.includes('AUCTION') &&
@@ -377,15 +377,15 @@ const analysisMetrics = computed(() => {
     r.bankCardCode &&
     r.bankCardCode.includes('AUCTION')
   );
-  // 手動計算極速指標
+  // 手动计算极速指标
   const auctionTotalDeposit = auctionAllForP8.filter(r => r.receivedAmount > 0);
   const auctionTotalDepositCount = auctionTotalDeposit.length;
   const auctionAutoDepositRecords = auctionTotalDeposit.filter(r => r.isAutoDeposit);
   const auctionP8 = auctionAutoDepositRecords.length;
   const auctionBuDanCount = auctionTotalDeposit.filter(r =>
-    r.status.includes('補單') || r.status.includes('补单')
+    r.status.includes('补单') || r.status.includes('补单')
   ).length;
-  // 3分鐘內筆數 使用包含所有 AUCTION 的數據
+  // 3分钟内笔数 使用包含所有 AUCTION 的数据
   const auctionWithin3MinCount = auctionAllForWithin3Min.filter(r => r.receivedAmount > 0 && r.isWithin3Min).length;
   const auctionSuccessRate = auctionTotalDepositCount > 0 ? 1 - (auctionBuDanCount / auctionTotalDepositCount) : 0;
   const auctionWithin3MinRate = auctionP8 > 0 ? auctionWithin3MinCount / auctionP8 : 0;
@@ -399,32 +399,32 @@ const analysisMetrics = computed(() => {
   const auctionAvgTime = auctionP8 > 0 ? auctionTotalTime / auctionP8 : 0;
   const auctionMetrics = { successRate: auctionSuccessRate, within3MinRate: auctionWithin3MinRate, avgTime: auctionAvgTime };
 
-  // 6. 第三方 (不包含GB且不包含AUCTION，或者等於GB-DahaomenJFB2025)
+  // 6. 第三方 (不包含GB且不包含AUCTION，或者等于GB-DahaomenJFB2025)
   const thirdPartyAll = depositData.filter(r =>
     r.bankCardCode && (
-      // 條件1: 不包含 GB 且 不包含 AUCTION
+      // 条件1: 不包含 GB 且 不包含 AUCTION
       (!r.bankCardCode.includes('GB') && !r.bankCardCode.includes('AUCTION')) ||
-      // 條件2: 等於 GB-DahaomenJFB2025
+      // 条件2: 等于 GB-DahaomenJFB2025
       r.bankCardCode === 'GB-DahaomenJFB2025'
     )
   );
   const thirdPartyMetrics = calculateCategoryMetrics(thirdPartyAll, false);
 
   // 7. 非正向信评 (status包含信用評分或信評上分)
-  // 3分鐘內筆數需要 AO = 1 AND AN = 1
+  // 3分钟内笔数需要 AO = 1 AND AN = 1
   const creditAll = depositData.filter(r =>
     r.status && (r.status.includes('信用評分') || r.status.includes('信評上分') ||
                  r.status.includes('信用评分') || r.status.includes('信评上分'))
   );
-  // 手動計算非正向信评指標
+  // 手动计算非正向信评指标
   const creditTotalDeposit = creditAll.filter(r => r.receivedAmount > 0);
   const creditTotalDepositCount = creditTotalDeposit.length;
   const creditAutoDepositRecords = creditTotalDeposit.filter(r => r.isAutoDeposit);
   const creditP10 = creditAutoDepositRecords.length;
   const creditBuDanCount = creditTotalDeposit.filter(r =>
-    r.status.includes('補單') || r.status.includes('补单')
+    r.status.includes('补单') || r.status.includes('补单')
   ).length;
-  // 3分鐘內筆數 = AP > 0 AND AO = 1 AND AN = 1
+  // 3分钟内笔数 = AP > 0 AND AO = 1 AND AN = 1
   const creditWithin3MinCount = creditAutoDepositRecords.filter(r => r.isWithin3Min).length;
   const creditSuccessRate = creditTotalDepositCount > 0 ? 1 - (creditBuDanCount / creditTotalDepositCount) : 0;
   const creditWithin3MinRate = creditP10 > 0 ? creditWithin3MinCount / creditP10 : 0;
@@ -438,14 +438,14 @@ const analysisMetrics = computed(() => {
   const creditAvgTime = creditP10 > 0 ? creditTotalTime / creditP10 : 0;
   const creditMetrics = { successRate: creditSuccessRate, within3MinRate: creditWithin3MinRate, avgTime: creditAvgTime };
 
-  // ===== 提現數據計算 =====
+  // ===== 提现数据计算 =====
   const withdrawData = props.withdrawRecords;
 
-  // 計算提現類別指標（按唯一流水號計算）
+  // 计算提现类别指标（按唯一流水号计算）
   const calculateWithdrawCategoryMetrics = (records) => {
     if (records.length === 0) return { successRate: 0, within3MinRate: 0, avgTime: 0 };
 
-    // 按流水號分組
+    // 按流水号分组
     const withdrawalsById = {};
     records.forEach(r => {
       const id = r.id;
@@ -455,12 +455,12 @@ const analysisMetrics = computed(() => {
       if (r.isAutoWithdraw === 1) {
         withdrawalsById[id].hasAutoWithdraw = true;
       }
-      if (r.actualAmount === 0 && r.transferStatus !== '轉帳完成') {
+      if (r.actualAmount === 0 && r.transferStatus !== '转账完成') {
         withdrawalsById[id].hasFailedRecord = true;
       }
     });
 
-    // 計算唯一提現申請
+    // 计算唯一提现申请
     const uniqueIds = Object.keys(withdrawalsById);
     const autoWithdrawCount = uniqueIds.filter(id => withdrawalsById[id].hasAutoWithdraw).length;
     const failedOnlyCount = uniqueIds.filter(id =>
@@ -468,20 +468,20 @@ const analysisMetrics = computed(() => {
     ).length;
     const totalApplicationCount = autoWithdrawCount + failedOnlyCount;
 
-    // 成功率：有自動提現成功的申請數 / 總提現申請筆數
+    // 成功率：有自动提现成功的申请数 / 总提现申请笔数
     const successRate = totalApplicationCount > 0 ? autoWithdrawCount / totalApplicationCount : 0;
 
-    // 自動提現成功的記錄（用於計算2分內占比和平均時間）
+    // 自动提现成功的记录（用于计算2分內占比和平均时间）
     const autoWithdrawRecords = records.filter(r => r.isAutoWithdraw === 1);
 
-    // 2分內占比：轉帳成功且處理時間在兩分內的筆數/自動提現筆數 * 100%
+    // 2分内占比：转账成功且处理时间在两分内的笔数/自动提现笔数 * 100%
     // AF = IF(AE <= "00:02:00", 1, 0)
     const within3MinRecords = autoWithdrawRecords.filter(r =>
       r.avgTimeSeconds !== null && r.avgTimeSeconds >= 0 && r.avgTimeSeconds <= 120
     );
     const within3MinRate = autoWithdrawRecords.length > 0 ? within3MinRecords.length / autoWithdrawRecords.length : 0;
 
-    // 平均時間：轉帳成功的筆數的處理平均時間
+    // 平均时间：转账成功的笔数的处理平均时间
     const recordsWithTime = autoWithdrawRecords.filter(r =>
       r.avgTimeSeconds !== null && r.avgTimeSeconds >= 0
     );
@@ -492,30 +492,30 @@ const analysisMetrics = computed(() => {
     return { successRate, within3MinRate, avgTime };
   };
 
-  // 整體提現
+  // 整体提现
   const withdrawOverall = calculateWithdrawCategoryMetrics(withdrawData);
 
-  // 支付寶提現：商戶名稱包含「支付寶」或「支付宝」
+  // 支付宝提现：商户名称包含「支付宝」或「支付宝」
   const withdrawAlipay = calculateWithdrawCategoryMetrics(
-    withdrawData.filter(r => r.merchant && (r.merchant.includes('支付寶') || r.merchant.includes('支付宝')))
+    withdrawData.filter(r => r.merchant && (r.merchant.includes('支付宝') || r.merchant.includes('支付宝')))
   );
 
-  // 微信提現：商戶名稱包含「微信」
+  // 微信提现：商户名称包含「微信」
   const withdrawWechat = calculateWithdrawCategoryMetrics(
     withdrawData.filter(r => r.merchant && r.merchant.includes('微信'))
   );
 
-  // 金寶提現：轉出帳號以 gb 開頭（不區分大小寫）
+  // 金宝提现：转出账号以 gb 开头（不区分大小写）
   const withdrawGB = calculateWithdrawCategoryMetrics(
     withdrawData.filter(r => r.payoutAccount && r.payoutAccount.toLowerCase().startsWith('gb'))
   );
 
-  // 極速提現：轉出帳號包含 auction 或 *****ion
+  // 极速提现：转出账号包含 auction 或 *****ion
   const withdrawAuction = calculateWithdrawCategoryMetrics(
     withdrawData.filter(r => r.payoutAccount && (r.payoutAccount.toLowerCase().includes('auction') || r.payoutAccount.includes('*****ion')))
   );
 
-  // 第三方提現：轉出帳號排除 gb 開頭和 auction/*****ion
+  // 第三方提现：转出账号排除 gb 开头和 auction/*****ion
   const withdrawThirdParty = calculateWithdrawCategoryMetrics(
     withdrawData.filter(r => {
       if (!r.payoutAccount) return false;
@@ -525,11 +525,11 @@ const analysisMetrics = computed(() => {
   );
 
   return [
-    { category: '整體', successRate: overallMetrics.successRate, within3MinRate: overallMetrics.within3MinRate, avgTime: overallMetrics.avgTime, withdrawSuccessRate: withdrawOverall.successRate, withdrawWithin3MinRate: withdrawOverall.within3MinRate, withdrawAvgTime: withdrawOverall.avgTime },
-    { category: '支付寶', successRate: alipayMetrics.successRate, within3MinRate: alipayMetrics.within3MinRate, avgTime: alipayMetrics.avgTime, withdrawSuccessRate: withdrawAlipay.successRate, withdrawWithin3MinRate: withdrawAlipay.within3MinRate, withdrawAvgTime: withdrawAlipay.avgTime },
+    { category: '整体', successRate: overallMetrics.successRate, within3MinRate: overallMetrics.within3MinRate, avgTime: overallMetrics.avgTime, withdrawSuccessRate: withdrawOverall.successRate, withdrawWithin3MinRate: withdrawOverall.within3MinRate, withdrawAvgTime: withdrawOverall.avgTime },
+    { category: '支付宝', successRate: alipayMetrics.successRate, within3MinRate: alipayMetrics.within3MinRate, avgTime: alipayMetrics.avgTime, withdrawSuccessRate: withdrawAlipay.successRate, withdrawWithin3MinRate: withdrawAlipay.within3MinRate, withdrawAvgTime: withdrawAlipay.avgTime },
     { category: '微信', successRate: wechatMetrics.successRate, within3MinRate: wechatMetrics.within3MinRate, avgTime: wechatMetrics.avgTime, withdrawSuccessRate: withdrawWechat.successRate, withdrawWithin3MinRate: withdrawWechat.within3MinRate, withdrawAvgTime: withdrawWechat.avgTime },
-    { category: '金寶', successRate: gbMetrics.successRate, within3MinRate: gbMetrics.within3MinRate, avgTime: gbMetrics.avgTime, withdrawSuccessRate: withdrawGB.successRate, withdrawWithin3MinRate: withdrawGB.within3MinRate, withdrawAvgTime: withdrawGB.avgTime },
-    { category: '極速', successRate: auctionMetrics.successRate, within3MinRate: auctionMetrics.within3MinRate, avgTime: auctionMetrics.avgTime, withdrawSuccessRate: withdrawAuction.successRate, withdrawWithin3MinRate: withdrawAuction.within3MinRate, withdrawAvgTime: withdrawAuction.avgTime },
+    { category: '金宝', successRate: gbMetrics.successRate, within3MinRate: gbMetrics.within3MinRate, avgTime: gbMetrics.avgTime, withdrawSuccessRate: withdrawGB.successRate, withdrawWithin3MinRate: withdrawGB.within3MinRate, withdrawAvgTime: withdrawGB.avgTime },
+    { category: '极速', successRate: auctionMetrics.successRate, within3MinRate: auctionMetrics.within3MinRate, avgTime: auctionMetrics.avgTime, withdrawSuccessRate: withdrawAuction.successRate, withdrawWithin3MinRate: withdrawAuction.within3MinRate, withdrawAvgTime: withdrawAuction.avgTime },
     { category: '第三方', successRate: thirdPartyMetrics.successRate, within3MinRate: thirdPartyMetrics.within3MinRate, avgTime: thirdPartyMetrics.avgTime, withdrawSuccessRate: withdrawThirdParty.successRate, withdrawWithin3MinRate: withdrawThirdParty.within3MinRate, withdrawAvgTime: withdrawThirdParty.avgTime },
     { category: '非正向信评', successRate: creditMetrics.successRate, within3MinRate: creditMetrics.within3MinRate, avgTime: creditMetrics.avgTime, withdrawSuccessRate: null, withdrawWithin3MinRate: null, withdrawAvgTime: null }
   ];
@@ -541,25 +541,25 @@ const setDefaultDate = () => {
   endDate.value = '2026-01-07';
 };
 
-// 開始日期變更時的防呆
+// 开始日期变更时的防呆
 const onStartDateChange = () => {
   if (!startDate.value) return;
 
-  // 開始日期不能超過今日
+  // 开始日期不能超过今日
   if (startDate.value > today) {
     startDate.value = today;
-    dateRangeError.value = '開始日期不能超過今日，已自動修正';
+    dateRangeError.value = '开始日期不能超过今日，已自动修正';
     setTimeout(() => { dateRangeError.value = ''; }, 2000);
   }
 
-  // 如果結束日期早於開始日期，自動修正結束日期
+  // 如果结束日期早于开始日期，自动修正结束日期
   if (endDate.value && endDate.value < startDate.value) {
     endDate.value = startDate.value;
-    dateRangeError.value = '結束日期已自動修正為開始日期';
+    dateRangeError.value = '结束日期已自动修正为开始日期';
     setTimeout(() => { dateRangeError.value = ''; }, 2000);
   }
 
-  // 檢查日期範圍是否超過一個月
+  // 检查日期范围是否超过一个月
   if (startDate.value && endDate.value) {
     const start = new Date(startDate.value);
     const end = new Date(endDate.value);
@@ -570,31 +570,31 @@ const onStartDateChange = () => {
       maxEnd.setDate(maxEnd.getDate() + 31);
       const maxEndStr = maxEnd.toISOString().split('T')[0];
       endDate.value = maxEndStr > today ? today : maxEndStr;
-      dateRangeError.value = '日期範圍最大一個月，已自動修正';
+      dateRangeError.value = '日期范围最大一个月，已自动修正';
       setTimeout(() => { dateRangeError.value = ''; }, 2000);
     }
   }
 };
 
-// 結束日期變更時的防呆
+// 结束日期变更时的防呆
 const onEndDateChange = () => {
   if (!endDate.value) return;
 
-  // 結束日期不能超過今日
+  // 结束日期不能超过今日
   if (endDate.value > today) {
     endDate.value = today;
-    dateRangeError.value = '結束日期不能超過今日，已自動修正';
+    dateRangeError.value = '结束日期不能超过今日，已自动修正';
     setTimeout(() => { dateRangeError.value = ''; }, 2000);
   }
 
-  // 結束日期不能早於開始日期
+  // 结束日期不能早于开始日期
   if (startDate.value && endDate.value < startDate.value) {
     endDate.value = startDate.value;
-    dateRangeError.value = '結束日期不能早於開始日期，已自動修正';
+    dateRangeError.value = '结束日期不能早于开始日期，已自动修正';
     setTimeout(() => { dateRangeError.value = ''; }, 2000);
   }
 
-  // 檢查日期範圍是否超過一個月
+  // 检查日期范围是否超过一个月
   if (startDate.value && endDate.value) {
     const start = new Date(startDate.value);
     const end = new Date(endDate.value);
@@ -604,29 +604,29 @@ const onEndDateChange = () => {
       const minStart = new Date(end);
       minStart.setDate(minStart.getDate() - 31);
       startDate.value = minStart.toISOString().split('T')[0];
-      dateRangeError.value = '日期範圍最大一個月，已自動修正';
+      dateRangeError.value = '日期范围最大一个月，已自动修正';
       setTimeout(() => { dateRangeError.value = ''; }, 2000);
     }
   }
 };
 
-// 匯出週報
+// 导出周报
 const handleExport = () => {
   if (weeklyMetrics.value) {
     exportWeeklyToExcel(weeklyMetrics.value, analysisMetrics.value, weekRange.value);
   }
 };
 
-// 匯出充值純文字報表
+// 导出充值纯文本报表
 const handleExportText = () => {
   if (depositMetrics.value) {
     exportDepositToText(depositMetrics.value, weekRange.value);
   }
 };
 
-// 查詢（數據已自動計算，此按鈕用於視覺確認）
+// 查询（数据已自动计算，此按钮用于视觉确认）
 const handleQuery = () => {
-  // 數據透過 computed 自動更新，無需額外操作
+  // 数据通过 computed 自动更新，无需额外操作
 };
 
 // 初始化
@@ -638,7 +638,7 @@ setDefaultDate();
     <!-- 日期选择器 -->
     <div class="date-selector">
       <div class="selector-header">
-        <h2>日/週報數據匯總</h2>
+        <h2>日/周报数据汇总</h2>
       </div>
       <div class="selector-content">
         <div class="date-picker">
@@ -646,13 +646,13 @@ setDefaultDate();
           <input type="date" v-model="startDate" class="date-input" :max="today" @change="onStartDateChange" />
         </div>
         <div class="date-picker">
-          <label>結束日期：</label>
+          <label>结束日期：</label>
           <input type="date" v-model="endDate" class="date-input" :max="today" @change="onEndDateChange" />
         </div>
         <div v-if="dateRangeError" class="date-error">{{ dateRangeError }}</div>
-        <button @click="handleQuery" class="query-btn">查詢</button>
-        <button @click="handleExport" class="export-btn" v-if="weeklyMetrics">匯出 Excel</button>
-        <button @click="handleExportText" class="export-btn text-btn" v-if="depositMetrics">匯出純文字</button>
+        <button @click="handleQuery" class="query-btn">查询</button>
+        <button @click="handleExport" class="export-btn" v-if="weeklyMetrics">导出 Excel</button>
+        <button @click="handleExportText" class="export-btn text-btn" v-if="depositMetrics">导出纯文本</button>
       </div>
     </div>
 
@@ -693,18 +693,18 @@ setDefaultDate();
             </div>
             <div class="block-details">
               <div class="detail-item">
-                <span class="detail-label">銀行卡</span>
+                <span class="detail-label">银行卡</span>
                 <span class="detail-value">{{ (weeklyMetrics.bankCardJsWaitingNoMatch || 0).toLocaleString() }}</span>
               </div>
               <div class="detail-item">
-                <span class="detail-label">支付寶</span>
+                <span class="detail-label">支付宝</span>
                 <span class="detail-value">{{ (weeklyMetrics.alipayJsWaitingNoMatch || 0).toLocaleString() }}</span>
               </div>
             </div>
             <div class="section-formula">
-              銀行卡(建单成功等待無配對+取无卡06提示) + 支付寶(建单成功等待無配對+取无卡06提示)<br>
-              建单成功等待無配對 = bankCardCode為空的記錄數<br>
-              取无卡06提示 = 暫時硬編碼（銀行卡:2筆, 支付寶:0筆），後續需從06數據計算
+              银行卡(建单成功等待无配对+取无卡06提示) + 支付宝(建单成功等待无配对+取无卡06提示)<br>
+              建单成功等待无配对 = bankCardCode為空的记录数<br>
+              取无卡06提示 = 暂时硬编码（银行卡:2笔, 支付宝:0笔），后续需从06数据计算
             </div>
           </div>
 
@@ -729,7 +729,7 @@ setDefaultDate();
               </div>
             </div>
             <div class="section-formula">
-              銀行卡一般卡 + 支付寶一般卡 + 一般寶
+              银行卡一般卡 + 支付宝一般卡 + 一般宝
             </div>
           </div>
 
@@ -754,7 +754,7 @@ setDefaultDate();
               </div>
             </div>
             <div class="section-formula">
-              銀行卡極速提 + 支付寶極速提(卡) + 极速提(宝)
+              银行卡极速提 + 支付宝极速提(卡) + 极速提(宝)
             </div>
           </div>
 
@@ -825,7 +825,7 @@ setDefaultDate();
               </div>
             </div>
             <div class="section-formula">
-              銀行卡訂單成功一般卡 + 支付寶訂單成功一般卡 + 一般寶
+              银行卡订单成功一般卡 + 支付宝订单成功一般卡 + 一般宝
             </div>
           </div>
 
@@ -850,7 +850,7 @@ setDefaultDate();
               </div>
             </div>
             <div class="section-formula">
-              銀行卡訂單成功極速提 + 支付寶訂單成功極速提(卡) + 极速提(宝)
+              银行卡订单成功极速提 + 支付宝订单成功极速提(卡) + 极速提(宝)
             </div>
           </div>
 
@@ -959,7 +959,7 @@ setDefaultDate();
               </div>
             </div>
             <div class="section-formula">
-              銀行卡訂單成功一般卡金額 + 支付寶訂單成功一般卡金額 + 一般寶金額
+              银行卡订单成功一般卡金額 + 支付宝订单成功一般卡金額 + 一般宝金額
             </div>
           </div>
 
@@ -984,7 +984,7 @@ setDefaultDate();
               </div>
             </div>
             <div class="section-formula">
-              銀行卡訂單成功極速提金額 + 支付寶訂單成功極速提(卡)金額 + 极速提(宝)金額
+              银行卡订单成功极速提金額 + 支付宝订单成功极速提(卡)金額 + 极速提(宝)金額
             </div>
           </div>
 
@@ -1007,24 +1007,24 @@ setDefaultDate();
         </div>
       </div>
 
-      <!-- ========== 区块四：平均處理時間 ========== -->
+      <!-- ========== 区块四：平均处理时间 ========== -->
       <div class="report-section" v-if="weeklyMetrics">
         <div class="section-header">
-          <h3>平均處理時間</h3>
+          <h3>平均处理时间</h3>
         </div>
         <div class="jisu-content">
           <div class="jisu-block">
             <div class="block-header">
-              <span class="block-title">提现平均處理時間</span>
+              <span class="block-title">提现平均处理时间</span>
               <span class="block-value"></span>
             </div>
             <div class="block-details">
               <div class="detail-item">
-                <span class="detail-label">提现平均處理時間（卡）</span>
+                <span class="detail-label">提现平均处理时间（卡）</span>
                 <span class="detail-value">{{ formatTime(weeklyMetrics.withdrawAvgTimeBankCard) }}</span>
               </div>
               <div class="detail-item">
-                <span class="detail-label">提现平均處理時間（宝）</span>
+                <span class="detail-label">提现平均处理时间（宝）</span>
                 <span class="detail-value">{{ formatTime(weeklyMetrics.withdrawAvgTimeAlipay) }}</span>
               </div>
             </div>
@@ -1032,13 +1032,13 @@ setDefaultDate();
         </div>
         <div class="section-formula">
           <strong>计算公式说明（来自 汇总周报数据 D47/D48）：</strong><br>
-          - 提现平均處理時間（卡）= AVERAGEIFS('raw data withdraw'!AF:AF, AC:AC, "银行卡", AD:AD, "轉帳完成")<br>
-          &nbsp;&nbsp;即：銀行卡提現記錄中，轉帳完成的處理時間(AF欄)平均<br>
-          - 提现平均處理時間（宝）= AVERAGEIFS('raw data withdraw'!AF:AF, AC:AC, "*支付宝*", AD:AD, "轉帳完成")<br>
-          &nbsp;&nbsp;即：支付寶提現記錄中，轉帳完成的處理時間(AF欄)平均<br>
+          - 提现平均处理时间（卡）= AVERAGEIFS('raw data withdraw'!AF:AF, AC:AC, "银行卡", AD:AD, "转账完成")<br>
+          &nbsp;&nbsp;即：银行卡提现记录中，转账完成的处理时间(AF栏)平均<br>
+          - 提现平均处理时间（宝）= AVERAGEIFS('raw data withdraw'!AF:AF, AC:AC, "*支付宝*", AD:AD, "转账完成")<br>
+          &nbsp;&nbsp;即：支付宝提现记录中，转账完成的处理时间(AF栏)平均<br>
           <br>
-          <strong>AF欄公式：</strong>IF(AD="轉帳完成", Q-T 或 Q-V, "")<br>
-          &nbsp;&nbsp;Q = 通知商戶時間, T = 建立時間, V = 剩餘池建立時間
+          <strong>AF栏公式：</strong>IF(AD="转账完成", Q-T 或 Q-V, "")<br>
+          &nbsp;&nbsp;Q = 通知商户时间, T = 建立时间, V = 剩余池建立时间
         </div>
       </div>
 
@@ -1103,16 +1103,16 @@ setDefaultDate();
           </div>
         </div>
         <div class="section-formula">
-          <strong>计算公式说明（来自 总计 银行卡/支付宝 頁籤）：</strong><br>
-          - 骗分 = 銀行卡骗分(人工+信评) + 支付寶骗分(人工+信评)<br>
-          &nbsp;&nbsp;銀行卡信评：'总计 银行卡'!B25 元 / D25 笔<br>
-          &nbsp;&nbsp;支付寶信评：'总计 支付宝'!B27 元 / D27 笔<br>
+          <strong>计算公式说明（来自 总计 银行卡/支付宝 页签）：</strong><br>
+          - 骗分 = 银行卡骗分(人工+信评) + 支付宝骗分(人工+信评)<br>
+          &nbsp;&nbsp;银行卡信评：'总计 银行卡'!B25 元 / D25 笔<br>
+          &nbsp;&nbsp;支付宝信评：'总计 支付宝'!B27 元 / D27 笔<br>
           - 骗分成本占比 = 骗分 / 配极速充值订单成功(金额) × 100%<br>
-          - JS提现返利 = 'raw data withdraw'!H欄(商戶返利)加總
+          - JS提现返利 = 'raw data withdraw'!H栏(商户返利)加总
         </div>
       </div>
 
-      <!-- ========== 区块六：配对率＆空单率（暫時隱藏） ========== -->
+      <!-- ========== 区块六：配对率＆空单率（暂时隐藏） ========== -->
       <div class="report-section" v-if="false">
         <div class="section-header">
           <h3>配对率＆空单率</h3>
@@ -1209,20 +1209,20 @@ setDefaultDate();
           </div>
         </div>
         <div class="section-formula">
-          <strong>计算公式说明（来自 总计 银行卡/支付宝 頁籤）：</strong><br>
-          - 充值配对率 = 成功配對 / 充值申請<br>
-          &nbsp;&nbsp;銀行卡：'总计 银行卡'!B17 = B3/B2<br>
-          &nbsp;&nbsp;支付寶：'总计 支付宝'!B19 = B3/B2<br>
+          <strong>计算公式说明（来自 总计 银行卡/支付宝 页签）：</strong><br>
+          - 充值配对率 = 成功配对 / 充值申请<br>
+          &nbsp;&nbsp;银行卡：'总计 银行卡'!B17 = B3/B2<br>
+          &nbsp;&nbsp;支付宝：'总计 支付宝'!B19 = B3/B2<br>
           - 充提配对率 = 公式待确认<br>
-          - 配对后成功率 = 订单成功 / 成功配對<br>
-          &nbsp;&nbsp;銀行卡：'总计 银行卡'!B18 = B6/B3<br>
-          &nbsp;&nbsp;支付寶：'总计 支付宝'!B20 = B8/B3<br>
+          - 配对后成功率 = 订单成功 / 成功配对<br>
+          &nbsp;&nbsp;银行卡：'总计 银行卡'!B18 = B6/B3<br>
+          &nbsp;&nbsp;支付宝：'总计 支付宝'!B20 = B8/B3<br>
           - 未充空单率 = 未充值 / (充值配对(配JS) + 充值配对(配一般提)) × 100%<br>
           - 提现失败率 = 提现失败笔数 / 总申请<br>
           <br>
           <strong>提现成功率公式：</strong>= 1 - 提现失败率 = (总申请 - 提现失败笔数) / 总申请<br>
-          - 提现失败笔数 = 按流水號去重後，每個流水號最終狀態為失敗的數量<br>
-          - 总申请 = 時間區間加總 + 提现失败笔数
+          - 提现失败笔数 = 按流水号去重后，每個流水號最终状态为失败的数量<br>
+          - 总申请 = 时间区间加总 + 提现失败笔数
         </div>
       </div>
 
@@ -1246,10 +1246,10 @@ setDefaultDate();
               <tr>
                 <th class="sub-header deposit-sub">成功率</th>
                 <th class="sub-header deposit-sub">3分内占比</th>
-                <th class="sub-header deposit-sub">平均處理時間</th>
+                <th class="sub-header deposit-sub">平均处理时间</th>
                 <th class="sub-header withdraw-sub">成功率</th>
                 <th class="sub-header withdraw-sub">2分内占比</th>
-                <th class="sub-header withdraw-sub">平均處理時間</th>
+                <th class="sub-header withdraw-sub">平均处理时间</th>
               </tr>
             </thead>
             <tbody>
@@ -1377,7 +1377,7 @@ setDefaultDate();
   background: #e68a00;
 }
 
-/* 報表區塊 */
+/* 报表区块 */
 .report-section {
   background: #fff;
   border-radius: 8px;
@@ -1408,7 +1408,7 @@ setDefaultDate();
   border-radius: 6px;
 }
 
-/* 指標網格 */
+/* 指标网格 */
 .metrics-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -1434,7 +1434,7 @@ setDefaultDate();
   color: #333;
 }
 
-/* 渠道網格 */
+/* 渠道网格 */
 .channel-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -1480,14 +1480,14 @@ setDefaultDate();
   font-family: monospace;
 }
 
-/* 重要指標網格 */
+/* 重要指标网格 */
 .important-metrics-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 12px;
 }
 
-/* 區塊樣式 (與 MetricsCards.vue 一致) */
+/* 区块样式 (与 MetricsCards.vue 一致) */
 .jisu-block {
   background: #f8f9fa;
   border: 1px solid #e8e8e8;
@@ -1500,7 +1500,7 @@ setDefaultDate();
   border: 1px solid #5cb85c;
 }
 
-/* 區塊內容網格 */
+/* 区块内容网格 */
 .jisu-content {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -1566,7 +1566,7 @@ setDefaultDate();
   font-size: 11px;
 }
 
-/* 無數據 */
+/* 无数据 */
 .no-data {
   text-align: center;
   color: #999;
@@ -1574,7 +1574,7 @@ setDefaultDate();
   padding: 40px 20px;
 }
 
-/* 區塊底部公式說明 */
+/* 区块底部公式说明 */
 .section-formula {
   font-size: 12px;
   color: #666;
@@ -1590,14 +1590,14 @@ setDefaultDate();
   font-weight: 600;
 }
 
-/* 綠色區塊內的公式說明使用淺綠色背景 */
+/* 绿色区块内的公式说明使用浅绿色背景 */
 .jisu-block.highlight-block .section-formula {
   background: #e8f5e9;
   border-top: 1px dashed #a5d6a7;
   color: #555;
 }
 
-/* 指標數據分析表格 */
+/* 指标数据分析表格 */
 .analysis-table-container {
   overflow-x: auto;
 }

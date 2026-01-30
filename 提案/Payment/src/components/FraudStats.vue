@@ -2,16 +2,16 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import * as XLSX from 'xlsx';
 
-// 騙分記錄
+// 骗分记录
 const fraudRecords = ref([]);
 
-// 當前登入使用者
-// TODO: 對接後端 API 取得登入使用者帳號
-// 目前暫用 localStorage 模擬，正式環境需從後端登入狀態取得
+// 当前登录用户
+// TODO: 对接后端 API 获取登录用户账号
+// 目前暂用 localStorage 模拟，正式环境需从后端登录状态获取
 const currentUser = ref(localStorage.getItem('currentUser') || 'karoli');
 
-// 操作 Log 紀錄
-// TODO: 正式環境需對接後端 API 儲存操作紀錄
+// 操作 Log 记录
+// TODO: 正式环境需对接后端 API 存储操作记录
 const operationLogs = ref([]);
 
 // 新增操作 Log
@@ -33,7 +33,7 @@ const saveLogsToStorage = () => {
   localStorage.setItem('fraudOperationLogs', JSON.stringify(operationLogs.value));
 };
 
-// 新增表單
+// 新增表单
 const newRecord = ref({
   date: new Date().toISOString().split('T')[0],
   bankCardManualAmount: '',
@@ -53,32 +53,32 @@ const newRecord = ref({
   operator: ''
 });
 
-// 編輯模式
+// 编辑模式
 const editingId = ref(null);
 
 
-// 分頁設定
+// 分页设置
 const currentPage = ref(1);
 const pageSize = 50;
 
 // 今日日期
 const today = new Date().toISOString().split('T')[0];
 
-// 日期搜尋 - 起訖日期（預設當日）
+// 日期搜索 - 起讫日期（默认当日）
 const startDate = ref(today);
 const endDate = ref(today);
 
-// 日期範圍錯誤訊息
+// 日期范围错误信息
 const dateRangeError = ref('');
 
-// 從 localStorage 載入數據
+// 从 localStorage 加载数据
 onMounted(() => {
   const saved = localStorage.getItem('fraudRecords');
   if (saved) {
     fraudRecords.value = JSON.parse(saved);
   }
 
-  // 載入操作 Log
+  // 加载操作 Log
   const savedLogs = localStorage.getItem('fraudOperationLogs');
   if (savedLogs) {
     operationLogs.value = JSON.parse(savedLogs);
@@ -90,10 +90,10 @@ const saveToStorage = () => {
   localStorage.setItem('fraudRecords', JSON.stringify(fraudRecords.value));
 };
 
-// 新增記錄
+// 新增记录
 const addRecord = () => {
   if (!newRecord.value.date) {
-    alert('請選擇日期');
+    alert('请选择日期');
     return;
   }
 
@@ -117,7 +117,7 @@ const addRecord = () => {
     createdAt: new Date().toISOString()
   };
 
-  // 檢查是否所有數值皆為 0（當日無騙分數據）
+  // 检查是否所有数值皆为 0（当日无骗分数据）
   const hasData =
     record.bankCardManualAmount > 0 ||
     record.bankCardManualCount > 0 ||
@@ -134,31 +134,31 @@ const addRecord = () => {
     record.alipayCardVerifyCount > 0;
 
   if (!hasData) {
-    alert('所有數值皆為 0，當日無騙分數據，不予新增');
+    alert('所有数值皆为 0，当日无骗分数据，不予新增');
     return;
   }
 
   fraudRecords.value.unshift(record);
   saveToStorage();
 
-  // 寫入操作 Log
+  // 写入操作 Log
   addOperationLog('ADD', record.id, {
     date: record.date,
-    remark: record.remark || '無備註'
+    remark: record.remark || '无备注'
   });
 
   resetForm();
 };
 
-// 編輯記錄
+// 编辑记录
 const editRecord = (record) => {
   editingId.value = record.id;
   newRecord.value = { ...record };
-  // 滾動到表單區域
+  // 滚动到表单区域
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
-// 更新記錄
+// 更新记录
 const updateRecord = () => {
   const index = fraudRecords.value.findIndex(r => r.id === editingId.value);
   if (index !== -1) {
@@ -187,37 +187,37 @@ const updateRecord = () => {
     fraudRecords.value[index] = updatedRecord;
     saveToStorage();
 
-    // 寫入操作 Log
+    // 写入操作 Log
     addOperationLog('EDIT', editingId.value, {
       date: updatedRecord.date,
       originalOperator: originalRecord.operator,
-      remark: updatedRecord.remark || '無備註'
+      remark: updatedRecord.remark || '无备注'
     });
   }
   resetForm();
 };
 
-// 刪除記錄
+// 删除记录
 const deleteRecord = (id) => {
-  if (confirm('確定要刪除這筆記錄嗎？')) {
-    // 取得要刪除的記錄資訊（用於 Log）
+  if (confirm('确定要删除这笔记录吗？')) {
+    // 获取要删除的记录信息（用于 Log）
     const recordToDelete = fraudRecords.value.find(r => r.id === id);
 
     fraudRecords.value = fraudRecords.value.filter(r => r.id !== id);
     saveToStorage();
 
-    // 寫入操作 Log
+    // 写入操作 Log
     if (recordToDelete) {
       addOperationLog('DELETE', id, {
         date: recordToDelete.date,
         originalOperator: recordToDelete.operator,
-        remark: recordToDelete.remark || '無備註'
+        remark: recordToDelete.remark || '无备注'
       });
     }
   }
 };
 
-// 重置表單
+// 重置表单
 const resetForm = () => {
   editingId.value = null;
   newRecord.value = {
@@ -241,65 +241,65 @@ const resetForm = () => {
 };
 
 
-// 取得查詢範圍描述
+// 获取查询范围描述
 const getDateRangeDescription = () => {
   if (!startDate.value && !endDate.value) {
-    return '全部資料';
+    return '全部数据';
   }
 
   if (startDate.value === endDate.value) {
     return startDate.value;
   }
 
-  return `${startDate.value || '無限制'} ~ ${endDate.value || '無限制'}`;
+  return `${startDate.value || '无限制'} ~ ${endDate.value || '无限制'}`;
 };
 
-// 匯出數據到 Excel
+// 导出数据到 Excel
 const exportToExcel = () => {
   const dateRange = getDateRangeDescription();
   const exportRecords = filteredRecords.value;
 
-  // 建立工作簿
+  // 创建工作簿
   const wb = XLSX.utils.book_new();
 
-  // 統計摘要資料
+  // 统计摘要数据
   const summaryData = [
-    ['騙分統計摘要'],
-    ['匯出時間', new Date().toLocaleString()],
-    ['查詢範圍', dateRange],
+    ['骗分统计摘要'],
+    ['导出时间', new Date().toLocaleString()],
+    ['查询范围', dateRange],
     [''],
-    ['總騙分金額', totalFraudAmount.value],
+    ['总骗分金额', totalFraudAmount.value],
     [''],
-    ['銀行卡渠道'],
-    ['骗分拉黑(筆)', totals.value.bankCardFraudBlacklistCount],
-    ['卡验及人验(筆)', totals.value.bankCardCardVerifyCount],
-    ['人工筆數', totals.value.bankCardManualCount],
-    ['人工金額(元)', totals.value.bankCardManualAmount],
-    ['信評筆數', totals.value.bankCardCreditCount],
-    ['信評金額(元)', totals.value.bankCardCreditAmount],
+    ['银行卡渠道'],
+    ['骗分拉黑(笔)', totals.value.bankCardFraudBlacklistCount],
+    ['卡验及人验(笔)', totals.value.bankCardCardVerifyCount],
+    ['人工笔数', totals.value.bankCardManualCount],
+    ['人工金额(元)', totals.value.bankCardManualAmount],
+    ['信评笔数', totals.value.bankCardCreditCount],
+    ['信评金额(元)', totals.value.bankCardCreditAmount],
     [''],
-    ['支付寶渠道'],
-    ['骗分拉黑(筆)', totals.value.alipayFraudBlacklistCount],
-    ['卡验及人验(筆)', totals.value.alipayCardVerifyCount],
-    ['人工筆數', totals.value.alipayManualCount],
-    ['人工金額(元)', totals.value.alipayManualAmount],
-    ['信評筆數', totals.value.alipayCreditCount],
-    ['信評金額(元)', totals.value.alipayCreditAmount],
-    ['没上传回单(筆)', totals.value.alipayNoReceiptCount],
+    ['支付宝渠道'],
+    ['骗分拉黑(笔)', totals.value.alipayFraudBlacklistCount],
+    ['卡验及人验(笔)', totals.value.alipayCardVerifyCount],
+    ['人工笔数', totals.value.alipayManualCount],
+    ['人工金额(元)', totals.value.alipayManualAmount],
+    ['信评笔数', totals.value.alipayCreditCount],
+    ['信评金额(元)', totals.value.alipayCreditAmount],
+    ['没上传回单(笔)', totals.value.alipayNoReceiptCount],
   ];
 
   const ws1 = XLSX.utils.aoa_to_sheet(summaryData);
-  XLSX.utils.book_append_sheet(wb, ws1, '統計摘要');
+  XLSX.utils.book_append_sheet(wb, ws1, '统计摘要');
 
-  // 明細資料
+  // 明细数据
   if (exportRecords.length > 0) {
     const detailHeaders = [
       '日期',
-      '銀行卡-骗分拉黑(筆)', '銀行卡-卡验人验(筆)', '銀行卡-人工筆數', '銀行卡-人工金額',
-      '銀行卡-信評筆數', '銀行卡-信評金額',
-      '支付寶-骗分拉黑(筆)', '支付寶-卡验人验(筆)', '支付寶-人工筆數', '支付寶-人工金額',
-      '支付寶-信評筆數', '支付寶-信評金額', '支付寶-没上传回单(筆)',
-      '備註'
+      '银行卡-骗分拉黑(笔)', '银行卡-卡验人验(笔)', '银行卡-人工笔数', '银行卡-人工金额',
+      '银行卡-信评笔数', '银行卡-信评金额',
+      '支付宝-骗分拉黑(笔)', '支付宝-卡验人验(笔)', '支付宝-人工笔数', '支付宝-人工金额',
+      '支付宝-信评笔数', '支付宝-信评金额', '支付宝-没上传回单(笔)',
+      '备注'
     ];
 
     const detailData = exportRecords.map(r => [
@@ -321,41 +321,41 @@ const exportToExcel = () => {
     ]);
 
     const ws2 = XLSX.utils.aoa_to_sheet([detailHeaders, ...detailData]);
-    XLSX.utils.book_append_sheet(wb, ws2, '明細資料');
+    XLSX.utils.book_append_sheet(wb, ws2, '明细数据');
   }
 
-  // 檔名包含日期範圍
+  // 文件名包含日期范围
   const fileDate = startDate.value || new Date().toISOString().split('T')[0];
-  const fileName = `騙分統計_${fileDate}${endDate.value && endDate.value !== startDate.value ? '_' + endDate.value : ''}.xlsx`;
+  const fileName = `骗分统计_${fileDate}${endDate.value && endDate.value !== startDate.value ? '_' + endDate.value : ''}.xlsx`;
 
   XLSX.writeFile(wb, fileName);
 };
 
-// 驗證日期範圍
+// 验证日期范围
 const validateDateRange = () => {
   dateRangeError.value = '';
   return true;
 };
 
-// 開始日期變更時的防呆
+// 开始日期变更时的防呆
 const onStartDateChange = () => {
   if (!startDate.value) return;
 
-  // 開始日期不能超過今日
+  // 开始日期不能超过今日
   if (startDate.value > today) {
     startDate.value = today;
-    dateRangeError.value = '開始日期不能超過今日，已自動修正';
+    dateRangeError.value = '开始日期不能超过今日，已自动修正';
     setTimeout(() => { dateRangeError.value = ''; }, 2000);
   }
 
-  // 如果結束日期早於開始日期，自動修正結束日期
+  // 如果结束日期早于开始日期，自动修正结束日期
   if (endDate.value && endDate.value < startDate.value) {
     endDate.value = startDate.value;
-    dateRangeError.value = '結束日期已自動修正為開始日期';
+    dateRangeError.value = '结束日期已自动修正为开始日期';
     setTimeout(() => { dateRangeError.value = ''; }, 2000);
   }
 
-  // 檢查日期範圍是否超過一個月
+  // 检查日期范围是否超过一个月
   if (startDate.value && endDate.value) {
     const start = new Date(startDate.value);
     const end = new Date(endDate.value);
@@ -366,31 +366,31 @@ const onStartDateChange = () => {
       maxEnd.setDate(maxEnd.getDate() + 31);
       const maxEndStr = maxEnd.toISOString().split('T')[0];
       endDate.value = maxEndStr > today ? today : maxEndStr;
-      dateRangeError.value = '日期範圍最大一個月，已自動修正';
+      dateRangeError.value = '日期范围最大一个月，已自动修正';
       setTimeout(() => { dateRangeError.value = ''; }, 2000);
     }
   }
 };
 
-// 結束日期變更時的防呆
+// 结束日期变更时的防呆
 const onEndDateChange = () => {
   if (!endDate.value) return;
 
-  // 結束日期不能超過今日
+  // 结束日期不能超过今日
   if (endDate.value > today) {
     endDate.value = today;
-    dateRangeError.value = '結束日期不能超過今日，已自動修正';
+    dateRangeError.value = '结束日期不能超过今日，已自动修正';
     setTimeout(() => { dateRangeError.value = ''; }, 2000);
   }
 
-  // 結束日期不能早於開始日期
+  // 结束日期不能早于开始日期
   if (startDate.value && endDate.value < startDate.value) {
     endDate.value = startDate.value;
-    dateRangeError.value = '結束日期不能早於開始日期，已自動修正';
+    dateRangeError.value = '结束日期不能早于开始日期，已自动修正';
     setTimeout(() => { dateRangeError.value = ''; }, 2000);
   }
 
-  // 檢查日期範圍是否超過一個月
+  // 检查日期范围是否超过一个月
   if (startDate.value && endDate.value) {
     const start = new Date(startDate.value);
     const end = new Date(endDate.value);
@@ -400,29 +400,29 @@ const onEndDateChange = () => {
       const minStart = new Date(end);
       minStart.setDate(minStart.getDate() - 31);
       startDate.value = minStart.toISOString().split('T')[0];
-      dateRangeError.value = '日期範圍最大一個月，已自動修正';
+      dateRangeError.value = '日期范围最大一个月，已自动修正';
       setTimeout(() => { dateRangeError.value = ''; }, 2000);
     }
   }
 };
 
-// 新增記錄日期防呆
+// 新增记录日期防呆
 const onRecordDateChange = () => {
   if (newRecord.value.date > today) {
     newRecord.value.date = today;
-    dateRangeError.value = '記錄日期不能超過今日，已自動修正';
+    dateRangeError.value = '记录日期不能超过今日，已自动修正';
     setTimeout(() => { dateRangeError.value = ''; }, 2000);
   }
 };
 
-// 篩選後的記錄（依日期範圍搜尋）
+// 筛选后的记录（依日期范围搜索）
 const filteredRecords = computed(() => {
-  // 驗證日期範圍
+  // 验证日期范围
   if (!validateDateRange()) {
     return [];
   }
 
-  // 顯示全部
+  // 显示全部
   if (!startDate.value && !endDate.value) {
     return fraudRecords.value;
   }
@@ -435,7 +435,7 @@ const filteredRecords = computed(() => {
   });
 });
 
-// 計算總計（依篩選後的資料）
+// 计算总计（依筛选后的数据）
 const totals = computed(() => {
   return filteredRecords.value.reduce((acc, r) => {
     acc.bankCardManualAmount += r.bankCardManualAmount || 0;
@@ -469,31 +469,31 @@ const totals = computed(() => {
   });
 });
 
-// 總騙分金額
+// 总骗分金额
 const totalFraudAmount = computed(() => {
   return totals.value.bankCardManualAmount + totals.value.bankCardCreditAmount +
          totals.value.alipayManualAmount + totals.value.alipayCreditAmount;
 });
 
-// 總頁數
+// 总页数
 const totalPages = computed(() => {
   return Math.ceil(filteredRecords.value.length / pageSize) || 1;
 });
 
-// 當前頁的記錄
+// 当前页的记录
 const paginatedRecords = computed(() => {
   const start = (currentPage.value - 1) * pageSize;
   const end = start + pageSize;
   return filteredRecords.value.slice(start, end);
 });
 
-// 當搜尋條件變更時，重置到第一頁
+// 当搜索条件变更时，重置到第一页
 watch([startDate, endDate], () => {
   currentPage.value = 1;
   validateDateRange();
 });
 
-// 顯示全部資料
+// 显示全部数据
 const showAll = () => {
   startDate.value = '';
   endDate.value = '';
@@ -501,19 +501,19 @@ const showAll = () => {
   currentPage.value = 1;
 };
 
-// 查詢按鈕
+// 查询按钮
 const handleSearch = () => {
   currentPage.value = 1;
 };
 
-// 換頁
+// 换页
 const goToPage = (page) => {
   if (page >= 1 && page <= totalPages.value) {
     currentPage.value = page;
   }
 };
 
-// 產生頁碼陣列
+// 生成页码数组
 const pageNumbers = computed(() => {
   const pages = [];
   const total = totalPages.value;
@@ -543,77 +543,77 @@ const pageNumbers = computed(() => {
 
 <template>
   <div class="fraud-stats">
-    <!-- 輸入表單 -->
+    <!-- 输入表单 -->
     <div class="form-section">
-      <h3>{{ editingId ? '編輯記錄' : '新增騙分記錄' }}</h3>
-      <!-- 操作人欄位：資料將對接後端登入使用者帳號 -->
+      <h3>{{ editingId ? '编辑记录' : '新增骗分记录' }}</h3>
+      <!-- 操作人栏位：数据将对接后端登录用户账号 -->
       <div class="form-grid">
         <div class="form-group">
           <label>日期</label>
           <input type="date" v-model="newRecord.date" :max="today" @change="onRecordDateChange" />
         </div>
 
-        <div class="form-divider">銀行卡渠道</div>
+        <div class="form-divider">银行卡渠道</div>
 
         <div class="form-group">
-          <label>骗分拉黑(筆)</label>
+          <label>骗分拉黑(笔)</label>
           <input type="number" v-model="newRecord.bankCardFraudBlacklistCount" placeholder="0" />
         </div>
         <div class="form-group">
-          <label>卡验及人验(筆)</label>
+          <label>卡验及人验(笔)</label>
           <input type="number" v-model="newRecord.bankCardCardVerifyCount" placeholder="0" />
         </div>
         <div class="form-group">
-          <label>人工筆數</label>
+          <label>人工笔数</label>
           <input type="number" v-model="newRecord.bankCardManualCount" placeholder="0" />
         </div>
         <div class="form-group">
-          <label>人工金額(元)</label>
+          <label>人工金额(元)</label>
           <input type="number" v-model="newRecord.bankCardManualAmount" placeholder="0" />
         </div>
         <div class="form-group">
-          <label>信評筆數</label>
+          <label>信评笔数</label>
           <input type="number" v-model="newRecord.bankCardCreditCount" placeholder="0" />
         </div>
         <div class="form-group">
-          <label>信評金額(元)</label>
+          <label>信评金额(元)</label>
           <input type="number" v-model="newRecord.bankCardCreditAmount" placeholder="0" />
         </div>
 
-        <div class="form-divider">支付寶渠道</div>
+        <div class="form-divider">支付宝渠道</div>
 
         <div class="form-group">
-          <label>骗分拉黑(筆)</label>
+          <label>骗分拉黑(笔)</label>
           <input type="number" v-model="newRecord.alipayFraudBlacklistCount" placeholder="0" />
         </div>
         <div class="form-group">
-          <label>卡验及人验(筆)</label>
+          <label>卡验及人验(笔)</label>
           <input type="number" v-model="newRecord.alipayCardVerifyCount" placeholder="0" />
         </div>
         <div class="form-group">
-          <label>人工筆數</label>
+          <label>人工笔数</label>
           <input type="number" v-model="newRecord.alipayManualCount" placeholder="0" />
         </div>
         <div class="form-group">
-          <label>人工金額(元)</label>
+          <label>人工金额(元)</label>
           <input type="number" v-model="newRecord.alipayManualAmount" placeholder="0" />
         </div>
         <div class="form-group">
-          <label>信評筆數</label>
+          <label>信评笔数</label>
           <input type="number" v-model="newRecord.alipayCreditCount" placeholder="0" />
         </div>
         <div class="form-group">
-          <label>信評金額(元)</label>
+          <label>信评金额(元)</label>
           <input type="number" v-model="newRecord.alipayCreditAmount" placeholder="0" />
         </div>
         <div class="form-group span-2">
-          <label>没上传回单重复出款充值上分(筆)</label>
+          <label>没上传回单重复出款充值上分(笔)</label>
           <input type="number" v-model="newRecord.alipayNoReceiptCount" placeholder="0" />
         </div>
 
         <div class="form-group full-width">
-          <label>備註</label>
-          <input type="text" v-model="newRecord.remark" placeholder="選填" />
+          <label>备注</label>
+          <input type="text" v-model="newRecord.remark" placeholder="选填" />
         </div>
       </div>
 
@@ -624,95 +624,95 @@ const pageNumbers = computed(() => {
       </div>
     </div>
 
-    <!-- 統計摘要 -->
+    <!-- 统计摘要 -->
     <div class="summary-section">
-      <h3>統計摘要</h3>
+      <h3>统计摘要</h3>
       <div class="summary-search-section">
         <div class="search-row">
-          <label>開始日期：</label>
+          <label>开始日期：</label>
           <input type="date" v-model="startDate" :max="today" @change="onStartDateChange" />
-          <label>結束日期：</label>
+          <label>结束日期：</label>
           <input type="date" v-model="endDate" :max="today" @change="onEndDateChange" />
-          <button @click="handleSearch" class="btn-search">查詢</button>
+          <button @click="handleSearch" class="btn-search">查询</button>
           <button @click="showAll" class="btn-filter" :class="{ active: !startDate && !endDate }">全部</button>
-          <button @click="exportToExcel" class="btn btn-export">匯出數據</button>
+          <button @click="exportToExcel" class="btn btn-export">导出数据</button>
         </div>
         <div v-if="dateRangeError" class="date-error">{{ dateRangeError }}</div>
         <div v-if="startDate || endDate" class="summary-date-info">
-          查詢範圍：{{ getDateRangeDescription() }}
+          查询范围：{{ getDateRangeDescription() }}
         </div>
       </div>
       <div class="summary-grid">
         <div class="summary-card">
-          <div class="summary-label">總騙分金額</div>
+          <div class="summary-label">总骗分金额</div>
           <div class="summary-value">{{ totalFraudAmount.toLocaleString() }} 元</div>
         </div>
         <div class="summary-card">
-          <div class="summary-label">銀行卡-人工</div>
-          <div class="summary-value">{{ totals.bankCardManualCount }} 筆 / {{ totals.bankCardManualAmount.toLocaleString() }} 元</div>
+          <div class="summary-label">银行卡-人工</div>
+          <div class="summary-value">{{ totals.bankCardManualCount }} 笔 / {{ totals.bankCardManualAmount.toLocaleString() }} 元</div>
         </div>
         <div class="summary-card">
-          <div class="summary-label">銀行卡-信評</div>
-          <div class="summary-value">{{ totals.bankCardCreditCount }} 筆 / {{ totals.bankCardCreditAmount.toLocaleString() }} 元</div>
+          <div class="summary-label">银行卡-信评</div>
+          <div class="summary-value">{{ totals.bankCardCreditCount }} 笔 / {{ totals.bankCardCreditAmount.toLocaleString() }} 元</div>
         </div>
         <div class="summary-card">
-          <div class="summary-label">銀行卡-骗分拉黑</div>
-          <div class="summary-value">{{ totals.bankCardFraudBlacklistCount }} 筆</div>
+          <div class="summary-label">银行卡-骗分拉黑</div>
+          <div class="summary-value">{{ totals.bankCardFraudBlacklistCount }} 笔</div>
         </div>
         <div class="summary-card">
-          <div class="summary-label">銀行卡-卡验及人验</div>
-          <div class="summary-value">{{ totals.bankCardCardVerifyCount }} 筆</div>
+          <div class="summary-label">银行卡-卡验及人验</div>
+          <div class="summary-value">{{ totals.bankCardCardVerifyCount }} 笔</div>
         </div>
         <div class="summary-card">
-          <div class="summary-label">支付寶-人工</div>
-          <div class="summary-value">{{ totals.alipayManualCount }} 筆 / {{ totals.alipayManualAmount.toLocaleString() }} 元</div>
+          <div class="summary-label">支付宝-人工</div>
+          <div class="summary-value">{{ totals.alipayManualCount }} 笔 / {{ totals.alipayManualAmount.toLocaleString() }} 元</div>
         </div>
         <div class="summary-card">
-          <div class="summary-label">支付寶-信評</div>
-          <div class="summary-value">{{ totals.alipayCreditCount }} 筆 / {{ totals.alipayCreditAmount.toLocaleString() }} 元</div>
+          <div class="summary-label">支付宝-信评</div>
+          <div class="summary-value">{{ totals.alipayCreditCount }} 笔 / {{ totals.alipayCreditAmount.toLocaleString() }} 元</div>
         </div>
         <div class="summary-card">
-          <div class="summary-label">支付寶-骗分拉黑</div>
-          <div class="summary-value">{{ totals.alipayFraudBlacklistCount }} 筆</div>
+          <div class="summary-label">支付宝-骗分拉黑</div>
+          <div class="summary-value">{{ totals.alipayFraudBlacklistCount }} 笔</div>
         </div>
         <div class="summary-card">
-          <div class="summary-label">支付寶-卡验及人验</div>
-          <div class="summary-value">{{ totals.alipayCardVerifyCount }} 筆</div>
+          <div class="summary-label">支付宝-卡验及人验</div>
+          <div class="summary-value">{{ totals.alipayCardVerifyCount }} 笔</div>
         </div>
         <div class="summary-card">
-          <div class="summary-label">支付寶-没上传回单</div>
-          <div class="summary-value">{{ totals.alipayNoReceiptCount }} 筆</div>
+          <div class="summary-label">支付宝-没上传回单</div>
+          <div class="summary-value">{{ totals.alipayNoReceiptCount }} 笔</div>
         </div>
       </div>
     </div>
 
-    <!-- 記錄列表 -->
+    <!-- 记录列表 -->
     <div class="records-section">
       <div class="records-header">
-        <h3>歷史記錄 ({{ filteredRecords.length }} 筆)</h3>
+        <h3>历史记录 ({{ filteredRecords.length }} 笔)</h3>
       </div>
 
-      <!-- 查詢區 -->
+      <!-- 查询区 -->
       <div class="search-section">
         <div class="search-row">
-          <label>開始日期：</label>
+          <label>开始日期：</label>
           <input type="date" v-model="startDate" :max="today" @change="onStartDateChange" />
-          <label>結束日期：</label>
+          <label>结束日期：</label>
           <input type="date" v-model="endDate" :max="today" @change="onEndDateChange" />
-          <button @click="handleSearch" class="btn-search">查詢</button>
+          <button @click="handleSearch" class="btn-search">查询</button>
           <button
             @click="showAll"
             class="btn-filter"
             :class="{ active: !startDate && !endDate }"
           >
-            顯示全部資料
+            显示全部数据
           </button>
         </div>
         <div v-if="dateRangeError" class="date-error">
           {{ dateRangeError }}
         </div>
         <div v-if="startDate || endDate" class="date-info">
-          查詢範圍：{{ getDateRangeDescription() }}
+          查询范围：{{ getDateRangeDescription() }}
         </div>
       </div>
       <div class="table-container">
@@ -720,56 +720,56 @@ const pageNumbers = computed(() => {
           <thead>
             <tr>
               <th>日期</th>
-              <th>銀行卡-人工</th>
-              <th>銀行卡-信評</th>
-              <th>銀行卡-骗分拉黑</th>
-              <th>銀行卡-卡验人验</th>
-              <th>支付寶-人工</th>
-              <th>支付寶-信評</th>
-              <th>支付寶-骗分拉黑</th>
-              <th>支付寶-卡验人验</th>
+              <th>银行卡-人工</th>
+              <th>银行卡-信评</th>
+              <th>银行卡-骗分拉黑</th>
+              <th>银行卡-卡验人验</th>
+              <th>支付宝-人工</th>
+              <th>支付宝-信评</th>
+              <th>支付宝-骗分拉黑</th>
+              <th>支付宝-卡验人验</th>
               <th>没上传回单</th>
               <th>取无卡06提示</th>
               <th>操作人</th>
-              <th>備註</th>
+              <th>备注</th>
               <th>操作</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="record in paginatedRecords" :key="record.id">
               <td>{{ record.date }}</td>
-              <td>{{ record.bankCardManualCount }}筆/{{ record.bankCardManualAmount }}元</td>
-              <td>{{ record.bankCardCreditCount }}筆/{{ record.bankCardCreditAmount }}元</td>
-              <td>{{ record.bankCardFraudBlacklistCount }}筆</td>
-              <td>{{ record.bankCardCardVerifyCount }}筆</td>
-              <td>{{ record.alipayManualCount }}筆/{{ record.alipayManualAmount }}元</td>
-              <td>{{ record.alipayCreditCount }}筆/{{ record.alipayCreditAmount }}元</td>
-              <td>{{ record.alipayFraudBlacklistCount }}筆</td>
-              <td>{{ record.alipayCardVerifyCount }}筆</td>
-              <td>{{ record.alipayNoReceiptCount }}筆</td>
+              <td>{{ record.bankCardManualCount }}笔/{{ record.bankCardManualAmount }}元</td>
+              <td>{{ record.bankCardCreditCount }}笔/{{ record.bankCardCreditAmount }}元</td>
+              <td>{{ record.bankCardFraudBlacklistCount }}笔</td>
+              <td>{{ record.bankCardCardVerifyCount }}笔</td>
+              <td>{{ record.alipayManualCount }}笔/{{ record.alipayManualAmount }}元</td>
+              <td>{{ record.alipayCreditCount }}笔/{{ record.alipayCreditAmount }}元</td>
+              <td>{{ record.alipayFraudBlacklistCount }}笔</td>
+              <td>{{ record.alipayCardVerifyCount }}笔</td>
+              <td>{{ record.alipayNoReceiptCount }}笔</td>
               <td>{{ (record.date === '2026-01-01' || record.date === '2026/01/01') ? '2' : '0' }}</td>
               <td>{{ record.operator || '-' }}</td>
               <td>{{ record.remark || '-' }}</td>
               <td class="actions">
-                <button @click="editRecord(record)" class="btn-icon" title="編輯">✏️</button>
-                <button @click="deleteRecord(record.id)" class="btn-icon" title="刪除">🗑️</button>
+                <button @click="editRecord(record)" class="btn-icon" title="编辑">✏️</button>
+                <button @click="deleteRecord(record.id)" class="btn-icon" title="删除">🗑️</button>
               </td>
             </tr>
             <tr v-if="filteredRecords.length === 0">
-              <td colspan="14" class="empty">{{ dateRangeError ? dateRangeError : (startDate || endDate ? '找不到該日期範圍的記錄' : '暫無記錄') }}</td>
+              <td colspan="14" class="empty">{{ dateRangeError ? dateRangeError : (startDate || endDate ? '找不到该日期范围的记录' : '暂无记录') }}</td>
             </tr>
           </tbody>
         </table>
       </div>
 
-      <!-- 分頁 -->
+      <!-- 分页 -->
       <div v-if="totalPages > 1" class="pagination">
         <button
           class="page-btn"
           :disabled="currentPage === 1"
           @click="goToPage(currentPage - 1)"
         >
-          上一頁
+          上一页
         </button>
         <template v-for="page in pageNumbers" :key="page">
           <span v-if="page === '...'" class="page-ellipsis">...</span>
@@ -787,9 +787,9 @@ const pageNumbers = computed(() => {
           :disabled="currentPage === totalPages"
           @click="goToPage(currentPage + 1)"
         >
-          下一頁
+          下一页
         </button>
-        <span class="page-info">第 {{ currentPage }} / {{ totalPages }} 頁</span>
+        <span class="page-info">第 {{ currentPage }} / {{ totalPages }} 页</span>
       </div>
     </div>
   </div>
@@ -802,7 +802,7 @@ const pageNumbers = computed(() => {
   gap: 20px;
 }
 
-/* 表單區塊 */
+/* 表单区块 */
 .form-section {
   background: #fff;
   border-radius: 8px;
@@ -907,7 +907,7 @@ const pageNumbers = computed(() => {
   background: #4cae4c;
 }
 
-/* 統計摘要 */
+/* 统计摘要 */
 .summary-section {
   background: #fff;
   border-radius: 8px;
@@ -968,7 +968,7 @@ const pageNumbers = computed(() => {
   color: #333;
 }
 
-/* 統計摘要搜尋區 */
+/* 统计摘要搜索区 */
 .summary-search-section {
   background: #f8f9fa;
   border-radius: 8px;
@@ -1000,7 +1000,7 @@ const pageNumbers = computed(() => {
   border-color: #4a4a9e;
 }
 
-/* 記錄列表 */
+/* 记录列表 */
 .records-section {
   background: #fff;
   border-radius: 8px;
@@ -1023,7 +1023,7 @@ const pageNumbers = computed(() => {
   margin: 0;
 }
 
-/* 查詢區 */
+/* 查询区 */
 .search-section {
   background: #f8f9fa;
   border-radius: 8px;
@@ -1168,7 +1168,7 @@ const pageNumbers = computed(() => {
   padding: 40px !important;
 }
 
-/* 分頁 */
+/* 分页 */
 .pagination {
   display: flex;
   justify-content: center;

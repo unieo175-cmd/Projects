@@ -8,38 +8,38 @@ const props = defineProps({
   }
 });
 
-// 篩選成功配對的記錄（與重要信息-總申請筆數公式一致）
-// 銀行卡成功配對：极速充提3 且非支付寶/微信，有 bankCardCode
-// 支付寶成功配對：包含支付宝/支付寶，有 bankCardCode
-// 微信成功配對：包含微信，有 bankCardCode
+// 筛选成功配对的记录（与重要信息-总申请笔数公式一致）
+// 银行卡成功配对：极速充提3 且非支付宝/微信，有 bankCardCode
+// 支付宝成功配对：包含支付宝/支付宝，有 bankCardCode
+// 微信成功配对：包含微信，有 bankCardCode
 const matchedRecords = computed(() => {
   return props.records.filter(r => {
     const hasJiSu = r.merchant && r.merchant.includes('极速充提3');
-    const hasAlipay = r.merchant && (r.merchant.includes('支付宝') || r.merchant.includes('支付寶'));
+    const hasAlipay = r.merchant && (r.merchant.includes('支付宝') || r.merchant.includes('支付宝'));
     const hasWechat = r.merchant && r.merchant.includes('微信');
 
-    // 銀行卡成功配對
+    // 银行卡成功配对
     const isBankCardMatched = hasJiSu && !hasAlipay && !hasWechat && r.bankCardCode;
-    // 支付寶成功配對
+    // 支付宝成功配对
     const isAlipayMatched = hasAlipay && r.bankCardCode;
-    // 微信成功配對
+    // 微信成功配对
     const isWechatMatched = hasWechat && r.bankCardCode;
 
     return isBankCardMatched || isAlipayMatched || isWechatMatched;
   });
 });
 
-// 充值成功的記錄（AP > 0）
+// 充值成功的记录（AP > 0）
 const successRecords = computed(() => matchedRecords.value.filter(r => r.receivedAmount > 0));
 
-// 所有充值成功的記錄（包含線下商戶，用於銀行金額分佈和24小時交易分佈）
+// 所有充值成功的记录（包含线下商户，用于银行金额分布和24小时交易分布）
 const allSuccessRecords = computed(() => props.records.filter(r => r.receivedAmount > 0));
 
-// 充值成功總筆數
+// 充值成功总笔数
 const successTotalCount = computed(() => successRecords.value.length);
 
-// Calculate channel distribution (充值渠道佔比)
-// 極速銀行卡/支付寶/微信/三方 的充值成功佔比
+// Calculate channel distribution (充值渠道占比)
+// 极速银行卡/支付宝/微信/三方 的充值成功占比
 const channelDistribution = computed(() => {
   const dist = {
     bankCard: { count: 0, amount: 0 },
@@ -48,26 +48,26 @@ const channelDistribution = computed(() => {
     thirdParty: { count: 0, amount: 0 }
   };
 
-  // 判斷是否為三方代收
+  // 判断是否为三方代收
   const isThirdParty = (bankCardCode) => {
     if (!bankCardCode) return false;
     const code = bankCardCode.toLowerCase();
-    // 特定三方代收代碼
+    // 特定三方代收代码
     if (bankCardCode === 'GB-DahaomenJFB' || bankCardCode === 'HTc2cdeposit' ||
         bankCardCode === 'DDFdeposit' || bankCardCode === 'UC1020') {
       return true;
     }
-    // 非 gb/auction 開頭的也是三方
+    // 非 gb/auction 开头的也是三方
     if (!code.startsWith('gb') && !code.startsWith('auction')) {
       return true;
     }
     return false;
   };
 
-  // 遍歷所有充值成功記錄 (receivedAmount > 0)
+  // 遍历所有充值成功记录 (receivedAmount > 0)
   props.records.filter(r => r.receivedAmount > 0).forEach(r => {
     const hasJiSu = r.merchant && r.merchant.includes('极速充提3');
-    const hasAlipay = r.merchant && (r.merchant.includes('支付宝') || r.merchant.includes('支付寶'));
+    const hasAlipay = r.merchant && (r.merchant.includes('支付宝') || r.merchant.includes('支付宝'));
     const hasWechat = r.merchant && r.merchant.includes('微信');
 
     if (hasAlipay) {
@@ -77,7 +77,7 @@ const channelDistribution = computed(() => {
       dist.wechat.count++;
       dist.wechat.amount += r.receivedAmount;
     } else if (hasJiSu) {
-      // 極速銀行卡需要進一步判斷是否為三方
+      // 极速银行卡需要进一步判断是否为三方
       if (isThirdParty(r.bankCardCode)) {
         dist.thirdParty.count++;
         dist.thirdParty.amount += r.receivedAmount;
@@ -86,7 +86,7 @@ const channelDistribution = computed(() => {
         dist.bankCard.amount += r.receivedAmount;
       }
     } else {
-      // 非极速充提3的其他商戶歸類為三方
+      // 非极速充提3的其他商户归类为三方
       dist.thirdParty.count++;
       dist.thirdParty.amount += r.receivedAmount;
     }
@@ -95,14 +95,14 @@ const channelDistribution = computed(() => {
   const total = dist.bankCard.count + dist.alipay.count + dist.wechat.count + dist.thirdParty.count || 1;
 
   return [
-    { label: '極速銀行卡', value: dist.bankCard.count, amount: dist.bankCard.amount, percent: (dist.bankCard.count / total * 100).toFixed(1), color: '#0a84ff' },
-    { label: '支付寶', value: dist.alipay.count, amount: dist.alipay.amount, percent: (dist.alipay.count / total * 100).toFixed(1), color: '#30d158' },
+    { label: '极速银行卡', value: dist.bankCard.count, amount: dist.bankCard.amount, percent: (dist.bankCard.count / total * 100).toFixed(1), color: '#0a84ff' },
+    { label: '支付宝', value: dist.alipay.count, amount: dist.alipay.amount, percent: (dist.alipay.count / total * 100).toFixed(1), color: '#30d158' },
     { label: '微信', value: dist.wechat.count, amount: dist.wechat.amount, percent: (dist.wechat.count / total * 100).toFixed(1), color: '#34c759' },
     { label: '三方', value: dist.thirdParty.count, amount: dist.thirdParty.amount, percent: (dist.thirdParty.count / total * 100).toFixed(1), color: '#ff9f0a' }
   ].filter(d => d.value > 0);
 });
 
-// Calculate amount distribution by bank (使用所有充值成功記錄，包含線下商戶)
+// Calculate amount distribution by bank (使用所有充值成功记录，包含线下商户)
 const bankDistribution = computed(() => {
   const bankMap = new Map();
 
@@ -119,7 +119,7 @@ const bankDistribution = computed(() => {
     .map(([name, amount]) => ({ name, amount }));
 });
 
-// Calculate hourly distribution (使用所有充值成功記錄，包含線下商戶，顯示筆數和金額)
+// Calculate hourly distribution (使用所有充值成功记录，包含线下商户，显示笔数和金额)
 const hourlyDistribution = computed(() => {
   const hoursData = new Array(24).fill(null).map(() => ({ count: 0, amount: 0 }));
 
@@ -148,7 +148,7 @@ const maxBankAmount = computed(() => {
   return Math.max(...bankDistribution.value.map(b => b.amount));
 });
 
-// 狀態分佈：極速銀行卡/支付寶/微信 充值成功比例
+// 状态分布：极速银行卡/支付宝/微信 充值成功比例
 const statusDistribution = computed(() => {
   const dist = {
     bankCard: { count: 0, amount: 0 },
@@ -156,11 +156,11 @@ const statusDistribution = computed(() => {
     wechat: { count: 0, amount: 0 }
   };
 
-  // 遍歷所有充值成功記錄 (receivedAmount > 0)
+  // 遍历所有充值成功记录 (receivedAmount > 0)
   props.records.filter(r => r.receivedAmount > 0).forEach(r => {
     const hasJiSu = r.merchant && r.merchant.includes('极速充提3');
     const hasOffline = r.merchant && r.merchant.includes('线下充值');
-    const hasAlipay = r.merchant && (r.merchant.includes('支付宝') || r.merchant.includes('支付寶'));
+    const hasAlipay = r.merchant && (r.merchant.includes('支付宝') || r.merchant.includes('支付宝'));
     const hasWechat = r.merchant && r.merchant.includes('微信');
 
     if (hasAlipay) {
@@ -170,7 +170,7 @@ const statusDistribution = computed(() => {
       dist.wechat.count++;
       dist.wechat.amount += r.receivedAmount;
     } else if ((hasJiSu || hasOffline) && !hasAlipay && !hasWechat) {
-      // 銀行卡：极速充提3 或 线下充值（不含支付寶/微信）
+      // 银行卡：极速充提3 或 线下充值（不含支付宝/微信）
       dist.bankCard.count++;
       dist.bankCard.amount += r.receivedAmount;
     }
@@ -179,13 +179,13 @@ const statusDistribution = computed(() => {
   const total = dist.bankCard.count + dist.alipay.count + dist.wechat.count || 1;
 
   return [
-    { label: '極速銀行卡', value: dist.bankCard.count, amount: dist.bankCard.amount, percent: (dist.bankCard.count / total * 100).toFixed(1), color: '#ff9f0a' },
-    { label: '極速支付寶', value: dist.alipay.count, amount: dist.alipay.amount, percent: (dist.alipay.count / total * 100).toFixed(1), color: '#0a84ff' },
-    { label: '極速微信', value: dist.wechat.count, amount: dist.wechat.amount, percent: (dist.wechat.count / total * 100).toFixed(1), color: '#30d158' }
+    { label: '极速银行卡', value: dist.bankCard.count, amount: dist.bankCard.amount, percent: (dist.bankCard.count / total * 100).toFixed(1), color: '#ff9f0a' },
+    { label: '极速支付宝', value: dist.alipay.count, amount: dist.alipay.amount, percent: (dist.alipay.count / total * 100).toFixed(1), color: '#0a84ff' },
+    { label: '极速微信', value: dist.wechat.count, amount: dist.wechat.amount, percent: (dist.wechat.count / total * 100).toFixed(1), color: '#30d158' }
   ].filter(d => d.value > 0);
 });
 
-// 狀態分佈總筆數
+// 状态分布总笔数
 const statusTotalCount = computed(() => {
   return statusDistribution.value.reduce((sum, item) => sum + item.value, 0);
 });
@@ -193,9 +193,9 @@ const statusTotalCount = computed(() => {
 
 <template>
   <div class="charts-container">
-    <!-- 狀態分佈：極速銀行卡/支付寶/微信 充值成功比例 -->
+    <!-- 状态分布：极速银行卡/支付宝/微信 充值成功比例 -->
     <div class="chart-card">
-      <h3>充值成功佔比</h3>
+      <h3>充值成功占比</h3>
       <div class="donut-chart">
         <svg viewBox="0 0 100 100" class="donut">
           <circle
@@ -228,9 +228,9 @@ const statusTotalCount = computed(() => {
       </div>
     </div>
 
-    <!-- Channel Distribution (暫時隱藏) -->
+    <!-- Channel Distribution (暂时隐藏) -->
     <div class="chart-card" v-if="false">
-      <h3>充值渠道佔比</h3>
+      <h3>充值渠道占比</h3>
       <div class="donut-chart">
         <svg viewBox="0 0 100 100" class="donut">
           <circle
@@ -258,7 +258,7 @@ const statusTotalCount = computed(() => {
           <span class="legend-label">{{ item.label }}</span>
           <span class="legend-value">
             {{ item.value.toLocaleString() }} ({{ item.percent }}%)
-            <template v-if="item.amount > 0"> / {{ (item.amount / 10000).toFixed(1) }}萬</template>
+            <template v-if="item.amount > 0"> / {{ (item.amount / 10000).toFixed(1) }}万</template>
           </span>
         </div>
       </div>
@@ -266,7 +266,7 @@ const statusTotalCount = computed(() => {
 
     <!-- Bank Distribution -->
     <div class="chart-card">
-      <h3>銀行金額分佈 (Top 10)</h3>
+      <h3>银行金额分布 (Top 10)</h3>
       <div class="bar-chart">
         <div v-for="bank in bankDistribution" :key="bank.name" class="bar-row">
           <span class="bar-label">
@@ -279,17 +279,17 @@ const statusTotalCount = computed(() => {
               :style="{ width: (bank.amount / maxBankAmount * 100) + '%' }"
             ></div>
           </div>
-          <span class="bar-value">{{ (bank.amount / 10000).toFixed(1) }}萬</span>
+          <span class="bar-value">{{ (bank.amount / 10000).toFixed(1) }}万</span>
         </div>
       </div>
     </div>
 
     <!-- Hourly Distribution -->
     <div class="chart-card wide">
-      <h3>24小時交易分佈</h3>
+      <h3>24小时交易分布</h3>
       <div class="hourly-chart">
-        <div v-for="item in hourlyDistribution" :key="item.hour" class="hour-bar" :title="`${item.count}筆 / ${(item.amount / 10000).toFixed(1)}萬`">
-          <div class="hour-tooltip">{{ item.count }}筆<br>{{ (item.amount / 10000).toFixed(1) }}萬</div>
+        <div v-for="item in hourlyDistribution" :key="item.hour" class="hour-bar" :title="`${item.count}笔 / ${(item.amount / 10000).toFixed(1)}万`">
+          <div class="hour-tooltip">{{ item.count }}笔<br>{{ (item.amount / 10000).toFixed(1) }}万</div>
           <div class="hour-fill" :style="{ height: item.percent + '%' }"></div>
           <span class="hour-label">{{ item.hour.split(':')[0] }}</span>
         </div>

@@ -62,11 +62,11 @@ const getStatusText = (record) => {
   // Simplify status display
   const status = record.status;
   if (status.includes('已充值')) return '已充值';
-  if (status.includes('信用評分上分')) return '信用評分上分';
-  if (status.includes('银商确认到账')) return '銀商確認';
-  if (status.includes('用户确认到帐')) return '用戶確認';
+  if (status.includes('信用评分上分')) return '信用评分上分';
+  if (status.includes('银商确认到账')) return '银商确认';
+  if (status.includes('用户确认到帐')) return '用户确认';
   if (status.includes('未充值')) return '未充值';
-  if (status.includes('補單')) return '補單';
+  if (status.includes('补单')) return '补单';
   return status.substring(0, 10) + (status.length > 10 ? '...' : '');
 };
 
@@ -108,8 +108,8 @@ const visiblePages = computed(() => {
 <template>
   <div class="data-table-container">
     <div class="table-header">
-      <h3>交易明細</h3>
-      <span class="record-count">共 {{ records.length.toLocaleString() }} 筆數</span>
+      <h3>交易明细</h3>
+      <span class="record-count">共 {{ records.length.toLocaleString() }} 笔数</span>
     </div>
 
     <div class="table-wrapper">
@@ -117,28 +117,28 @@ const visiblePages = computed(() => {
         <thead>
           <tr>
             <th @click="handleSort('id')" class="sortable">
-              流水號
+              流水号
               <span v-if="sortKey === 'id'" class="sort-icon">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
             </th>
             <th @click="handleSort('merchant')" class="sortable">
-              商戶
+              商户
               <span v-if="sortKey === 'merchant'" class="sort-icon">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
             </th>
             <th @click="handleSort('amount')" class="sortable">
-              充值金額
+              充值金额
               <span v-if="sortKey === 'amount'" class="sort-icon">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
             </th>
             <th @click="handleSort('receivedAmount')" class="sortable">
-              到帳金額
+              到账金额
               <span v-if="sortKey === 'receivedAmount'" class="sort-icon">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
             </th>
-            <th>狀態</th>
-            <th>銀行</th>
+            <th>状态</th>
+            <th>银行</th>
             <th @click="handleSort('requestTime')" class="sortable">
-              請求時間
+              请求时间
               <span v-if="sortKey === 'requestTime'" class="sort-icon">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
             </th>
-            <th>處理時間</th>
+            <th>处理时间</th>
           </tr>
         </thead>
         <tbody>
@@ -191,10 +191,10 @@ const visiblePages = computed(() => {
       </button>
 
       <select v-model="pageSize" class="page-size-select">
-        <option :value="10">10 筆/頁</option>
-        <option :value="20">20 筆/頁</option>
-        <option :value="50">50 筆/頁</option>
-        <option :value="100">100 筆/頁</option>
+        <option :value="10">10 笔/页</option>
+        <option :value="20">20 笔/页</option>
+        <option :value="50">50 笔/页</option>
+        <option :value="100">100 笔/页</option>
       </select>
     </div>
   </div>

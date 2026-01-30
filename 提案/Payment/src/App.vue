@@ -10,31 +10,31 @@ import { parseCSV, calculateMetrics, parseWithdrawCSV, calculateWithdrawMetrics,
 
 const allRecords = ref([]);
 const filteredRecords = ref([]);
-const depositRecords = ref([]); // 充值數據（保留以供提現計算使用）
-const withdrawRecords = ref([]); // 提現數據
+const depositRecords = ref([]); // 充值数据（保留以供提现计算使用）
+const withdrawRecords = ref([]); // 提现数据
 const isLoading = ref(true);
 const loadingProgress = ref(0);
 const loadingStatus = ref('准备加载...');
 const dataDate = ref('2026-01-01');
-const dateRange = ref({ dateFrom: '', dateTo: '' }); // 日期篩選範圍
+const dateRange = ref({ dateFrom: '', dateTo: '' }); // 日期筛选范围
 
-// 分頁切換
+// 分页切换
 const activeTab = ref('deposit'); // 'deposit', 'withdraw', 'weekly', or 'fraud'
 
-// 側邊欄伸縮
+// 侧边栏伸缩
 const sidebarCollapsed = ref(false);
 const toggleSidebar = () => {
   sidebarCollapsed.value = !sidebarCollapsed.value;
 };
 
-// 渠道切換（用於控制 Charts 顯示）
+// 渠道切换（用于控制 Charts 显示）
 const activeChannel = ref('all'); // 'all', 'bankCard', 'alipay'
 
 const handleChannelChange = (channel) => {
   activeChannel.value = channel;
 };
 
-// 提現指標（用於計算充值的整体配对成功率）
+// 提现指标（用于计算充值的整体配对成功率）
 const withdrawMetrics = computed(() => {
   if (withdrawRecords.value.length > 0) {
     return calculateWithdrawMetrics(withdrawRecords.value, null);
@@ -42,19 +42,19 @@ const withdrawMetrics = computed(() => {
   return null;
 });
 
-// 充值指標（用於計算提現的充值配对率）
+// 充值指标（用于计算提现的充值配对率）
 const depositMetrics = computed(() => {
   return calculateMetrics(depositRecords.value, withdrawMetrics.value, dataDate.value);
 });
 
-// 按日期篩選的充值指標（用於提現分析的无卡空单率計算）
+// 按日期筛选的充值指标（用于提现分析的无卡空单率计算）
 const filteredDepositMetrics = computed(() => {
   const effectiveDate = dateRange.value.dateFrom || dataDate.value;
-  // 如果只有開始日期，視為單日篩選
+  // 如果只有开始日期，视为单日筛选
   const startDate = dateRange.value.dateFrom || '';
   const endDate = dateRange.value.dateTo || startDate;
 
-  // 篩選充值記錄
+  // 筛选充值记录
   let filtered = depositRecords.value;
   if (startDate) {
     filtered = depositRecords.value.filter(r => {
@@ -69,7 +69,7 @@ const filteredDepositMetrics = computed(() => {
 });
 
 const metrics = computed(() => {
-  // 使用篩選的日期範圍來判斷，若無篩選則使用 dataDate
+  // 使用筛选的日期范围来判断，若无筛选则使用 dataDate
   const effectiveDate = dateRange.value.dateFrom || dataDate.value;
   if (activeTab.value === 'withdraw') {
     return calculateWithdrawMetrics(filteredRecords.value, filteredDepositMetrics.value);
@@ -111,7 +111,7 @@ const loadData = async (type = 'deposit') => {
 
     if (type === 'deposit') {
       depositRecords.value = parsed;
-      // 同時載入提現數據（用於計算整体配对成功率）
+      // 同时加载提现数据（用于计算整体配对成功率）
       if (withdrawRecords.value.length === 0) {
         loadingStatus.value = '正在加载提现数据...';
         try {
@@ -201,7 +201,7 @@ watch(activeTab, (newTab) => {
   if (newTab === 'weekly') {
     loadWeeklyData();
   } else if (newTab === 'fraud') {
-    // 騙分統計使用 localStorage，不需要載入 CSV
+    // 骗分统计使用 localStorage，不需要加载 CSV
     isLoading.value = false;
   } else {
     loadData(newTab);
@@ -231,11 +231,11 @@ const handleDateChange = ({ dateFrom, dateTo }) => {
 
 <template>
   <div class="app">
-    <!-- 左側導航 -->
+    <!-- 左侧导航 -->
     <aside class="sidebar" :class="{ collapsed: sidebarCollapsed }">
       <div class="sidebar-header">
         <h1 v-show="!sidebarCollapsed">数据分析</h1>
-        <button class="toggle-btn" @click="toggleSidebar" :title="sidebarCollapsed ? '展開選單' : '收起選單'">
+        <button class="toggle-btn" @click="toggleSidebar" :title="sidebarCollapsed ? '展开菜单' : '收起菜单'">
           <span class="toggle-icon">{{ sidebarCollapsed ? '»' : '«' }}</span>
         </button>
       </div>
@@ -244,47 +244,47 @@ const handleDateChange = ({ dateFrom, dateTo }) => {
           class="nav-item"
           :class="{ active: activeTab === 'deposit' }"
           @click="activeTab = 'deposit'"
-          :title="sidebarCollapsed ? '充值分析報表' : ''"
+          :title="sidebarCollapsed ? '充值分析报表' : ''"
         >
           <span class="nav-icon">📊</span>
-          <span class="nav-text" v-show="!sidebarCollapsed">充值分析報表</span>
+          <span class="nav-text" v-show="!sidebarCollapsed">充值分析报表</span>
         </button>
         <button
           class="nav-item"
           :class="{ active: activeTab === 'withdraw' }"
           @click="activeTab = 'withdraw'"
-          :title="sidebarCollapsed ? '提现分析報表' : ''"
+          :title="sidebarCollapsed ? '提现分析报表' : ''"
         >
           <span class="nav-icon">💰</span>
-          <span class="nav-text" v-show="!sidebarCollapsed">提现分析報表</span>
+          <span class="nav-text" v-show="!sidebarCollapsed">提现分析报表</span>
         </button>
         <button
           class="nav-item"
           :class="{ active: activeTab === 'weekly' }"
           @click="activeTab = 'weekly'"
-          :title="sidebarCollapsed ? '日/週報數據匯總' : ''"
+          :title="sidebarCollapsed ? '日/周报数据汇总' : ''"
         >
           <span class="nav-icon">📈</span>
-          <span class="nav-text" v-show="!sidebarCollapsed">日/週報數據匯總</span>
+          <span class="nav-text" v-show="!sidebarCollapsed">日/周报数据汇总</span>
         </button>
         <button
           class="nav-item"
           :class="{ active: activeTab === 'fraud' }"
           @click="activeTab = 'fraud'"
-          :title="sidebarCollapsed ? '騙分統計' : ''"
+          :title="sidebarCollapsed ? '骗分统计' : ''"
         >
           <span class="nav-icon">🚫</span>
-          <span class="nav-text" v-show="!sidebarCollapsed">騙分統計</span>
+          <span class="nav-text" v-show="!sidebarCollapsed">骗分统计</span>
         </button>
       </nav>
     </aside>
 
-    <!-- 主內容區 -->
+    <!-- 主内容区 -->
     <div class="main-wrapper" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
       <header class="header">
         <div class="header-content">
           <h2 class="page-title">
-            {{ activeTab === 'deposit' ? '充值分析報表' : activeTab === 'withdraw' ? '提现分析報表' : activeTab === 'weekly' ? '日/週報數據匯總' : '騙分統計' }}
+            {{ activeTab === 'deposit' ? '充值分析报表' : activeTab === 'withdraw' ? '提现分析报表' : activeTab === 'weekly' ? '日/周报数据汇总' : '骗分统计' }}
           </h2>
           <div class="data-info">
             <span class="data-date">📅 数据日期：{{ dataDate }}</span>
@@ -347,7 +347,7 @@ body {
   display: flex;
 }
 
-/* 左側導航欄 */
+/* 左侧导航欄 */
 .sidebar {
   width: 220px;
   background: linear-gradient(180deg, #4a4a9e 0%, #3a3a8e 100%);
@@ -499,7 +499,7 @@ body {
   border-left-color: #fff;
 }
 
-/* 主內容區 */
+/* 主内容区 */
 .main-wrapper {
   flex: 1;
   margin-left: 220px;
