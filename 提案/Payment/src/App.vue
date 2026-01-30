@@ -5,6 +5,7 @@ import MetricsCards from './components/MetricsCards.vue';
 import WithdrawMetricsCards from './components/WithdrawMetricsCards.vue';
 import WeeklyReport from './components/WeeklyReport.vue';
 import Charts from './components/Charts.vue';
+import FraudStats from './components/FraudStats.vue';
 import { parseCSV, calculateMetrics, parseWithdrawCSV, calculateWithdrawMetrics, exportDepositToExcel, exportWithdrawToExcel } from './utils/csvParser';
 
 const allRecords = ref([]);
@@ -15,9 +16,16 @@ const isLoading = ref(true);
 const loadingProgress = ref(0);
 const loadingStatus = ref('准备加载...');
 const dataDate = ref('2026-01-01');
+const dateRange = ref({ dateFrom: '', dateTo: '' }); // 日期篩選範圍
 
 // 分頁切換
-const activeTab = ref('deposit'); // 'deposit', 'withdraw', or 'weekly'
+const activeTab = ref('deposit'); // 'deposit', 'withdraw', 'weekly', or 'fraud'
+
+// 側邊欄伸縮
+const sidebarCollapsed = ref(false);
+const toggleSidebar = () => {
+  sidebarCollapsed.value = !sidebarCollapsed.value;
+};
 
 // 渠道切換（用於控制 Charts 顯示）
 const activeChannel = ref('all'); // 'all', 'bankCard', 'alipay'
@@ -26,16 +34,47 @@ const handleChannelChange = (channel) => {
   activeChannel.value = channel;
 };
 
+// 提現指標（用於計算充值的整体配对成功率）
+const withdrawMetrics = computed(() => {
+  if (withdrawRecords.value.length > 0) {
+    return calculateWithdrawMetrics(withdrawRecords.value, null);
+  }
+  return null;
+});
+
 // 充值指標（用於計算提現的充值配对率）
 const depositMetrics = computed(() => {
-  return calculateMetrics(depositRecords.value);
+  return calculateMetrics(depositRecords.value, withdrawMetrics.value, dataDate.value);
+});
+
+// 按日期篩選的充值指標（用於提現分析的无卡空单率計算）
+const filteredDepositMetrics = computed(() => {
+  const effectiveDate = dateRange.value.dateFrom || dataDate.value;
+  // 如果只有開始日期，視為單日篩選
+  const startDate = dateRange.value.dateFrom || '';
+  const endDate = dateRange.value.dateTo || startDate;
+
+  // 篩選充值記錄
+  let filtered = depositRecords.value;
+  if (startDate) {
+    filtered = depositRecords.value.filter(r => {
+      const recordDate = r.requestTime ? r.requestTime.split(' ')[0] : '';
+      if (startDate && recordDate < startDate) return false;
+      if (endDate && recordDate > endDate) return false;
+      return true;
+    });
+  }
+
+  return calculateMetrics(filtered, withdrawMetrics.value, effectiveDate);
 });
 
 const metrics = computed(() => {
+  // 使用篩選的日期範圍來判斷，若無篩選則使用 dataDate
+  const effectiveDate = dateRange.value.dateFrom || dataDate.value;
   if (activeTab.value === 'withdraw') {
-    return calculateWithdrawMetrics(filteredRecords.value, depositMetrics.value);
+    return calculateWithdrawMetrics(filteredRecords.value, filteredDepositMetrics.value);
   }
-  return calculateMetrics(filteredRecords.value);
+  return calculateMetrics(filteredRecords.value, withdrawMetrics.value, effectiveDate);
 });
 
 // 自动加载数据（含进度显示）
@@ -45,10 +84,11 @@ const loadData = async (type = 'deposit') => {
   loadingStatus.value = '正在下载数据...';
 
   const csvFile = type === 'deposit' ? 'data.csv' : 'withdraw.csv';
+  const cacheBuster = '?t=' + Date.now();
 
   try {
     loadingProgress.value = 10;
-    const response = await fetch(import.meta.env.BASE_URL + csvFile);
+    const response = await fetch(import.meta.env.BASE_URL + csvFile + cacheBuster);
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -71,12 +111,26 @@ const loadData = async (type = 'deposit') => {
 
     if (type === 'deposit') {
       depositRecords.value = parsed;
+      // 同時載入提現數據（用於計算整体配对成功率）
+      if (withdrawRecords.value.length === 0) {
+        loadingStatus.value = '正在加载提现数据...';
+        try {
+          const withdrawResponse = await fetch(import.meta.env.BASE_URL + 'withdraw.csv' + cacheBuster);
+          if (withdrawResponse.ok) {
+            const withdrawContent = await withdrawResponse.text();
+            withdrawRecords.value = parseWithdrawCSV(withdrawContent);
+            console.log('提现数据加载完成:', withdrawRecords.value.length, '笔');
+          }
+        } catch (e) {
+          console.log('提现数据加载失败，部分指标可能无法计算');
+        }
+      }
     } else {
       withdrawRecords.value = parsed;
       // 如果还没加载充值数据，先加载
       if (depositRecords.value.length === 0) {
         loadingStatus.value = '正在加载充值数据...';
-        const depositResponse = await fetch(import.meta.env.BASE_URL + 'data.csv');
+        const depositResponse = await fetch(import.meta.env.BASE_URL + 'data.csv' + cacheBuster);
         if (depositResponse.ok) {
           const depositContent = await depositResponse.text();
           depositRecords.value = parseCSV(depositContent);
@@ -108,11 +162,13 @@ const loadWeeklyData = async () => {
   loadingProgress.value = 0;
   loadingStatus.value = '正在加载周报数据...';
 
+  const weeklyBuster = '?t=' + Date.now();
+
   try {
     // 加载充值数据
     loadingProgress.value = 20;
     loadingStatus.value = '正在加载充值数据...';
-    const depositResponse = await fetch(import.meta.env.BASE_URL + 'data.csv');
+    const depositResponse = await fetch(import.meta.env.BASE_URL + 'data.csv' + weeklyBuster);
     if (depositResponse.ok) {
       const depositContent = await depositResponse.text();
       depositRecords.value = parseCSV(depositContent);
@@ -121,7 +177,7 @@ const loadWeeklyData = async () => {
     // 加载提现数据
     loadingProgress.value = 60;
     loadingStatus.value = '正在加载提现数据...';
-    const withdrawResponse = await fetch(import.meta.env.BASE_URL + 'withdraw.csv');
+    const withdrawResponse = await fetch(import.meta.env.BASE_URL + 'withdraw.csv' + weeklyBuster);
     if (withdrawResponse.ok) {
       const withdrawContent = await withdrawResponse.text();
       withdrawRecords.value = parseWithdrawCSV(withdrawContent);
@@ -144,6 +200,9 @@ const loadWeeklyData = async () => {
 watch(activeTab, (newTab) => {
   if (newTab === 'weekly') {
     loadWeeklyData();
+  } else if (newTab === 'fraud') {
+    // 騙分統計使用 localStorage，不需要載入 CSV
+    isLoading.value = false;
   } else {
     loadData(newTab);
   }
@@ -164,49 +223,68 @@ const handleExport = () => {
     exportWithdrawToExcel(metrics.value);
   }
 };
+
+const handleDateChange = ({ dateFrom, dateTo }) => {
+  dateRange.value = { dateFrom, dateTo };
+};
 </script>
 
 <template>
   <div class="app">
     <!-- 左側導航 -->
-    <aside class="sidebar">
+    <aside class="sidebar" :class="{ collapsed: sidebarCollapsed }">
       <div class="sidebar-header">
-        <h1>数据分析</h1>
+        <h1 v-show="!sidebarCollapsed">数据分析</h1>
+        <button class="toggle-btn" @click="toggleSidebar" :title="sidebarCollapsed ? '展開選單' : '收起選單'">
+          <span class="toggle-icon">{{ sidebarCollapsed ? '»' : '«' }}</span>
+        </button>
       </div>
       <nav class="sidebar-nav">
         <button
           class="nav-item"
           :class="{ active: activeTab === 'deposit' }"
           @click="activeTab = 'deposit'"
+          :title="sidebarCollapsed ? '充值分析報表' : ''"
         >
           <span class="nav-icon">📊</span>
-          <span class="nav-text">充值分析報表</span>
+          <span class="nav-text" v-show="!sidebarCollapsed">充值分析報表</span>
         </button>
         <button
           class="nav-item"
           :class="{ active: activeTab === 'withdraw' }"
           @click="activeTab = 'withdraw'"
+          :title="sidebarCollapsed ? '提现分析報表' : ''"
         >
           <span class="nav-icon">💰</span>
-          <span class="nav-text">提现分析報表</span>
+          <span class="nav-text" v-show="!sidebarCollapsed">提现分析報表</span>
         </button>
         <button
           class="nav-item"
           :class="{ active: activeTab === 'weekly' }"
           @click="activeTab = 'weekly'"
+          :title="sidebarCollapsed ? '日/週報數據匯總' : ''"
         >
           <span class="nav-icon">📈</span>
-          <span class="nav-text">周报</span>
+          <span class="nav-text" v-show="!sidebarCollapsed">日/週報數據匯總</span>
+        </button>
+        <button
+          class="nav-item"
+          :class="{ active: activeTab === 'fraud' }"
+          @click="activeTab = 'fraud'"
+          :title="sidebarCollapsed ? '騙分統計' : ''"
+        >
+          <span class="nav-icon">🚫</span>
+          <span class="nav-text" v-show="!sidebarCollapsed">騙分統計</span>
         </button>
       </nav>
     </aside>
 
     <!-- 主內容區 -->
-    <div class="main-wrapper">
+    <div class="main-wrapper" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
       <header class="header">
         <div class="header-content">
           <h2 class="page-title">
-            {{ activeTab === 'deposit' ? '充值分析報表' : activeTab === 'withdraw' ? '提现分析報表' : '周报' }}
+            {{ activeTab === 'deposit' ? '充值分析報表' : activeTab === 'withdraw' ? '提现分析報表' : activeTab === 'weekly' ? '日/週報數據匯總' : '騙分統計' }}
           </h2>
           <div class="data-info">
             <span class="data-date">📅 数据日期：{{ dataDate }}</span>
@@ -235,9 +313,12 @@ const handleExport = () => {
           <template v-if="activeTab === 'weekly'">
             <WeeklyReport :depositRecords="depositRecords" :withdrawRecords="withdrawRecords" />
           </template>
+          <template v-else-if="activeTab === 'fraud'">
+            <FraudStats />
+          </template>
           <template v-else>
-            <SearchFilter :records="allRecords" @filter="handleFilter" @export="handleExport" />
-            <MetricsCards v-if="activeTab === 'deposit'" :metrics="metrics" @channelChange="handleChannelChange" />
+            <SearchFilter :records="allRecords" @filter="handleFilter" @export="handleExport" @dateChange="handleDateChange" />
+            <MetricsCards v-if="activeTab === 'deposit'" :metrics="metrics" :dateRange="dateRange" :dataDate="dataDate" @channelChange="handleChannelChange" />
             <WithdrawMetricsCards v-else :metrics="metrics" />
             <Charts v-if="activeTab === 'deposit' && activeChannel === 'all'" :records="filteredRecords" />
           </template>
@@ -277,17 +358,57 @@ body {
   z-index: 200;
   display: flex;
   flex-direction: column;
+  transition: width 0.3s ease;
+}
+
+.sidebar.collapsed {
+  width: 60px;
 }
 
 .sidebar-header {
   padding: 20px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 60px;
+}
+
+.sidebar.collapsed .sidebar-header {
+  justify-content: center;
+  padding: 20px 10px;
 }
 
 .sidebar-header h1 {
   font-size: 18px;
   font-weight: 600;
   color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.toggle-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: #fff;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.toggle-icon {
+  font-size: 16px;
+  font-weight: bold;
 }
 
 .sidebar-nav {
@@ -328,6 +449,54 @@ body {
 
 .nav-text {
   font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.sidebar.collapsed .nav-item {
+  justify-content: center;
+  padding: 14px;
+}
+
+.sidebar.collapsed .nav-item .nav-icon {
+  margin: 0;
+}
+
+.nav-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.nav-submenu {
+  display: flex;
+  flex-direction: column;
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.nav-subitem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px 12px 44px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-left: 3px solid transparent;
+}
+
+.nav-subitem:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.nav-subitem.active {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  border-left-color: #fff;
 }
 
 /* 主內容區 */
@@ -337,6 +506,11 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  transition: margin-left 0.3s ease;
+}
+
+.main-wrapper.sidebar-collapsed {
+  margin-left: 60px;
 }
 
 .header {
@@ -464,7 +638,15 @@ body {
     width: 60px;
   }
 
+  .sidebar.collapsed {
+    width: 60px;
+  }
+
   .sidebar-header h1 {
+    display: none;
+  }
+
+  .toggle-btn {
     display: none;
   }
 
@@ -477,7 +659,8 @@ body {
     padding: 14px;
   }
 
-  .main-wrapper {
+  .main-wrapper,
+  .main-wrapper.sidebar-collapsed {
     margin-left: 60px;
   }
 

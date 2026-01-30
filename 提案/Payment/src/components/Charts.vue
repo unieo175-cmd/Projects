@@ -32,6 +32,9 @@ const matchedRecords = computed(() => {
 // 充值成功的記錄（AP > 0）
 const successRecords = computed(() => matchedRecords.value.filter(r => r.receivedAmount > 0));
 
+// 所有充值成功的記錄（包含線下商戶，用於銀行金額分佈和24小時交易分佈）
+const allSuccessRecords = computed(() => props.records.filter(r => r.receivedAmount > 0));
+
 // 充值成功總筆數
 const successTotalCount = computed(() => successRecords.value.length);
 
@@ -99,11 +102,11 @@ const channelDistribution = computed(() => {
   ].filter(d => d.value > 0);
 });
 
-// Calculate amount distribution by bank (使用充值成功記錄)
+// Calculate amount distribution by bank (使用所有充值成功記錄，包含線下商戶)
 const bankDistribution = computed(() => {
   const bankMap = new Map();
 
-  successRecords.value.forEach(r => {
+  allSuccessRecords.value.forEach(r => {
     if (r.bankName) {
       const current = bankMap.get(r.bankName) || 0;
       bankMap.set(r.bankName, current + r.receivedAmount);
@@ -116,11 +119,11 @@ const bankDistribution = computed(() => {
     .map(([name, amount]) => ({ name, amount }));
 });
 
-// Calculate hourly distribution (使用充值成功記錄，顯示筆數和金額)
+// Calculate hourly distribution (使用所有充值成功記錄，包含線下商戶，顯示筆數和金額)
 const hourlyDistribution = computed(() => {
   const hoursData = new Array(24).fill(null).map(() => ({ count: 0, amount: 0 }));
 
-  successRecords.value.forEach(r => {
+  allSuccessRecords.value.forEach(r => {
     if (r.requestTime) {
       const match = r.requestTime.match(/(\d{2}):\d{2}:\d{2}/);
       if (match) {
@@ -156,6 +159,7 @@ const statusDistribution = computed(() => {
   // 遍歷所有充值成功記錄 (receivedAmount > 0)
   props.records.filter(r => r.receivedAmount > 0).forEach(r => {
     const hasJiSu = r.merchant && r.merchant.includes('极速充提3');
+    const hasOffline = r.merchant && r.merchant.includes('线下充值');
     const hasAlipay = r.merchant && (r.merchant.includes('支付宝') || r.merchant.includes('支付寶'));
     const hasWechat = r.merchant && r.merchant.includes('微信');
 
@@ -165,7 +169,8 @@ const statusDistribution = computed(() => {
     } else if (hasWechat) {
       dist.wechat.count++;
       dist.wechat.amount += r.receivedAmount;
-    } else if (hasJiSu && !hasAlipay && !hasWechat) {
+    } else if ((hasJiSu || hasOffline) && !hasAlipay && !hasWechat) {
+      // 銀行卡：极速充提3 或 线下充值（不含支付寶/微信）
       dist.bankCard.count++;
       dist.bankCard.amount += r.receivedAmount;
     }
@@ -174,9 +179,9 @@ const statusDistribution = computed(() => {
   const total = dist.bankCard.count + dist.alipay.count + dist.wechat.count || 1;
 
   return [
-    { label: '極速銀行卡', value: dist.bankCard.count, amount: dist.bankCard.amount, percent: (dist.bankCard.count / total * 100).toFixed(1), color: '#0a84ff' },
-    { label: '極速支付寶', value: dist.alipay.count, amount: dist.alipay.amount, percent: (dist.alipay.count / total * 100).toFixed(1), color: '#30d158' },
-    { label: '極速微信', value: dist.wechat.count, amount: dist.wechat.amount, percent: (dist.wechat.count / total * 100).toFixed(1), color: '#ff9f0a' }
+    { label: '極速銀行卡', value: dist.bankCard.count, amount: dist.bankCard.amount, percent: (dist.bankCard.count / total * 100).toFixed(1), color: '#ff9f0a' },
+    { label: '極速支付寶', value: dist.alipay.count, amount: dist.alipay.amount, percent: (dist.alipay.count / total * 100).toFixed(1), color: '#0a84ff' },
+    { label: '極速微信', value: dist.wechat.count, amount: dist.wechat.amount, percent: (dist.wechat.count / total * 100).toFixed(1), color: '#30d158' }
   ].filter(d => d.value > 0);
 });
 
@@ -190,7 +195,7 @@ const statusTotalCount = computed(() => {
   <div class="charts-container">
     <!-- 狀態分佈：極速銀行卡/支付寶/微信 充值成功比例 -->
     <div class="chart-card">
-      <h3>狀態分佈</h3>
+      <h3>充值成功佔比</h3>
       <div class="donut-chart">
         <svg viewBox="0 0 100 100" class="donut">
           <circle
@@ -495,7 +500,7 @@ const statusTotalCount = computed(() => {
 
 .hour-fill {
   width: 100%;
-  background: linear-gradient(180deg, #4a4a9e, #6a6abe);
+  background: linear-gradient(180deg, #30d158, #34c759);
   border-radius: 2px 2px 0 0;
   margin-top: auto;
   transition: height 0.3s;

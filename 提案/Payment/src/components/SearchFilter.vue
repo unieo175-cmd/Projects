@@ -8,13 +8,20 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['filter', 'export']);
+const emit = defineEmits(['filter', 'export', 'dateChange']);
 
 const merchantFilter = ref('all');
 const merchantSearch = ref('');
 const showMerchantDropdown = ref(false);
-const dateFrom = ref('');
-const dateTo = ref('');
+
+// 日期預設為今日
+const today = new Date().toISOString().split('T')[0];
+const dateFrom = ref(today);
+const dateTo = ref(today);
+
+
+// 日期範圍錯誤訊息
+const dateRangeError = ref('');
 
 // Get unique merchants with search
 const uniqueMerchants = computed(() => {
@@ -36,7 +43,95 @@ const filteredMerchants = computed(() => {
     .slice(0, 100);
 });
 
+// 驗證並自動修正日期範圍
+const validateDateRange = () => {
+  dateRangeError.value = '';
+  return true;
+};
+
+// 開始日期變更時的防呆
+const onDateFromChange = () => {
+  if (!dateFrom.value) {
+    dateFrom.value = today;
+    return;
+  }
+
+  // 開始日期不能超過今日
+  if (dateFrom.value > today) {
+    dateFrom.value = today;
+    dateRangeError.value = '開始日期不能超過今日，已自動修正';
+    setTimeout(() => { dateRangeError.value = ''; }, 2000);
+  }
+
+  // 如果結束日期早於開始日期，自動修正結束日期
+  if (dateTo.value && dateTo.value < dateFrom.value) {
+    dateTo.value = dateFrom.value;
+    dateRangeError.value = '結束日期已自動修正為開始日期';
+    setTimeout(() => { dateRangeError.value = ''; }, 2000);
+  }
+
+  // 檢查日期範圍是否超過一個月
+  if (dateFrom.value && dateTo.value) {
+    const start = new Date(dateFrom.value);
+    const end = new Date(dateTo.value);
+    const diffDays = (end - start) / (1000 * 60 * 60 * 24);
+
+    if (diffDays > 31) {
+      // 自動將結束日期設為開始日期 + 31 天
+      const maxEnd = new Date(start);
+      maxEnd.setDate(maxEnd.getDate() + 31);
+      const maxEndStr = maxEnd.toISOString().split('T')[0];
+      dateTo.value = maxEndStr > today ? today : maxEndStr;
+      dateRangeError.value = '日期範圍最大一個月，已自動修正';
+      setTimeout(() => { dateRangeError.value = ''; }, 2000);
+    }
+  }
+};
+
+// 結束日期變更時的防呆
+const onDateToChange = () => {
+  if (!dateTo.value) {
+    dateTo.value = dateFrom.value || today;
+    return;
+  }
+
+  // 結束日期不能超過今日
+  if (dateTo.value > today) {
+    dateTo.value = today;
+    dateRangeError.value = '結束日期不能超過今日，已自動修正';
+    setTimeout(() => { dateRangeError.value = ''; }, 2000);
+  }
+
+  // 結束日期不能早於開始日期
+  if (dateFrom.value && dateTo.value < dateFrom.value) {
+    dateTo.value = dateFrom.value;
+    dateRangeError.value = '結束日期不能早於開始日期，已自動修正';
+    setTimeout(() => { dateRangeError.value = ''; }, 2000);
+  }
+
+  // 檢查日期範圍是否超過一個月
+  if (dateFrom.value && dateTo.value) {
+    const start = new Date(dateFrom.value);
+    const end = new Date(dateTo.value);
+    const diffDays = (end - start) / (1000 * 60 * 60 * 24);
+
+    if (diffDays > 31) {
+      // 自動將開始日期設為結束日期 - 31 天
+      const minStart = new Date(end);
+      minStart.setDate(minStart.getDate() - 31);
+      dateFrom.value = minStart.toISOString().split('T')[0];
+      dateRangeError.value = '日期範圍最大一個月，已自動修正';
+      setTimeout(() => { dateRangeError.value = ''; }, 2000);
+    }
+  }
+};
+
 const applyFilters = () => {
+  // 驗證日期範圍
+  if (!validateDateRange()) {
+    return;
+  }
+
   let filtered = [...props.records];
 
   // Merchant filter
@@ -53,6 +148,7 @@ const applyFilters = () => {
   }
 
   emit('filter', filtered);
+  emit('dateChange', { dateFrom: dateFrom.value, dateTo: dateTo.value });
 };
 
 // Initial load
@@ -127,13 +223,30 @@ const handleMerchantBlur = () => {
 
       <div class="date-range">
         <label>从</label>
-        <input v-model="dateFrom" type="date" class="date-input" />
+        <input
+          v-model="dateFrom"
+          type="date"
+          class="date-input"
+          :max="today"
+          @change="onDateFromChange"
+        />
         <label>到</label>
-        <input v-model="dateTo" type="date" class="date-input" />
+        <input
+          v-model="dateTo"
+          type="date"
+          class="date-input"
+          :max="today"
+          @change="onDateToChange"
+        />
       </div>
 
       <button @click="handleSearch" class="search-btn">查詢</button>
       <button @click="handleExport" class="export-btn">匯出 Excel</button>
+    </div>
+
+    <!-- 日期範圍錯誤訊息 -->
+    <div v-if="dateRangeError" class="date-error">
+      {{ dateRangeError }}
     </div>
   </div>
 </template>
@@ -296,6 +409,16 @@ const handleMerchantBlur = () => {
 
 .export-btn:hover {
   background: #4cae4c;
+}
+
+.date-error {
+  color: #856404;
+  font-size: 14px;
+  padding: 8px 12px;
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 6px;
+  margin-top: 12px;
 }
 
 @media (max-width: 768px) {

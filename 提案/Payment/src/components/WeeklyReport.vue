@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
-import { calculateMetrics, calculateWithdrawMetrics, formatTime, formatAmount, exportWeeklyToExcel, exportMetricsAnalysisTemplate } from '../utils/csvParser';
+import { calculateMetrics, calculateWithdrawMetrics, formatTime, formatAmount, exportWeeklyToExcel, exportDepositToText } from '../utils/csvParser';
 
 const props = defineProps({
   depositRecords: {
@@ -13,9 +13,15 @@ const props = defineProps({
   }
 });
 
+// 今日日期
+const today = new Date().toISOString().split('T')[0];
+
 // 日期選擇（起訖時間）
 const startDate = ref('');
 const endDate = ref('');
+
+// 日期範圍錯誤訊息
+const dateRangeError = ref('');
 
 // 日期範圍
 const weekRange = computed(() => {
@@ -169,8 +175,11 @@ const weeklyMetrics = computed(() => {
   const jsAndNormalWithdrawMatch = matchJS + matchNormalWithdraw;
   const notDepositedEmptyRate = jsAndNormalWithdrawMatch > 0 ? notDeposited / jsAndNormalWithdrawMatch : 0;
 
-  // 提现失败率 = 公式後補，先顯示0%
-  const withdrawFailRate = 0;
+  // 提现失败率 = 提现失败笔数 / 总申请笔数
+  // 总申请 = 時間區間加總 + 提現失敗筆數（withdrawSuccessTotalCount 已包含）
+  const withdrawFailedCount = wm.withdrawFailedCount || 0;
+  const withdrawTotalApplication = wm.withdrawSuccessTotalCount || 0;
+  const withdrawFailRate = withdrawTotalApplication > 0 ? withdrawFailedCount / withdrawTotalApplication : 0;
 
   return {
     depositApplicationCount,
@@ -248,8 +257,8 @@ const weeklyMetrics = computed(() => {
 // - 充值3分內占比 = 3分鐘內筆數 / 自動到帳筆數
 // - 平均時間 = SUMIFS(AM, AP>0, AO=1, T<>0) / 自動到帳筆數
 const analysisMetrics = computed(() => {
-  // 使用全部數據，不按週過濾
-  const depositData = props.depositRecords;
+  // 使用按日期範圍篩選後的數據
+  const depositData = filteredDepositRecords.value;
   if (depositData.length === 0) return null;
 
   // 計算各分類的指標 (根據 Excel 公式)
@@ -532,6 +541,75 @@ const setDefaultDate = () => {
   endDate.value = '2026-01-07';
 };
 
+// 開始日期變更時的防呆
+const onStartDateChange = () => {
+  if (!startDate.value) return;
+
+  // 開始日期不能超過今日
+  if (startDate.value > today) {
+    startDate.value = today;
+    dateRangeError.value = '開始日期不能超過今日，已自動修正';
+    setTimeout(() => { dateRangeError.value = ''; }, 2000);
+  }
+
+  // 如果結束日期早於開始日期，自動修正結束日期
+  if (endDate.value && endDate.value < startDate.value) {
+    endDate.value = startDate.value;
+    dateRangeError.value = '結束日期已自動修正為開始日期';
+    setTimeout(() => { dateRangeError.value = ''; }, 2000);
+  }
+
+  // 檢查日期範圍是否超過一個月
+  if (startDate.value && endDate.value) {
+    const start = new Date(startDate.value);
+    const end = new Date(endDate.value);
+    const diffDays = (end - start) / (1000 * 60 * 60 * 24);
+
+    if (diffDays > 31) {
+      const maxEnd = new Date(start);
+      maxEnd.setDate(maxEnd.getDate() + 31);
+      const maxEndStr = maxEnd.toISOString().split('T')[0];
+      endDate.value = maxEndStr > today ? today : maxEndStr;
+      dateRangeError.value = '日期範圍最大一個月，已自動修正';
+      setTimeout(() => { dateRangeError.value = ''; }, 2000);
+    }
+  }
+};
+
+// 結束日期變更時的防呆
+const onEndDateChange = () => {
+  if (!endDate.value) return;
+
+  // 結束日期不能超過今日
+  if (endDate.value > today) {
+    endDate.value = today;
+    dateRangeError.value = '結束日期不能超過今日，已自動修正';
+    setTimeout(() => { dateRangeError.value = ''; }, 2000);
+  }
+
+  // 結束日期不能早於開始日期
+  if (startDate.value && endDate.value < startDate.value) {
+    endDate.value = startDate.value;
+    dateRangeError.value = '結束日期不能早於開始日期，已自動修正';
+    setTimeout(() => { dateRangeError.value = ''; }, 2000);
+  }
+
+  // 檢查日期範圍是否超過一個月
+  if (startDate.value && endDate.value) {
+    const start = new Date(startDate.value);
+    const end = new Date(endDate.value);
+    const diffDays = (end - start) / (1000 * 60 * 60 * 24);
+
+    if (diffDays > 31) {
+      const minStart = new Date(end);
+      minStart.setDate(minStart.getDate() - 31);
+      startDate.value = minStart.toISOString().split('T')[0];
+      dateRangeError.value = '日期範圍最大一個月，已自動修正';
+      setTimeout(() => { dateRangeError.value = ''; }, 2000);
+    }
+  }
+};
+
 // 匯出週報
 const handleExport = () => {
   if (weeklyMetrics.value) {
@@ -539,9 +617,16 @@ const handleExport = () => {
   }
 };
 
-// 匯出指標數據分析範本
-const handleExportTemplate = () => {
-  exportMetricsAnalysisTemplate();
+// 匯出充值純文字報表
+const handleExportText = () => {
+  if (depositMetrics.value) {
+    exportDepositToText(depositMetrics.value, weekRange.value);
+  }
+};
+
+// 查詢（數據已自動計算，此按鈕用於視覺確認）
+const handleQuery = () => {
+  // 數據透過 computed 自動更新，無需額外操作
 };
 
 // 初始化
@@ -553,19 +638,21 @@ setDefaultDate();
     <!-- 日期选择器 -->
     <div class="date-selector">
       <div class="selector-header">
-        <h2>周报数据汇总</h2>
+        <h2>日/週報數據匯總</h2>
       </div>
       <div class="selector-content">
         <div class="date-picker">
           <label>起始日期：</label>
-          <input type="date" v-model="startDate" class="date-input" />
+          <input type="date" v-model="startDate" class="date-input" :max="today" @change="onStartDateChange" />
         </div>
         <div class="date-picker">
           <label>結束日期：</label>
-          <input type="date" v-model="endDate" class="date-input" />
+          <input type="date" v-model="endDate" class="date-input" :max="today" @change="onEndDateChange" />
         </div>
+        <div v-if="dateRangeError" class="date-error">{{ dateRangeError }}</div>
+        <button @click="handleQuery" class="query-btn">查詢</button>
         <button @click="handleExport" class="export-btn" v-if="weeklyMetrics">匯出 Excel</button>
-        <button @click="handleExportTemplate" class="export-btn template-btn">下載分析範本</button>
+        <button @click="handleExportText" class="export-btn text-btn" v-if="depositMetrics">匯出純文字</button>
       </div>
     </div>
 
@@ -593,6 +680,9 @@ setDefaultDate();
                 <span class="detail-value">{{ (depositMetrics?.alipayApplicationCount || 0).toLocaleString() }}</span>
               </div>
             </div>
+            <div class="section-formula">
+              银行卡 + 支付宝
+            </div>
           </div>
 
           <!-- JS充值等待最终无配对 -->
@@ -610,6 +700,11 @@ setDefaultDate();
                 <span class="detail-label">支付寶</span>
                 <span class="detail-value">{{ (weeklyMetrics.alipayJsWaitingNoMatch || 0).toLocaleString() }}</span>
               </div>
+            </div>
+            <div class="section-formula">
+              銀行卡(建单成功等待無配對+取无卡06提示) + 支付寶(建单成功等待無配對+取无卡06提示)<br>
+              建单成功等待無配對 = bankCardCode為空的記錄數<br>
+              取无卡06提示 = 暫時硬編碼（銀行卡:2筆, 支付寶:0筆），後續需從06數據計算
             </div>
           </div>
 
@@ -633,6 +728,9 @@ setDefaultDate();
                 <span class="detail-value">{{ weeklyMetrics.matchNormalCardBao.toLocaleString() }}</span>
               </div>
             </div>
+            <div class="section-formula">
+              銀行卡一般卡 + 支付寶一般卡 + 一般寶
+            </div>
           </div>
 
           <!-- 充值配对(配JS) -->
@@ -655,6 +753,9 @@ setDefaultDate();
                 <span class="detail-value">{{ weeklyMetrics.matchJSAlipayBao.toLocaleString() }}</span>
               </div>
             </div>
+            <div class="section-formula">
+              銀行卡極速提 + 支付寶極速提(卡) + 极速提(宝)
+            </div>
           </div>
 
           <!-- 充值配对(配一般提) -->
@@ -668,6 +769,9 @@ setDefaultDate();
                 <span class="detail-label">说明</span>
                 <span class="detail-value note">待定义</span>
               </div>
+            </div>
+            <div class="section-formula">
+              待定义
             </div>
           </div>
         </div>
@@ -695,6 +799,9 @@ setDefaultDate();
                 <span class="detail-value">{{ weeklyMetrics.orderSuccessJS.toLocaleString() }}</span>
               </div>
             </div>
+            <div class="section-formula">
+              订单成功(一般卡) + 订单成功(Js+一般提)
+            </div>
           </div>
 
           <!-- 订单成功(一般卡) -->
@@ -716,6 +823,9 @@ setDefaultDate();
                 <span class="detail-label">一般宝</span>
                 <span class="detail-value">{{ weeklyMetrics.orderSuccessNormalCardBao.toLocaleString() }}</span>
               </div>
+            </div>
+            <div class="section-formula">
+              銀行卡訂單成功一般卡 + 支付寶訂單成功一般卡 + 一般寶
             </div>
           </div>
 
@@ -739,6 +849,9 @@ setDefaultDate();
                 <span class="detail-value">{{ weeklyMetrics.orderSuccessJSAlipayBao.toLocaleString() }}</span>
               </div>
             </div>
+            <div class="section-formula">
+              銀行卡訂單成功極速提 + 支付寶訂單成功極速提(卡) + 极速提(宝)
+            </div>
           </div>
 
           <!-- 充值卡在待审核 -->
@@ -752,6 +865,9 @@ setDefaultDate();
                 <span class="detail-label">说明</span>
                 <span class="detail-value note">7/21起系统查核中笔数有列入</span>
               </div>
+            </div>
+            <div class="section-formula">
+              7/21起系统查核中笔数有列入
             </div>
           </div>
 
@@ -767,6 +883,9 @@ setDefaultDate();
                 <span class="detail-value note">7/21起不含等待无配对</span>
               </div>
             </div>
+            <div class="section-formula">
+              7/21起不含等待无配对
+            </div>
           </div>
 
           <!-- 无卡空单率 -->
@@ -780,6 +899,9 @@ setDefaultDate();
                 <span class="detail-label">计算公式</span>
                 <span class="detail-value note">JS充值等待最终无配对 / 充值申请</span>
               </div>
+            </div>
+            <div class="section-formula">
+              JS充值等待最终无配对 / 充值申请
             </div>
           </div>
         </div>
@@ -811,6 +933,9 @@ setDefaultDate();
                 <span class="detail-value">{{ formatAmount(weeklyMetrics.orderSuccessAmountOther) }} 元</span>
               </div>
             </div>
+            <div class="section-formula">
+              配一般卡金额 + 配极速金额 + 其他(公式候补)
+            </div>
           </div>
 
           <!-- 配一般卡充值订单成功(金额) -->
@@ -832,6 +957,9 @@ setDefaultDate();
                 <span class="detail-label">一般宝</span>
                 <span class="detail-value">{{ formatAmount(weeklyMetrics.orderSuccessAmountNormalCardBao) }} 元</span>
               </div>
+            </div>
+            <div class="section-formula">
+              銀行卡訂單成功一般卡金額 + 支付寶訂單成功一般卡金額 + 一般寶金額
             </div>
           </div>
 
@@ -855,6 +983,9 @@ setDefaultDate();
                 <span class="detail-value">{{ formatAmount(weeklyMetrics.orderSuccessAmountJSAlipayBao) }} 元</span>
               </div>
             </div>
+            <div class="section-formula">
+              銀行卡訂單成功極速提金額 + 支付寶訂單成功極速提(卡)金額 + 极速提(宝)金額
+            </div>
           </div>
 
           <!-- 充值订单成功(金额) 待补 -->
@@ -869,32 +1000,45 @@ setDefaultDate();
                 <span class="detail-value note">公式候补</span>
               </div>
             </div>
+            <div class="section-formula">
+              公式候补
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- ========== 区块四：平均时间 ========== -->
+      <!-- ========== 区块四：平均處理時間 ========== -->
       <div class="report-section" v-if="weeklyMetrics">
         <div class="section-header">
-          <h3>平均时间</h3>
+          <h3>平均處理時間</h3>
         </div>
         <div class="jisu-content">
           <div class="jisu-block">
             <div class="block-header">
-              <span class="block-title">提现平均时间</span>
+              <span class="block-title">提现平均處理時間</span>
               <span class="block-value"></span>
             </div>
             <div class="block-details">
               <div class="detail-item">
-                <span class="detail-label">提现平均时间（卡）</span>
+                <span class="detail-label">提现平均處理時間（卡）</span>
                 <span class="detail-value">{{ formatTime(weeklyMetrics.withdrawAvgTimeBankCard) }}</span>
               </div>
               <div class="detail-item">
-                <span class="detail-label">提现平均时间（宝）</span>
+                <span class="detail-label">提现平均處理時間（宝）</span>
                 <span class="detail-value">{{ formatTime(weeklyMetrics.withdrawAvgTimeAlipay) }}</span>
               </div>
             </div>
           </div>
+        </div>
+        <div class="section-formula">
+          <strong>计算公式说明（来自 汇总周报数据 D47/D48）：</strong><br>
+          - 提现平均處理時間（卡）= AVERAGEIFS('raw data withdraw'!AF:AF, AC:AC, "银行卡", AD:AD, "轉帳完成")<br>
+          &nbsp;&nbsp;即：銀行卡提現記錄中，轉帳完成的處理時間(AF欄)平均<br>
+          - 提现平均處理時間（宝）= AVERAGEIFS('raw data withdraw'!AF:AF, AC:AC, "*支付宝*", AD:AD, "轉帳完成")<br>
+          &nbsp;&nbsp;即：支付寶提現記錄中，轉帳完成的處理時間(AF欄)平均<br>
+          <br>
+          <strong>AF欄公式：</strong>IF(AD="轉帳完成", Q-T 或 Q-V, "")<br>
+          &nbsp;&nbsp;Q = 通知商戶時間, T = 建立時間, V = 剩餘池建立時間
         </div>
       </div>
 
@@ -958,10 +1102,18 @@ setDefaultDate();
             </div>
           </div>
         </div>
+        <div class="section-formula">
+          <strong>计算公式说明（来自 总计 银行卡/支付宝 頁籤）：</strong><br>
+          - 骗分 = 銀行卡骗分(人工+信评) + 支付寶骗分(人工+信评)<br>
+          &nbsp;&nbsp;銀行卡信评：'总计 银行卡'!B25 元 / D25 笔<br>
+          &nbsp;&nbsp;支付寶信评：'总计 支付宝'!B27 元 / D27 笔<br>
+          - 骗分成本占比 = 骗分 / 配极速充值订单成功(金额) × 100%<br>
+          - JS提现返利 = 'raw data withdraw'!H欄(商戶返利)加總
+        </div>
       </div>
 
-      <!-- ========== 区块六：配对率＆空单率 ========== -->
-      <div class="report-section" v-if="weeklyMetrics">
+      <!-- ========== 区块六：配对率＆空单率（暫時隱藏） ========== -->
+      <div class="report-section" v-if="false">
         <div class="section-header">
           <h3>配对率＆空单率</h3>
         </div>
@@ -1056,6 +1208,22 @@ setDefaultDate();
             </div>
           </div>
         </div>
+        <div class="section-formula">
+          <strong>计算公式说明（来自 总计 银行卡/支付宝 頁籤）：</strong><br>
+          - 充值配对率 = 成功配對 / 充值申請<br>
+          &nbsp;&nbsp;銀行卡：'总计 银行卡'!B17 = B3/B2<br>
+          &nbsp;&nbsp;支付寶：'总计 支付宝'!B19 = B3/B2<br>
+          - 充提配对率 = 公式待确认<br>
+          - 配对后成功率 = 订单成功 / 成功配對<br>
+          &nbsp;&nbsp;銀行卡：'总计 银行卡'!B18 = B6/B3<br>
+          &nbsp;&nbsp;支付寶：'总计 支付宝'!B20 = B8/B3<br>
+          - 未充空单率 = 未充值 / (充值配对(配JS) + 充值配对(配一般提)) × 100%<br>
+          - 提现失败率 = 提现失败笔数 / 总申请<br>
+          <br>
+          <strong>提现成功率公式：</strong>= 1 - 提现失败率 = (总申请 - 提现失败笔数) / 总申请<br>
+          - 提现失败笔数 = 按流水號去重後，每個流水號最終狀態為失敗的數量<br>
+          - 总申请 = 時間區間加總 + 提现失败笔数
+        </div>
       </div>
 
       <div class="no-data" v-if="!weeklyMetrics">
@@ -1078,10 +1246,10 @@ setDefaultDate();
               <tr>
                 <th class="sub-header deposit-sub">成功率</th>
                 <th class="sub-header deposit-sub">3分内占比</th>
-                <th class="sub-header deposit-sub">平均时间</th>
+                <th class="sub-header deposit-sub">平均處理時間</th>
                 <th class="sub-header withdraw-sub">成功率</th>
                 <th class="sub-header withdraw-sub">2分内占比</th>
-                <th class="sub-header withdraw-sub">平均时间</th>
+                <th class="sub-header withdraw-sub">平均處理時間</th>
               </tr>
             </thead>
             <tbody>
@@ -1157,6 +1325,15 @@ setDefaultDate();
   box-shadow: 0 0 0 3px rgba(74, 74, 158, 0.1);
 }
 
+.date-error {
+  color: #856404;
+  font-size: 14px;
+  padding: 8px 12px;
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 6px;
+}
+
 .export-btn {
   padding: 10px 20px;
   border: none;
@@ -1174,13 +1351,30 @@ setDefaultDate();
   background: #4cae4c;
 }
 
-.export-btn.template-btn {
-  background: #0a84ff;
+.query-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  background: #4a4a9e;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
   margin-left: 10px;
 }
 
-.export-btn.template-btn:hover {
-  background: #0066cc;
+.query-btn:hover {
+  background: #3a3a8e;
+}
+
+.export-btn.text-btn {
+  background: #ff9f0a;
+  margin-left: 10px;
+}
+
+.export-btn.text-btn:hover {
+  background: #e68a00;
 }
 
 /* 報表區塊 */
@@ -1378,6 +1572,29 @@ setDefaultDate();
   color: #999;
   font-size: 14px;
   padding: 40px 20px;
+}
+
+/* 區塊底部公式說明 */
+.section-formula {
+  font-size: 12px;
+  color: #666;
+  padding: 16px 20px;
+  background: #f8f9fa;
+  border-top: 1px dashed #e0e0e0;
+  line-height: 1.8;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.section-formula strong {
+  color: #4a4a9e;
+  font-weight: 600;
+}
+
+/* 綠色區塊內的公式說明使用淺綠色背景 */
+.jisu-block.highlight-block .section-formula {
+  background: #e8f5e9;
+  border-top: 1px dashed #a5d6a7;
+  color: #555;
 }
 
 /* 指標數據分析表格 */

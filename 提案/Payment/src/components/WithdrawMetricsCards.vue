@@ -67,19 +67,19 @@ const activeChannel = ref('all'); // 'all', 'bankCard', 'alipay', 'wechat'
           <div class="metric-card">
             <div class="card-header">
               <span class="card-icon">📊</span>
-              <span class="card-title">总提现成功笔数</span>
+              <span class="card-title">提现成功笔数</span>
             </div>
             <div class="card-value" style="color: #0a84ff;">
               {{ (metrics.totalWithdrawCount || 0).toLocaleString() }}
               <span class="card-unit">笔</span>
             </div>
-            <div class="card-formula">公式：實際轉出金額 > 0</div>
+            <div class="card-formula">公式：transferStatus = 轉帳完成（按訂單號去重）</div>
           </div>
 
           <div class="metric-card">
             <div class="card-header">
               <span class="card-icon">💰</span>
-              <span class="card-title">总提现成功金额</span>
+              <span class="card-title">提现成功金额</span>
             </div>
             <div class="card-value" style="color: #30d158;">
               {{ formatAmount(metrics.totalWithdrawAmount || 0) }}
@@ -103,10 +103,10 @@ const activeChannel = ref('all'); // 'all', 'bankCard', 'alipay', 'wechat'
               <span class="card-title">总提现申请笔数</span>
             </div>
             <div class="card-value" style="color: #8e8e93;">
-              {{ (metrics.totalRecords || 0).toLocaleString() }}
+              {{ (metrics.withdrawSuccessTotalCount || 0).toLocaleString() }}
               <span class="card-unit">笔</span>
             </div>
-            <div class="card-formula">公式：所有記錄（排除test/qa商戶和剔除重複訂單號的筆數）</div>
+            <div class="card-formula">公式：提現成功筆數 + 提現失敗筆數（按訂單號去重）</div>
           </div>
         </div>
       </div>
@@ -127,9 +127,14 @@ const activeChannel = ref('all'); // 'all', 'bankCard', 'alipay', 'wechat'
             </thead>
             <tbody>
               <tr class="highlight-row">
-                <td>总提现成功笔数</td>
+                <td>總提現申請筆數</td>
                 <td>{{ (metrics.withdrawSuccessTotalCount || 0).toLocaleString() }}</td>
-                <td>{{ formatAmount(metrics.withdrawSuccessTotalAmount || 0) }} 元</td>
+                <td>--</td>
+              </tr>
+              <tr>
+                <td>提現成功筆數</td>
+                <td>{{ (metrics.totalWithdrawCount || 0).toLocaleString() }}</td>
+                <td>{{ formatAmount(metrics.totalWithdrawAmount || 0) }} 元</td>
               </tr>
               <tr>
                 <td>2分钟内出款</td>
@@ -157,12 +162,12 @@ const activeChannel = ref('all'); // 'all', 'bankCard', 'alipay', 'wechat'
                 <td>{{ formatAmount(metrics.withdrawOver30MinAmount || 0) }} 元</td>
               </tr>
               <tr class="sub-row">
-                <td class="indent">平均时间-卡(Q)</td>
+                <td class="indent">平均處理時間-卡(Q)</td>
                 <td>{{ formatTimeShort(metrics.bankCardAvgTime) }}</td>
                 <td>--</td>
               </tr>
               <tr class="sub-row">
-                <td class="indent">平均时间-宝(R)</td>
+                <td class="indent">平均處理時間-宝(R)</td>
                 <td>{{ formatTimeShort(metrics.alipayAvgTime) }}</td>
                 <td>--</td>
               </tr>
@@ -196,6 +201,14 @@ const activeChannel = ref('all'); // 'all', 'bankCard', 'alipay', 'wechat'
               </tr>
             </tbody>
           </table>
+        </div>
+        <div class="section-note">
+          <div class="note-title">計算公式說明：</div>
+          <div class="note-content">
+            <div>提現成功筆數：transferStatus = "轉帳完成"（按訂單號去重）</div>
+            <div>總提現申請筆數：提現成功筆數 + 提現失敗筆數（按訂單號去重）</div>
+            <div>時間區段：transferStatus = "轉帳完成" 且處理時間在指定區間內（按訂單號去重）</div>
+          </div>
         </div>
       </div>
     </template>
@@ -236,7 +249,7 @@ const activeChannel = ref('all'); // 'all', 'bankCard', 'alipay', 'wechat'
             <span class="detail-value">{{ (metrics.bankCardDepositMatchCount || 0).toLocaleString() }} 笔</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">平均时间</span>
+            <span class="detail-label">平均處理時間</span>
             <span class="detail-value">{{ formatTime(metrics.bankCardAvgTime) }}</span>
           </div>
         </div>
@@ -248,7 +261,7 @@ const activeChannel = ref('all'); // 'all', 'bankCard', 'alipay', 'wechat'
             <div v-if="metrics.bankCardDepositAppCount === 0">充值申请：來自充值數據</div>
             <div v-if="metrics.bankCardDepositMatchCount === 0">成功配对：來自充值數據</div>
             <div v-if="metrics.bankCardDepositSuccessCount === 0">充值成功笔数：來自充值數據</div>
-            <div>平均时间：transferStatus = "轉帳完成" 的記錄平均處理時間</div>
+            <div>平均處理時間：transferStatus = "轉帳完成" 的記錄平均處理時間</div>
           </div>
         </div>
       </div>
@@ -290,21 +303,19 @@ const activeChannel = ref('all'); // 'all', 'bankCard', 'alipay', 'wechat'
             <span class="detail-value">{{ (metrics.alipayDepositMatchCount || 0).toLocaleString() }} 笔</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">平均时间</span>
+            <span class="detail-label">平均處理時間</span>
             <span class="detail-value">{{ formatTime(metrics.alipayAvgTime) }}</span>
           </div>
         </div>
         <div class="section-note">
           <div class="note-title">說明：</div>
           <div class="note-content">
-            <div>一般寶 有 +70</div>
-            <div>极速提宝 有 +100</div>
             <div v-if="metrics.alipayMatchRate === 0">充值配对率：尚缺公式計算</div>
             <div v-if="metrics.alipaySuccessAfterMatchRate === 0">配对后成功率：尚缺公式計算</div>
             <div v-if="metrics.alipayDepositAppCount === 0">充值申请：來自充值數據</div>
             <div v-if="metrics.alipayDepositMatchCount === 0">成功配对：來自充值數據</div>
             <div v-if="metrics.alipayDepositSuccessCount === 0">充值成功笔数：來自充值數據</div>
-            <div>平均时间：transferStatus = "轉帳完成" 的記錄平均處理時間</div>
+            <div>平均處理時間：transferStatus = "轉帳完成" 的記錄平均處理時間</div>
           </div>
         </div>
       </div>
@@ -346,7 +357,7 @@ const activeChannel = ref('all'); // 'all', 'bankCard', 'alipay', 'wechat'
             <span class="detail-value">{{ (metrics.wechatDepositMatchCount || 0).toLocaleString() }} 笔</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">平均时间</span>
+            <span class="detail-label">平均處理時間</span>
             <span class="detail-value">{{ formatTime(metrics.wechatAvgTime) }}</span>
           </div>
         </div>
@@ -358,7 +369,7 @@ const activeChannel = ref('all'); // 'all', 'bankCard', 'alipay', 'wechat'
             <div v-if="metrics.wechatDepositAppCount === 0">充值申请：來自充值數據</div>
             <div v-if="metrics.wechatDepositMatchCount === 0">成功配对：來自充值數據</div>
             <div v-if="metrics.wechatDepositSuccessCount === 0">充值成功笔数：來自充值數據</div>
-            <div>平均时间：transferStatus = "轉帳完成" 的記錄平均處理時間</div>
+            <div>平均處理時間：transferStatus = "轉帳完成" 的記錄平均處理時間</div>
           </div>
         </div>
       </div>
@@ -621,13 +632,6 @@ const activeChannel = ref('all'); // 'all', 'bankCard', 'alipay', 'wechat'
 .minute-table tr.sub-row td.indent {
   padding-left: 32px;
   color: #666;
-}
-
-.minute-table td.formula-text {
-  font-size: 10px;
-  color: #999;
-  font-style: italic;
-  font-family: inherit;
 }
 
 @media (max-width: 1200px) {
