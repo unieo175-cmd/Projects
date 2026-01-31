@@ -441,11 +441,12 @@ const timeCards = computed(() => [
               </div>
             </div>
             <div class="block-formula">
-              <strong>数据范围：</strong>商户不含支付宝/微信/test/qa/线下<br>
+              <strong>数据范围：</strong>商户包含「极速充提3」且不含支付宝/微信/test/qa/线下<br>
               <strong>一般卡：</strong>银行卡代号有值且≠AUCTION_PAYMENT_CARD<br>
               <strong>极速提：</strong>银行卡代号=AUCTION_PAYMENT_CARD<br>
-              <strong>建单成功等待无配对：</strong>有商户名称但银行卡号为空的笔数<br>
-              <strong>取无卡06提示：</strong>数据来源：极速06统计表
+              <strong>建单成功等待无配对：</strong>银行卡代号为空的笔数<br>
+              <strong>取无卡06提示：</strong>数据来源：极速06统计表<br>
+              <strong>充值申请笔数：</strong>一般卡 + 极速提 + 建单成功等待无配对 + 取无卡06提示
             </div>
           </div>
 
@@ -466,7 +467,8 @@ const timeCards = computed(() => [
               </div>
             </div>
             <div class="block-formula">
-              <strong>成功配对：</strong>银行卡代号有值的记录<br>
+              <strong>一般卡：</strong>银行卡代号有值且≠AUCTION_PAYMENT_CARD<br>
+              <strong>极速提：</strong>银行卡代号=AUCTION_PAYMENT_CARD<br>
               <strong>金额：</strong>使用充值金额（申请金额）计算
             </div>
           </div>
@@ -496,11 +498,10 @@ const timeCards = computed(() => [
               </div>
             </div>
             <div class="block-formula">
-              <strong>订单成功条件：</strong>正规化状态有值、≠未充值、≠审核中(已超时)<br>
-              <strong>一般卡：</strong>银行卡代号有值、≠AUCTION + 上述条件<br>
-              <strong>极速提：</strong>银行卡代号=AUCTION、到账金额>0 + 上述条件<br>
+              <strong>一般卡：</strong>银行卡代号有值且≠AUCTION_PAYMENT_CARD，正规化状态≠「未充值」「审核中(已超时)」<br>
+              <strong>极速提：</strong>银行卡代号=AUCTION_PAYMENT_CARD，到账金额>0，状态≠「未充值」「审核中(已超时)」<br>
               <strong>信评上分：</strong>到账金额>0 且状态包含「信用」<br>
-              <strong>平均处理时间：</strong>没信评降等配卡的平均处理时间
+              <strong>平均处理时间：</strong>到账金额>0 的平均处理时间
             </div>
           </div>
 
@@ -526,7 +527,10 @@ const timeCards = computed(() => [
                 <span class="detail-value">{{ (metrics.noCreditDowngradeByAmount?.['other'] || 0).toLocaleString() }} 笔</span>
               </div>
             </div>
-            <div class="block-formula">无信评降等配卡的笔数，按申请金额分组统计</div>
+            <div class="block-formula">
+              <strong>条件：</strong>银行卡代号≠AUCTION_PAYMENT_CARD，到账金额≠0，用户等级≠0且≠-1<br>
+              <strong>分组：</strong>按充值金额（申请金额）分组统计
+            </div>
           </div>
 
         </div>
@@ -560,7 +564,12 @@ const timeCards = computed(() => [
             <span class="detail-label">超过11min补件后才成功</span>
             <span class="detail-value">{{ (metrics.c2cOver11MinSuccessCount || 0).toLocaleString() }} 笔</span>
           </div>
-          <div class="section-formula">银行卡代码含"c2c" 的订单成功笔数/金额</div>
+          <div class="section-formula">
+            <strong>c2c：</strong>银行卡代号=AUCTION_PAYMENT_CARD, 到账金额>0, 状态包含「用户确认到帐」<br>
+            <strong>点确认：</strong>到账金额>0, 状态包含「用户确认到帐」<br>
+            <strong>人工审核:通过：</strong>银行卡代号包含AUCTION, 到账金额>0, 状态包含「金額補單」, 处理时间≤11分钟<br>
+            <strong>超过11min补件后成功：</strong>银行卡代号包含AUCTION, 到账金额>0, 状态包含「金額補單」, 处理时间>11分钟 + 银行卡代号包含AUCTION_PAYMENT_CARD, 到账金额>0, 状态包含「商户确认到帐」
+          </div>
         </div>
       </div>
 
@@ -589,12 +598,12 @@ const timeCards = computed(() => [
             <span class="detail-value">{{ (metrics.thirdPartyOtherCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.thirdPartyOtherAmount || 0) }} 元</span>
           </div>
           <div class="section-formula">
-            数据范围：商户不含支付宝/微信/test/qa，排除线下充值商户<br>
-            三方代收计算公式：<br>
-            - 汇通 = 银行卡代号 HTc2c 开头<br>
-            - 豆豆 = 银行卡代号 DDF 开头<br>
-            - UC聚合 = 银行卡代号 uc1020 开头<br>
-            - 其他 = 到账金额 ≠ 0，包含 GB-Dahaomen/Dahaomen 开头，排除汇通/豆豆/UC及 auction/gb 开头
+            <strong>数据范围：</strong>商户包含「极速充提3」且不含支付宝/微信/test/qa/线下，到账金额>0<br>
+            <strong>三方代收：</strong>银行卡代号非gb/auction开头，或是特定三方代收代码<br>
+            <strong>汇通：</strong>银行卡代号 HTc2c 开头<br>
+            <strong>豆豆：</strong>银行卡代号 DDF 开头<br>
+            <strong>UC聚合：</strong>银行卡代号 uc1020 开头<br>
+            <strong>其他：</strong>包含 GB-Dahaomen/Dahaomen 开头，排除汇通/豆豆/UC
           </div>
         </div>
       </div>
@@ -624,7 +633,13 @@ const timeCards = computed(() => [
             <span class="detail-label">卡验及人验</span>
             <span class="detail-value">{{ fraudStats.bankCard.cardVerifyCount.toLocaleString() }} 笔</span>
           </div>
-          <div class="section-formula">数据來源：骗分统计（依筛选日期范围加总）</div>
+          <div class="section-formula">
+            <strong>数据来源：</strong>骗分统计（依筛选日期范围加总）<br>
+            <strong>人工：</strong>渠道=银行卡，类型=人工<br>
+            <strong>信评：</strong>渠道=银行卡，类型=信评<br>
+            <strong>骗分拉黑：</strong>渠道=银行卡，骗分拉黑笔数<br>
+            <strong>卡验及人验：</strong>渠道=银行卡，卡验及人验笔数
+          </div>
         </div>
       </div>
 
@@ -653,7 +668,11 @@ const timeCards = computed(() => [
             <span class="detail-label">充值成功笔数</span>
             <span class="detail-value">{{ (metrics.cnxSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.cnxSuccessAmount || 0) }} 元</span>
           </div>
-          <div class="section-formula">商户含"CNX" 的充值申請/成功笔数金额</div>
+          <div class="section-formula">
+            <strong>数据范围：</strong>商户包含「CNX」<br>
+            <strong>充值申请：</strong>商户包含CNX的记录笔数和充值金额<br>
+            <strong>充值成功：</strong>商户包含CNX且到账金额>0的记录笔数和到账金额
+          </div>
         </div>
       </div>
     </template>
@@ -700,13 +719,13 @@ const timeCards = computed(() => [
               </div>
             </div>
             <div class="block-formula">
-              <strong>数据范围：</strong>商户含「支付宝」或「支付宝」<br>
-              <strong>一般卡：</strong>银行卡代号有值、≠AUCTION_PAYMENT_CARD、银行名称≠支付宝/支付宝(企)/微信支付<br>
-              <strong>一般宝：</strong>银行卡代号有值、≠AUCTION_PAYMENT_CARD、银行名称=支付宝/支付宝(企)/微信支付<br>
-              <strong>极速提(卡)：</strong>银行卡代号=AUCTION_PAYMENT_CARD、银行名称≠支付宝/支付宝(企)/微信支付<br>
-              <strong>极速提(宝)：</strong>银行卡代号=AUCTION_PAYMENT_CARD、银行名称=支付宝/支付宝(企)/微信支付<br>
-              <strong>建单成功等待无配对：</strong>有商户名称但银行卡号为空的笔数<br>
-              <strong>取无卡06提示：</strong>数据来源：极速06统计表
+              <strong>数据范围：</strong>商户含「支付宝」且不含test/qa/线下<br>
+              <strong>一般卡：</strong>银行卡代号有值且≠AUCTION_PAYMENT_CARD，银行名称≠支付宝/支付宝(企)/微信支付<br>
+              <strong>一般宝：</strong>银行卡代号有值且≠AUCTION_PAYMENT_CARD，银行名称=支付宝/支付宝(企)/微信支付<br>
+              <strong>极速提(卡)：</strong>银行卡代号=AUCTION_PAYMENT_CARD，银行名称≠支付宝/支付宝(企)/微信支付<br>
+              <strong>极速提(宝)：</strong>银行卡代号=AUCTION_PAYMENT_CARD，银行名称=支付宝/支付宝(企)/微信支付<br>
+              <strong>建单成功等待无配对：</strong>银行卡代号为空的笔数<br>
+              <strong>充值申请笔数：</strong>一般卡 + 一般宝 + 极速提(卡) + 极速提(宝)
             </div>
           </div>
 
@@ -735,9 +754,11 @@ const timeCards = computed(() => [
               </div>
             </div>
             <div class="block-formula">
-              <strong>成功配对：</strong>银行卡代号有值的记录<br>
-              <strong>金额：</strong>使用充值金额（申请金额）计算<br>
-              <strong>分类逻辑：</strong>同充值申请的分类条件
+              <strong>一般卡：</strong>银行卡代号有值且≠AUCTION_PAYMENT_CARD，银行名称≠支付宝/支付宝(企)/微信支付<br>
+              <strong>一般宝：</strong>银行卡代号有值且≠AUCTION_PAYMENT_CARD，银行名称=支付宝/支付宝(企)/微信支付<br>
+              <strong>极速提(卡)：</strong>银行卡代号=AUCTION_PAYMENT_CARD，银行名称≠支付宝/支付宝(企)/微信支付<br>
+              <strong>极速提(宝)：</strong>银行卡代号=AUCTION_PAYMENT_CARD，银行名称=支付宝/支付宝(企)/微信支付<br>
+              <strong>金额：</strong>使用充值金额（申请金额）计算
             </div>
           </div>
 
@@ -778,13 +799,14 @@ const timeCards = computed(() => [
               </div>
             </div>
             <div class="block-formula">
-              <strong>订单成功条件：</strong>正规化状态有值、≠未充值、≠审核中(已超时)、≠图文复核(已超时)<br>
-              <strong>一般卡：</strong>银行卡代号有值、≠AUCTION、银行名称≠支付宝/微信 + 上述条件<br>
-              <strong>一般宝：</strong>银行卡代号有值、≠AUCTION、银行名称=支付宝/微信 + 上述条件<br>
-              <strong>极速提(卡)：</strong>银行卡代号=AUCTION、银行名称≠支付宝/微信 + 上述条件<br>
-              <strong>极速提(宝)：</strong>银行卡代号=AUCTION、银行名称=支付宝/微信 + 上述条件<br>
-              <strong>信评上分：</strong>正规化状态包含「信用评分上分」<br>
-              <strong>平均处理时间：</strong>没信评降等配卡的平均处理时间
+              <strong>订单成功条件：</strong>正规化状态有值且≠未充值/图文复核(已超时)/审核中(已超时)<br>
+              <strong>一般卡：</strong>银行卡代号有值且≠AUCTION_PAYMENT_CARD，银行名称≠支付宝/支付宝(企)/微信支付 + 上述条件<br>
+              <strong>一般宝：</strong>银行卡代号有值且≠AUCTION_PAYMENT_CARD，银行名称=支付宝/支付宝(企)/微信支付 + 上述条件<br>
+              <strong>极速提(卡)：</strong>银行卡代号=AUCTION_PAYMENT_CARD，银行名称≠支付宝/支付宝(企)/微信支付 + 上述条件<br>
+              <strong>极速提(宝)：</strong>银行卡代号=AUCTION_PAYMENT_CARD，银行名称=支付宝/支付宝(企)/微信支付 + 上述条件<br>
+              <strong>信评上分：</strong>状态包含「信用評分上分」<br>
+              <strong>其中信评不含图文复核：</strong>银行卡代号=AUCTION_PAYMENT_CARD，到账金额>0，状态包含「信用評分上分」且≠「信用評分上分(圖文覆核)」<br>
+              <strong>平均处理时间：</strong>到账金额>0 的平均处理时间
             </div>
           </div>
 
@@ -810,7 +832,10 @@ const timeCards = computed(() => [
                 <span class="detail-value">{{ (metrics.alipayNoCreditDowngradeByAmount?.['other'] || 0).toLocaleString() }} 笔</span>
               </div>
             </div>
-            <div class="block-formula">无信评降等配卡的笔数，按申请金额分组统计</div>
+            <div class="block-formula">
+              <strong>条件：</strong>银行卡代号≠AUCTION_PAYMENT_CARD，到账金额≠0，用户等级≠0且≠-1<br>
+              <strong>分组：</strong>按充值金额（申请金额）分组统计
+            </div>
           </div>
         </div>
       </div>
@@ -843,7 +868,12 @@ const timeCards = computed(() => [
             <span class="detail-label">超过11min补件后才成功</span>
             <span class="detail-value">{{ (metrics.alipayC2cOver11MinSuccessCount || 0).toLocaleString() }} 笔</span>
           </div>
-          <div class="section-formula">银行卡代码含"c2c" 的订单成功笔数/金额</div>
+          <div class="section-formula">
+            <strong>c2c：</strong>银行卡代号=AUCTION_PAYMENT_CARD，到账金额>0，状态包含「用户确认到帐」<br>
+            <strong>点确认：</strong>到账金额>0，状态包含「用户确认到帐」<br>
+            <strong>人工审核:通过：</strong>银行卡代号包含AUCTION，到账金额>0，状态包含「金額補單」，处理时间≤11分钟<br>
+            <strong>超过11min补件后成功：</strong>银行卡代号包含AUCTION，到账金额>0，状态包含「金額補單」，处理时间>11分钟 + 银行卡代号包含AUCTION_PAYMENT_CARD，到账金额>0，状态包含「商户确认到帐」
+          </div>
         </div>
       </div>
 
@@ -872,12 +902,12 @@ const timeCards = computed(() => [
             <span class="detail-value">{{ (metrics.alipayThirdPartyOtherCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.alipayThirdPartyOtherAmount || 0) }} 元</span>
           </div>
           <div class="section-formula">
-            数据范围：商户含「支付宝」，排除线下充值商户<br>
-            三方代收计算公式：<br>
-            - 汇通 = 银行卡代号 HTc2c 开头<br>
-            - 豆豆 = 银行卡代号 DDF 开头<br>
-            - UC聚合 = 银行卡代号 uc1020 开头<br>
-            - 其他 = 到账金额 ≠ 0，包含 GB-Dahaomen/Dahaomen 开头，排除汇通/豆豆/UC及 auction/gb 开头
+            <strong>数据范围：</strong>商户含「支付宝」且不含test/qa/线下，到账金额>0<br>
+            <strong>三方代收：</strong>银行卡代号非gb/auction开头，或是特定三方代收代码<br>
+            <strong>汇通：</strong>银行卡代号 HTc2c 开头<br>
+            <strong>豆豆：</strong>银行卡代号 DDF 开头<br>
+            <strong>UC聚合：</strong>银行卡代号 uc1020 开头<br>
+            <strong>其他：</strong>包含 GB-Dahaomen/Dahaomen 开头，排除汇通/豆豆/UC
           </div>
         </div>
       </div>
@@ -911,7 +941,14 @@ const timeCards = computed(() => [
             <span class="detail-label">卡验及人验</span>
             <span class="detail-value">{{ fraudStats.alipay.cardVerifyCount.toLocaleString() }} 笔</span>
           </div>
-          <div class="section-formula">数据來源：骗分统计（依筛选日期范围加总）</div>
+          <div class="section-formula">
+            <strong>数据来源：</strong>骗分统计（依筛选日期范围加总）<br>
+            <strong>人工：</strong>渠道=支付宝，类型=人工<br>
+            <strong>信评：</strong>渠道=支付宝，类型=信评<br>
+            <strong>没上传回单重复出款充值上分：</strong>渠道=支付宝，没上传回单笔数<br>
+            <strong>骗分拉黑：</strong>渠道=支付宝，骗分拉黑笔数<br>
+            <strong>卡验及人验：</strong>渠道=支付宝，卡验及人验笔数
+          </div>
         </div>
       </div>
 
@@ -946,9 +983,13 @@ const timeCards = computed(() => [
             <span class="detail-value highlight">{{ (metrics.alipayOverallMatchRate || 0).toFixed(2) }}%</span>
           </div>
           <div class="section-formula">
-            整体 配对成功/提现申请 计算公式：<br>
-            分子 = 银行卡订单成功极速提金额 + 支付宝订单成功极速提(卡)金额 + 支付宝订单成功极速提(宝)金额<br>
-            分母 = 支付宝提现申请金额 + 银行卡提现申请金额（来自提现分析）
+            <strong>宝转卡渠道 申请：</strong>商户包含「转卡」，银行卡代号=AUCTION_PAYMENT_CARD，银行名称=支付宝<br>
+            <strong>宝转卡渠道 成功：</strong>上述条件 + 到账金额≠0<br>
+            <strong>宝转宝渠道 申请：</strong>商户包含「宝)」，银行卡代号=AUCTION_PAYMENT_CARD，银行名称≠支付宝<br>
+            <strong>宝转宝渠道 成功：</strong>上述条件 + 到账金额≠0<br>
+            <strong>整体 配对成功/提现申请：</strong><br>
+            　分子 = 银行卡订单成功极速提金额 + 支付宝订单成功极速提(卡)金额 + 支付宝订单成功极速提(宝)金额<br>
+            　分母 = 支付宝提现申请金额 + 银行卡提现申请金额（来自提现分析）
           </div>
         </div>
       </div>
@@ -975,12 +1016,20 @@ const timeCards = computed(() => [
                 <span class="detail-value">{{ (metrics.wechatNormalCardAppCount || 0).toLocaleString() }}</span>
               </div>
               <div class="detail-item">
-                <span class="detail-label">极速</span>
-                <span class="detail-value">{{ (metrics.wechatExpressCardAppCount || 0).toLocaleString() }}</span>
+                <span class="detail-label">一般宝</span>
+                <span class="detail-value">{{ (metrics.wechatExpressBaoAppCount || 0).toLocaleString() }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">极速提(卡)</span>
+                <span class="detail-value">{{ (metrics.wechatJisuTikaCount || 0).toLocaleString() }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">极速提(宝)</span>
+                <span class="detail-value">{{ (metrics.wechatJisuTibaoCount || 0).toLocaleString() }}</span>
               </div>
               <div class="detail-item">
                 <span class="detail-label">建单成功等待无配对</span>
-                <span class="detail-value">0</span>
+                <span class="detail-value">{{ (metrics.wechatWaitingForMatchCount || 0).toLocaleString() }}</span>
               </div>
               <div class="detail-item">
                 <span class="detail-label">取无卡06提示</span>
@@ -988,7 +1037,13 @@ const timeCards = computed(() => [
               </div>
             </div>
             <div class="block-formula">
-              商户含"微信"
+              <strong>数据范围：</strong>商户含「微信」且不含test/qa/线下<br>
+              <strong>一般卡：</strong>银行卡代号有值且≠AUCTION_PAYMENT_CARD，银行名称≠支付宝/支付宝(企)/微信支付<br>
+              <strong>一般宝：</strong>银行卡代号有值且≠AUCTION_PAYMENT_CARD，银行名称=支付宝/支付宝(企)/微信支付<br>
+              <strong>极速提(卡)：</strong>银行卡代号=AUCTION_PAYMENT_CARD，银行名称≠支付宝/支付宝(企)/微信支付<br>
+              <strong>极速提(宝)：</strong>银行卡代号=AUCTION_PAYMENT_CARD，银行名称=支付宝/支付宝(企)/微信支付<br>
+              <strong>建单成功等待无配对：</strong>银行卡代号为空的笔数<br>
+              <strong>充值申请笔数：</strong>一般卡 + 一般宝 + 极速提(卡) + 极速提(宝)
             </div>
           </div>
 
@@ -1004,11 +1059,25 @@ const timeCards = computed(() => [
                 <span class="detail-value">{{ (metrics.wechatNormalMatchCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.wechatNormalMatchAmount || 0) }} 元</span>
               </div>
               <div class="detail-item">
-                <span class="detail-label">极速</span>
-                <span class="detail-value">{{ (metrics.wechatExpressMatchCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.wechatExpressMatchAmount || 0) }} 元</span>
+                <span class="detail-label">一般宝</span>
+                <span class="detail-value">{{ (metrics.wechatExpressBaoMatchCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.wechatExpressBaoMatchAmount || 0) }} 元</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">极速提(卡)</span>
+                <span class="detail-value">{{ (metrics.wechatJisuTikaMatchCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.wechatJisuTikaMatchAmount || 0) }} 元</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">极速提(宝)</span>
+                <span class="detail-value">{{ (metrics.wechatJisuTibaoMatchCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.wechatJisuTibaoMatchAmount || 0) }} 元</span>
               </div>
             </div>
-            <div class="block-formula">银行卡代码不为空 的笔数/申请金额</div>
+            <div class="block-formula">
+              <strong>一般卡：</strong>银行卡代号有值且≠AUCTION_PAYMENT_CARD，银行名称≠支付宝/支付宝(企)/微信支付<br>
+              <strong>一般宝：</strong>银行卡代号有值且≠AUCTION_PAYMENT_CARD，银行名称=支付宝/支付宝(企)/微信支付<br>
+              <strong>极速提(卡)：</strong>银行卡代号=AUCTION_PAYMENT_CARD，银行名称≠支付宝/支付宝(企)/微信支付<br>
+              <strong>极速提(宝)：</strong>银行卡代号=AUCTION_PAYMENT_CARD，银行名称=支付宝/支付宝(企)/微信支付<br>
+              <strong>金额：</strong>使用充值金额（申请金额）计算
+            </div>
           </div>
 
           <!-- 3. 订单成功笔数/金额 -->
@@ -1023,8 +1092,16 @@ const timeCards = computed(() => [
                 <span class="detail-value">{{ (metrics.wechatNormalOrderSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.wechatNormalOrderSuccessAmount || 0) }} 元</span>
               </div>
               <div class="detail-item">
-                <span class="detail-label">极速</span>
-                <span class="detail-value">{{ (metrics.wechatExpressOrderSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.wechatExpressOrderSuccessAmount || 0) }} 元</span>
+                <span class="detail-label">一般宝</span>
+                <span class="detail-value">{{ (metrics.wechatBaoOrderSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.wechatBaoOrderSuccessAmount || 0) }} 元</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">极速提(卡)</span>
+                <span class="detail-value">{{ (metrics.wechatJisuTikaOrderSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.wechatJisuTikaOrderSuccessAmount || 0) }} 元</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">极速提(宝)</span>
+                <span class="detail-value">{{ (metrics.wechatJisuTibaoOrderSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.wechatJisuTibaoOrderSuccessAmount || 0) }} 元</span>
               </div>
               <div class="detail-item">
                 <span class="detail-label">信评上分</span>
@@ -1040,8 +1117,13 @@ const timeCards = computed(() => [
               </div>
             </div>
             <div class="block-formula">
-              实际收到金额 > 0 的笔数/金额<br>
-              <strong>平均处理时间：</strong>没信评降等配卡的平均处理时间
+              <strong>订单成功条件：</strong>正规化状态有值且≠未充值/图文复核(已超时)/审核中(已超时)<br>
+              <strong>一般卡：</strong>银行卡代号有值且≠AUCTION_PAYMENT_CARD，银行名称≠支付宝/支付宝(企)/微信支付 + 上述条件<br>
+              <strong>一般宝：</strong>银行卡代号有值且≠AUCTION_PAYMENT_CARD，银行名称=支付宝/支付宝(企)/微信支付 + 上述条件<br>
+              <strong>极速提(卡)：</strong>银行卡代号=AUCTION_PAYMENT_CARD，银行名称≠支付宝/支付宝(企)/微信支付 + 上述条件<br>
+              <strong>极速提(宝)：</strong>银行卡代号=AUCTION_PAYMENT_CARD，银行名称=支付宝/支付宝(企)/微信支付 + 上述条件<br>
+              <strong>信评上分：</strong>到账金额>0 且状态包含「信用」<br>
+              <strong>平均处理时间：</strong>到账金额>0，用户等级≠0且≠-1 的平均处理时间
             </div>
           </div>
 
@@ -1067,7 +1149,10 @@ const timeCards = computed(() => [
                 <span class="detail-value">{{ (metrics.wechatNoCreditDowngradeByAmount?.['other'] || 0).toLocaleString() }} 笔</span>
               </div>
             </div>
-            <div class="block-formula">无信评降等配卡的笔数，按申请金额分组统计</div>
+            <div class="block-formula">
+              <strong>条件：</strong>银行卡代号≠AUCTION_PAYMENT_CARD，到账金额≠0，用户等级≠0且≠-1<br>
+              <strong>分组：</strong>按充值金额（申请金额）分组统计
+            </div>
           </div>
         </div>
       </div>
@@ -1100,7 +1185,12 @@ const timeCards = computed(() => [
             <span class="detail-label">超过11min补件后才成功</span>
             <span class="detail-value">0 笔</span>
           </div>
-          <div class="section-formula">银行卡代码含"c2c" 的订单成功笔数/金额</div>
+          <div class="section-formula">
+            <strong>c2c：</strong>银行卡代号=AUCTION_PAYMENT_CARD，到账金额>0，状态包含「用户确认到帐」<br>
+            <strong>点确认：</strong>到账金额>0，状态包含「用户确认到帐」<br>
+            <strong>人工审核:通过：</strong>银行卡代号包含AUCTION，到账金额>0，状态包含「金額補單」，处理时间≤11分钟<br>
+            <strong>超过11min补件后成功：</strong>银行卡代号包含AUCTION，到账金额>0，状态包含「金額補單」，处理时间>11分钟 + 银行卡代号包含AUCTION_PAYMENT_CARD，到账金额>0，状态包含「商户确认到帐」
+          </div>
         </div>
       </div>
 
@@ -1128,7 +1218,14 @@ const timeCards = computed(() => [
             <span class="detail-label">UC聚合 (UC1020)</span>
             <span class="detail-value">0 笔 / 0 元</span>
           </div>
-          <div class="section-formula">银行卡代码为特定三方代收代码 的订单成功笔数/金额</div>
+          <div class="section-formula">
+            <strong>数据范围：</strong>商户含「微信」且不含test/qa/线下，到账金额>0<br>
+            <strong>三方代收：</strong>银行卡代号非gb/auction开头，或是特定三方代收代码<br>
+            <strong>GB-DahaomenJFB：</strong>银行卡代号 GB-Dahaomen/Dahaomen 开头<br>
+            <strong>汇通：</strong>银行卡代号 HTc2c 开头<br>
+            <strong>豆豆：</strong>银行卡代号 DDF 开头<br>
+            <strong>UC聚合：</strong>银行卡代号 uc1020 开头
+          </div>
         </div>
       </div>
 
@@ -1157,7 +1254,13 @@ const timeCards = computed(() => [
             <span class="detail-label">卡验及人验</span>
             <span class="detail-value">0 笔</span>
           </div>
-          <div class="section-formula">数据來源：骗分统计（依筛选日期范围加总）</div>
+          <div class="section-formula">
+            <strong>数据来源：</strong>骗分统计（依筛选日期范围加总）<br>
+            <strong>人工：</strong>渠道=微信，类型=人工<br>
+            <strong>信评：</strong>渠道=微信，类型=信评<br>
+            <strong>骗分拉黑：</strong>渠道=微信，骗分拉黑笔数<br>
+            <strong>卡验及人验：</strong>渠道=微信，卡验及人验笔数
+          </div>
         </div>
       </div>
     </template>
@@ -1457,6 +1560,12 @@ const timeCards = computed(() => [
   margin-top: 10px;
   padding-top: 10px;
   border-top: 1px solid #e8e8e8;
+}
+
+.c2c-content > .detail-header:first-child {
+  border-top: none;
+  margin-top: 0;
+  padding-top: 0;
 }
 
 .detail-item.summary-item {

@@ -217,10 +217,16 @@ const handleFilter = (filtered) => {
 };
 
 const handleExport = () => {
+  // 將日期範圍轉換為 weekRange 格式
+  const weekRange = dateRange.value.dateFrom ? {
+    start: dateRange.value.dateFrom,
+    end: dateRange.value.dateTo || dateRange.value.dateFrom
+  } : null;
+
   if (activeTab.value === 'deposit') {
-    exportDepositToExcel(metrics.value, filteredRecords.value);
+    exportDepositToExcel(metrics.value, filteredRecords.value, weekRange);
   } else if (activeTab.value === 'withdraw') {
-    exportWithdrawToExcel(metrics.value);
+    exportWithdrawToExcel(metrics.value, weekRange);
   }
 };
 

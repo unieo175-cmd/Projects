@@ -23,6 +23,14 @@ const endDate = ref('');
 // 日期范围错误信息
 const dateRangeError = ref('');
 
+// 导出状态
+const isExporting = ref(false);
+const exportProgress = ref('');
+
+// 计算状态
+const isCalculating = ref(false);
+const calculationError = ref('');
+
 // 日期范围
 const weekRange = computed(() => {
   if (!startDate.value || !endDate.value) return { start: '', end: '', startDate: null, endDate: null };
@@ -60,13 +68,28 @@ const filteredWithdrawRecords = computed(() => {
 // 计算充值指标
 const depositMetrics = computed(() => {
   if (filteredDepositRecords.value.length === 0) return null;
-  return calculateMetrics(filteredDepositRecords.value);
+  try {
+    calculationError.value = '';
+    // 传入 dataDate 以正确计算 noCard06Count
+    const dataDate = weekRange.value?.start || null;
+    return calculateMetrics(filteredDepositRecords.value, null, dataDate);
+  } catch (error) {
+    console.error('充值指标计算错误:', error);
+    calculationError.value = error.message || '计算超时，请减少数据量';
+    return null;
+  }
 });
 
 // 计算提现指标
 const withdrawMetrics = computed(() => {
   if (filteredWithdrawRecords.value.length === 0) return null;
-  return calculateWithdrawMetrics(filteredWithdrawRecords.value, depositMetrics.value);
+  try {
+    return calculateWithdrawMetrics(filteredWithdrawRecords.value, depositMetrics.value);
+  } catch (error) {
+    console.error('提现指标计算错误:', error);
+    calculationError.value = error.message || '计算超时，请减少数据量';
+    return null;
+  }
 });
 
 // 计算周报重要指标
@@ -144,12 +167,61 @@ const weeklyMetrics = computed(() => {
   const withdrawAvgTimeAlipay = wm.alipayAvgTime || 0;  // 提现平均时间（宝）
 
   // ===== 骗分 =====
-  // 骗分 = 银行卡的骗分没到账来找的人工 + 银行卡的信评金额 + 支付宝的骗分没到账来找的人工 + 支付宝的信评金额
-  // 目前数据中没有这些栏位，先设为0（待定义计算条件）
-  const fraudBankCardManual = 0;  // 银行卡的骗分没到账来找的人工
-  const fraudBankCardCredit = 0;  // 银行卡的信评金额
-  const fraudAlipayManual = 0;    // 支付宝的骗分没到账来找的人工
-  const fraudAlipayCredit = 0;    // 支付宝的信评金额
+  // 从 localStorage 读取骗分记录并按周范围加总
+  let fraudBankCardManual = 0;  // 银行卡的骗分没到账来找的人工金额
+  let fraudBankCardManualCount = 0;  // 银行卡的骗分没到账来找的人工笔数
+  let fraudBankCardCredit = 0;  // 银行卡的信评金额
+  let fraudBankCardCreditCount = 0;  // 银行卡的信评笔数
+  let fraudBankCardFraudBlacklistCount = 0;  // 银行卡的骗分拉黑
+  let fraudBankCardCardVerifyCount = 0;  // 银行卡的卡验及人验
+  let fraudAlipayManual = 0;    // 支付宝的骗分没到账来找的人工金额
+  let fraudAlipayManualCount = 0;  // 支付宝的骗分没到账来找的人工笔数
+  let fraudAlipayCredit = 0;    // 支付宝的信评金额
+  let fraudAlipayCreditCount = 0;  // 支付宝的信评笔数
+  let fraudAlipayNoReceiptCount = 0;  // 支付宝的没上传回单重复出款充值上分
+  let fraudAlipayFraudBlacklistCount = 0;  // 支付宝的骗分拉黑
+  let fraudAlipayCardVerifyCount = 0;  // 支付宝的卡验及人验
+
+  try {
+    const stored = localStorage.getItem('fraudRecords');
+    if (stored) {
+      const records = JSON.parse(stored);
+      if (Array.isArray(records)) {
+        // 过滤符合周范围的记录
+        const dateFrom = weekRange.value?.start || '';
+        const dateTo = weekRange.value?.end || '';
+
+        const filteredFraudRecords = records.filter(r => {
+          if (!r.date) return false;
+          if (dateFrom && r.date < dateFrom) return false;
+          if (dateTo && r.date > dateTo) return false;
+          return true;
+        });
+
+        // 加总所有符合条件的记录
+        filteredFraudRecords.forEach(r => {
+          // 银行卡
+          fraudBankCardManual += parseFloat(r.bankCardManualAmount) || 0;
+          fraudBankCardManualCount += parseInt(r.bankCardManualCount) || 0;
+          fraudBankCardCredit += parseFloat(r.bankCardCreditAmount) || 0;
+          fraudBankCardCreditCount += parseInt(r.bankCardCreditCount) || 0;
+          fraudBankCardFraudBlacklistCount += parseInt(r.bankCardFraudBlacklistCount) || 0;
+          fraudBankCardCardVerifyCount += parseInt(r.bankCardCardVerifyCount) || 0;
+          // 支付宝
+          fraudAlipayManual += parseFloat(r.alipayManualAmount) || 0;
+          fraudAlipayManualCount += parseInt(r.alipayManualCount) || 0;
+          fraudAlipayCredit += parseFloat(r.alipayCreditAmount) || 0;
+          fraudAlipayCreditCount += parseInt(r.alipayCreditCount) || 0;
+          fraudAlipayNoReceiptCount += parseInt(r.alipayNoReceiptCount) || 0;
+          fraudAlipayFraudBlacklistCount += parseInt(r.alipayFraudBlacklistCount) || 0;
+          fraudAlipayCardVerifyCount += parseInt(r.alipayCardVerifyCount) || 0;
+        });
+      }
+    }
+  } catch (e) {
+    console.error('读取骗分记录失败:', e);
+  }
+
   const fraudAmount = fraudBankCardManual + fraudBankCardCredit + fraudAlipayManual + fraudAlipayCredit;
 
   // 骗分成本占比 = 骗分 / 配极速充值订单成功(金额)
@@ -226,9 +298,18 @@ const weeklyMetrics = computed(() => {
     // 骗分
     fraudAmount,
     fraudBankCardManual,
+    fraudBankCardManualCount,
     fraudBankCardCredit,
+    fraudBankCardCreditCount,
+    fraudBankCardFraudBlacklistCount,
+    fraudBankCardCardVerifyCount,
     fraudAlipayManual,
+    fraudAlipayManualCount,
     fraudAlipayCredit,
+    fraudAlipayCreditCount,
+    fraudAlipayNoReceiptCount,
+    fraudAlipayFraudBlacklistCount,
+    fraudAlipayCardVerifyCount,
     fraudCostRatio,
     jsWithdrawRebate,
     // 配对率＆空单率
@@ -259,52 +340,32 @@ const weeklyMetrics = computed(() => {
 const analysisMetrics = computed(() => {
   // 使用按日期范围筛选后的数据
   const depositData = filteredDepositRecords.value;
-  if (depositData.length === 0) return null;
+  const dm = depositMetrics.value;
+  const wm = withdrawMetrics.value;
+  if (depositData.length === 0 || !dm) return null;
 
-  // 计算各分类的指标 (根据 Excel 公式)
-  // isOverall: 是否为整体，整体的补单公式包含「确认到帐」，分类则只有「补单」
-  const calculateCategoryMetrics = (allRecords, isOverall = false) => {
-    if (allRecords.length === 0) return { successRate: 0, within3MinRate: 0, avgTime: 0 };
+  // ===== 通用计算函数 =====
+  // 资料范围: 订单成功条件
+  // 充值成功率 = 订单成功笔数 / 总申请笔数 * 100%
+  // 3分内占比 = 处理时间 < 180秒的笔数 / 订单成功笔数 * 100%
+  // 平均处理时间 = 到账金额>0 的平均处理时间（同充值分析页面）
+  const calculateCategoryMetrics = (orderSuccessRecords, totalApplicationCount, avgTimeRecords = null) => {
+    const successCount = orderSuccessRecords.length;
+    if (successCount === 0) return { successRate: 0, within3MinRate: 0, avgTime: 0 };
 
-    // 总充值笔数 = AP > 0
-    const totalDeposit = allRecords.filter(r => r.receivedAmount > 0);
-    const totalDepositCount = totalDeposit.length;
-    if (totalDepositCount === 0) return { successRate: 0, within3MinRate: 0, avgTime: 0 };
+    // 充值成功率 = 订单成功笔数 / 总申请笔数 * 100%
+    const successRate = totalApplicationCount > 0 ? (successCount / totalApplicationCount) * 100 : 0;
 
-    // 自动到账笔数 (P4/P5) = AP > 0 且 AO = 1
-    const autoDepositRecords = totalDeposit.filter(r => r.isAutoDeposit);
-    const p4 = autoDepositRecords.length;
+    // 3分内占比 = 处理时间 < 180秒的笔数 / 订单成功笔数 * 100%
+    const within3MinCount = orderSuccessRecords.filter(r =>
+      r.processingTime !== null && r.processingTime >= 0 && r.processingTime < 180
+    ).length;
+    const within3MinRate = successCount > 0 ? (within3MinCount / successCount) * 100 : 0;
 
-    // 补单笔数
-    // - 整体: AP > 0 且 状态含「补单」或「补单」或「确认到帐」或「确认到账」
-    // - 分类: AP > 0 且 状态含「补单」或「补单」(不包含「确认到帐」)
-    let buDanCount;
-    if (isOverall) {
-      buDanCount = totalDeposit.filter(r =>
-        r.status.includes('补单') || r.status.includes('补单') ||
-        r.status.includes('确认到帐') || r.status.includes('确认到账')
-      ).length;
-    } else {
-      buDanCount = totalDeposit.filter(r =>
-        r.status.includes('补单') || r.status.includes('补单')
-      ).length;
-    }
-
-    // 3分钟内笔数 = AP > 0 且 AN = 1 (不要求 AO = 1)
-    const within3MinCount = totalDeposit.filter(r => r.isWithin3Min).length;
-
-    // 充值成功率 = 1 - 补单笔数 / 总充值笔数
-    const successRate = 1 - (buDanCount / totalDepositCount);
-
-    // 充值3分内占比 = 3分钟内笔数 / 自动到账笔数
-    const within3MinRate = p4 > 0 ? within3MinCount / p4 : 0;
-
-    // 平均时间 = AVERAGEIFS(AN:AN, M:M, ">0")
-    // AN = processingTime, M = receivedAmount
-    // 计算所有 receivedAmount > 0 且 processingTime 有值的记录平均时间
-    const recordsWithTime = totalDeposit.filter(r =>
-      r.processingTime !== null &&
-      r.processingTime >= 0
+    // 平均处理时间 = 到账金额>0 的平均处理时间（如果提供了 avgTimeRecords，则使用它）
+    const recordsForAvg = avgTimeRecords || orderSuccessRecords;
+    const recordsWithTime = recordsForAvg.filter(r =>
+      r.processingTime !== null && r.processingTime >= 0
     );
     const avgTime = recordsWithTime.length > 0
       ? recordsWithTime.reduce((sum, r) => sum + r.processingTime, 0) / recordsWithTime.length
@@ -313,176 +374,165 @@ const analysisMetrics = computed(() => {
     return { successRate, within3MinRate, avgTime };
   };
 
-  // 1. 整体 (isOverall = true, 补单公式包含「确认到帐」)
-  const overallMetrics = calculateCategoryMetrics(depositData, true);
+  // ===== 1. 整体 =====
+  // 资料范围: 同充值分析的重要信息-总申请笔数的条件 (极速银行卡+支付宝+微信 成功配对笔数)
+  // 使用 depositMetrics 的值
+  const overallSuccessRecords = depositData.filter(r => r.receivedAmount > 0);
 
-  // 2. 支付宝 (isOverall = false, 补单公式只有「补单」)
-  const alipayAll = depositData.filter(r =>
-    r.merchant && (r.merchant.includes('支付宝') || r.merchant.includes('支付宝'))
-  );
-  const alipayMetrics = calculateCategoryMetrics(alipayAll, false);
+  const overallMetrics = calculateCategoryMetrics(overallSuccessRecords, dm.totalApplicationCount || overallSuccessRecords.length);
 
-  // 3. 微信 (isOverall = false, 补单公式只有「补单」)
-  const wechatAll = depositData.filter(r =>
-    r.merchant && r.merchant.includes('微信')
-  );
-  const wechatMetrics = calculateCategoryMetrics(wechatAll, false);
+  // ===== 2. 支付宝 =====
+  // 资料范围: 同充值分析的极速支付宝页面（同 csvParser.js alipayRecords）
+  // 订单成功条件：同 csvParser.js 的 alipayNormalOrderSuccess + alipayBaoOrderSuccess + alipayJisuTikaOrderSuccess + alipayJisuTibaoOrderSuccess
+  const alipayRecords = depositData.filter(r => {
+    const merchant = r.merchant || '';
+    const hasAlipay = merchant.includes('支付宝') || merchant.includes('支付寶');
+    const merchantLower = merchant.toLowerCase();
+    const hasTest = merchantLower.includes('test');
+    const hasQa = merchantLower.includes('qa');
+    const hasOffline = merchant.includes('線下') || merchant.includes('线下');
+    return hasAlipay && !hasTest && !hasQa && !hasOffline;
+  });
 
-  // 4. 金宝 (特殊计算：3分钟内笔数 和 P4 使用不同筛选条件)
-  // P4/总充值/补单：bankCardCode 包含 GB，排除 GB-DahaomenJFB2025
-  // 3分钟内笔数：bankCardCode 包含 GB（不排除 GB-DahaomenJFB2025）
-  const gbAllForP4 = depositData.filter(r =>
-    r.bankCardCode &&
-    r.bankCardCode.includes('GB') &&
-    !r.bankCardCode.includes('GB-DahaomenJFB2025')
-  );
-  const gbAllForWithin3Min = depositData.filter(r =>
-    r.bankCardCode &&
-    r.bankCardCode.includes('GB')
-  );
-  // 手动计算金宝指标
-  const gbTotalDeposit = gbAllForP4.filter(r => r.receivedAmount > 0);
-  const gbTotalDepositCount = gbTotalDeposit.length;
-  const gbAutoDepositRecords = gbTotalDeposit.filter(r => r.isAutoDeposit);
-  const gbP4 = gbAutoDepositRecords.length;
-  const gbBuDanCount = gbTotalDeposit.filter(r =>
-    r.status.includes('补单') || r.status.includes('补单')
-  ).length;
-  // 3分钟内笔数 使用包含所有 GB 的数据
-  const gbWithin3MinCount = gbAllForWithin3Min.filter(r => r.receivedAmount > 0 && r.isWithin3Min).length;
-  const gbSuccessRate = gbTotalDepositCount > 0 ? 1 - (gbBuDanCount / gbTotalDepositCount) : 0;
-  const gbWithin3MinRate = gbP4 > 0 ? gbWithin3MinCount / gbP4 : 0;
-  // 平均时间 使用包含所有 GB 的数据 (不排除 GB-DahaomenJFB2025)
-  const gbRecordsWithTime = gbAllForWithin3Min.filter(r =>
-    r.receivedAmount > 0 &&
-    r.isAutoDeposit &&
-    r.processingTime !== null &&
-    r.processingTime >= 0 &&
-    r.notifyMerchantTime &&
-    !r.notifyMerchantTime.includes('0000-00-00')
-  );
-  const gbTotalTime = gbRecordsWithTime.reduce((sum, r) => sum + r.processingTime, 0);
-  const gbAvgTime = gbP4 > 0 ? gbTotalTime / gbP4 : 0;
-  const gbMetrics = { successRate: gbSuccessRate, within3MinRate: gbWithin3MinRate, avgTime: gbAvgTime };
+  // 支付宝订单成功条件（同 csvParser.js）：
+  // - bankCardCode 有值
+  // - normalizedStatus 有值
+  // - normalizedStatus ≠ '未充值'
+  // - normalizedStatus ≠ '图文复核(已超时)'
+  // - normalizedStatus ≠ '审核中(已超时)'
+  const alipayOrderSuccessRecords = alipayRecords.filter(r => {
+    if (!r.bankCardCode) return false;
+    if (!r.normalizedStatus) return false;
+    if (r.normalizedStatus === '未充值') return false;
+    if (r.normalizedStatus === '图文复核(已超时)') return false;
+    if (r.normalizedStatus === '审核中(已超时)') return false;
+    return true;
+  });
 
-  // 5. 极速 (特殊计算：3分钟内笔数 和 P8 使用不同筛选条件)
-  // P8/总充值/补单：bankCardCode 包含 AUCTION，排除 GB-DahaomenJFB2025
-  // 3分钟内笔数：bankCardCode 包含 AUCTION（不排除 GB-DahaomenJFB2025）
-  const auctionAllForP8 = depositData.filter(r =>
-    r.bankCardCode &&
-    r.bankCardCode.includes('AUCTION') &&
-    !r.bankCardCode.includes('GB-DahaomenJFB2025')
-  );
-  const auctionAllForWithin3Min = depositData.filter(r =>
-    r.bankCardCode &&
-    r.bankCardCode.includes('AUCTION')
-  );
-  // 手动计算极速指标
-  const auctionTotalDeposit = auctionAllForP8.filter(r => r.receivedAmount > 0);
-  const auctionTotalDepositCount = auctionTotalDeposit.length;
-  const auctionAutoDepositRecords = auctionTotalDeposit.filter(r => r.isAutoDeposit);
-  const auctionP8 = auctionAutoDepositRecords.length;
-  const auctionBuDanCount = auctionTotalDeposit.filter(r =>
-    r.status.includes('补单') || r.status.includes('补单')
-  ).length;
-  // 3分钟内笔数 使用包含所有 AUCTION 的数据
-  const auctionWithin3MinCount = auctionAllForWithin3Min.filter(r => r.receivedAmount > 0 && r.isWithin3Min).length;
-  const auctionSuccessRate = auctionTotalDepositCount > 0 ? 1 - (auctionBuDanCount / auctionTotalDepositCount) : 0;
-  const auctionWithin3MinRate = auctionP8 > 0 ? auctionWithin3MinCount / auctionP8 : 0;
-  const auctionRecordsWithTime = auctionAutoDepositRecords.filter(r =>
-    r.processingTime !== null &&
-    r.processingTime >= 0 &&
-    r.notifyMerchantTime &&
-    !r.notifyMerchantTime.includes('0000-00-00')
-  );
-  const auctionTotalTime = auctionRecordsWithTime.reduce((sum, r) => sum + r.processingTime, 0);
-  const auctionAvgTime = auctionP8 > 0 ? auctionTotalTime / auctionP8 : 0;
-  const auctionMetrics = { successRate: auctionSuccessRate, within3MinRate: auctionWithin3MinRate, avgTime: auctionAvgTime };
+  // 支付宝平均处理时间使用 receivedAmount > 0 的记录（同充值分析页面 alipayNoCreditDowngradeAvgTime）
+  const alipayAvgTimeRecords = alipayRecords.filter(r => r.receivedAmount > 0);
 
-  // 6. 第三方 (不包含GB且不包含AUCTION，或者等于GB-DahaomenJFB2025)
-  const thirdPartyAll = depositData.filter(r =>
-    r.bankCardCode && (
-      // 条件1: 不包含 GB 且 不包含 AUCTION
-      (!r.bankCardCode.includes('GB') && !r.bankCardCode.includes('AUCTION')) ||
-      // 条件2: 等于 GB-DahaomenJFB2025
-      r.bankCardCode === 'GB-DahaomenJFB2025'
-    )
-  );
-  const thirdPartyMetrics = calculateCategoryMetrics(thirdPartyAll, false);
+  const alipayMetrics = calculateCategoryMetrics(alipayOrderSuccessRecords, dm.alipayApplicationCount || alipayRecords.length, alipayAvgTimeRecords);
 
-  // 7. 非正向信评 (status包含信用評分或信評上分)
-  // 3分钟内笔数需要 AO = 1 AND AN = 1
-  const creditAll = depositData.filter(r =>
-    r.status && (r.status.includes('信用評分') || r.status.includes('信評上分') ||
-                 r.status.includes('信用评分') || r.status.includes('信评上分'))
-  );
-  // 手动计算非正向信评指标
-  const creditTotalDeposit = creditAll.filter(r => r.receivedAmount > 0);
-  const creditTotalDepositCount = creditTotalDeposit.length;
-  const creditAutoDepositRecords = creditTotalDeposit.filter(r => r.isAutoDeposit);
-  const creditP10 = creditAutoDepositRecords.length;
-  const creditBuDanCount = creditTotalDeposit.filter(r =>
-    r.status.includes('补单') || r.status.includes('补单')
-  ).length;
-  // 3分钟内笔数 = AP > 0 AND AO = 1 AND AN = 1
-  const creditWithin3MinCount = creditAutoDepositRecords.filter(r => r.isWithin3Min).length;
-  const creditSuccessRate = creditTotalDepositCount > 0 ? 1 - (creditBuDanCount / creditTotalDepositCount) : 0;
-  const creditWithin3MinRate = creditP10 > 0 ? creditWithin3MinCount / creditP10 : 0;
-  const creditRecordsWithTime = creditAutoDepositRecords.filter(r =>
-    r.processingTime !== null &&
-    r.processingTime >= 0 &&
-    r.notifyMerchantTime &&
-    !r.notifyMerchantTime.includes('0000-00-00')
-  );
-  const creditTotalTime = creditRecordsWithTime.reduce((sum, r) => sum + r.processingTime, 0);
-  const creditAvgTime = creditP10 > 0 ? creditTotalTime / creditP10 : 0;
-  const creditMetrics = { successRate: creditSuccessRate, within3MinRate: creditWithin3MinRate, avgTime: creditAvgTime };
+  // ===== 3. 微信 =====
+  // 资料范围: 同充值分析的微信页面（同 csvParser.js wechatRecords）
+  const wechatRecords = depositData.filter(r => {
+    const merchant = r.merchant || '';
+    const hasWechat = merchant.includes('微信');
+    const merchantLower = merchant.toLowerCase();
+    const hasTest = merchantLower.includes('test');
+    const hasQa = merchantLower.includes('qa');
+    const hasOffline = merchant.includes('線下') || merchant.includes('线下');
+    return hasWechat && !hasTest && !hasQa && !hasOffline;
+  });
+
+  // 微信订单成功条件（同 csvParser.js）：
+  // - bankCardCode 有值
+  // - receivedAmount > 0
+  // - status 有值
+  // - status 不含 '未充值'
+  // - status 不含 '审核中(已超时)'
+  const wechatOrderSuccessRecords = wechatRecords.filter(r => {
+    if (!r.bankCardCode) return false;
+    if (r.receivedAmount <= 0) return false;
+    if (!r.status) return false;
+    if (r.status.includes('未充值')) return false;
+    if (r.status.includes('审核中(已超时)')) return false;
+    return true;
+  });
+
+  // 微信平均处理时间条件（同 csvParser.js wechatNoCreditDowngradeAvgTime）：
+  // - userLevel !== 0 && userLevel !== -1
+  // - receivedAmount > 0
+  const wechatAvgTimeRecords = wechatRecords.filter(r => {
+    const userLevel = parseFloat(r.userLevel);
+    return userLevel !== 0 && userLevel !== -1 && r.receivedAmount > 0;
+  });
+
+  const wechatMetrics = calculateCategoryMetrics(wechatOrderSuccessRecords, dm.wechatApplicationCount || wechatRecords.length, wechatAvgTimeRecords);
+
+  // ===== 4. 金宝 =====
+  // 资料范围: raw data, 到账金额 > 0, 银行卡代号 GB 开头, 排除 GB-Dahaomen, 排除线下商户
+  const isOfflineMerchant = (merchant) => merchant && (merchant.includes('線下') || merchant.includes('线下'));
+  const gbSuccessRecords = depositData.filter(r => {
+    if (r.receivedAmount <= 0) return false;
+    if (!r.bankCardCode) return false;
+    if (isOfflineMerchant(r.merchant)) return false;
+    const code = r.bankCardCode.toUpperCase();
+    return code.startsWith('GB') && !code.startsWith('GB-DAHAOMEN');
+  });
+
+  const gbMetrics = calculateCategoryMetrics(gbSuccessRecords, gbSuccessRecords.length);
+
+  // ===== 5. 极速 =====
+  // 资料范围: raw data, 到账金额 > 0, 银行卡代号 AUCTION 开头, 排除线下商户
+  const auctionSuccessRecords = depositData.filter(r => {
+    if (r.receivedAmount <= 0) return false;
+    if (!r.bankCardCode) return false;
+    if (isOfflineMerchant(r.merchant)) return false;
+    const code = r.bankCardCode.toUpperCase();
+    return code.startsWith('AUCTION');
+  });
+
+  const auctionMetrics = calculateCategoryMetrics(auctionSuccessRecords, auctionSuccessRecords.length);
+
+  // ===== 6. 第三方 =====
+  // 资料范围: raw data, 到账金额 > 0, 排除 AUCTION 和 GB 开头, 但包含 GB-Dahaomen 开头, 排除线下商户
+  const thirdPartySuccessRecords = depositData.filter(r => {
+    if (r.receivedAmount <= 0) return false;
+    if (!r.bankCardCode) return false;
+    if (isOfflineMerchant(r.merchant)) return false;
+    const code = r.bankCardCode.toUpperCase();
+    // 包含 GB-Dahaomen 开头
+    if (code.startsWith('GB-DAHAOMEN')) return true;
+    // 排除 AUCTION 和 GB 开头
+    if (code.startsWith('AUCTION') || code.startsWith('GB')) return false;
+    return true;
+  });
+
+  const thirdPartyMetrics = calculateCategoryMetrics(thirdPartySuccessRecords, thirdPartySuccessRecords.length);
+
+  // ===== 7. 非正向信评 =====
+  // 资料范围: raw data, 到账金额 > 0, 状态以「信用」或「信评」开头
+  const creditSuccessRecords = depositData.filter(r => {
+    if (r.receivedAmount <= 0) return false;
+    const status = r.status || '';
+    return status.startsWith('信用') || status.startsWith('信评') || status.startsWith('信評');
+  });
+
+  const creditMetrics = calculateCategoryMetrics(creditSuccessRecords, creditSuccessRecords.length);
 
   // ===== 提现数据计算 =====
-  const withdrawData = props.withdrawRecords;
+  // 筛选日期范围内的提现记录
+  const withdrawData = filteredWithdrawRecords.value;
 
-  // 计算提现类别指标（按唯一流水号计算）
-  const calculateWithdrawCategoryMetrics = (records) => {
+  // 计算提现类别指标（比照充值计算逻辑）
+  // 成功率 = 提现成功笔数 / 总申请笔数 * 100%
+  // 2分内占比 = 2分钟内的笔数 / 提现成功笔数 * 100%
+  // 平均处理时间 = 提现成功笔数的平均处理时间
+  const calculateWithdrawCategoryMetrics = (records, totalApplicationCount = null) => {
     if (records.length === 0) return { successRate: 0, within3MinRate: 0, avgTime: 0 };
 
-    // 按流水号分组
-    const withdrawalsById = {};
-    records.forEach(r => {
-      const id = r.id;
-      if (!withdrawalsById[id]) {
-        withdrawalsById[id] = { hasAutoWithdraw: false, hasFailedRecord: false };
-      }
-      if (r.isAutoWithdraw === 1) {
-        withdrawalsById[id].hasAutoWithdraw = true;
-      }
-      if (r.actualAmount === 0 && r.transferStatus !== '转账完成') {
-        withdrawalsById[id].hasFailedRecord = true;
-      }
-    });
+    // 提现成功 = 转账状态为「轉帳完成」或「转帐完成」
+    const successRecords = records.filter(r =>
+      r.transferStatus === '轉帳完成' || r.transferStatus === '转帐完成'
+    );
+    const successCount = successRecords.length;
 
-    // 计算唯一提现申请
-    const uniqueIds = Object.keys(withdrawalsById);
-    const autoWithdrawCount = uniqueIds.filter(id => withdrawalsById[id].hasAutoWithdraw).length;
-    const failedOnlyCount = uniqueIds.filter(id =>
-      !withdrawalsById[id].hasAutoWithdraw && withdrawalsById[id].hasFailedRecord
-    ).length;
-    const totalApplicationCount = autoWithdrawCount + failedOnlyCount;
+    // 总申请笔数：如果有传入则使用，否则使用记录数
+    const totalCount = totalApplicationCount || records.length;
 
-    // 成功率：有自动提现成功的申请数 / 总提现申请笔数
-    const successRate = totalApplicationCount > 0 ? autoWithdrawCount / totalApplicationCount : 0;
+    // 成功率 = 成功笔数 / 总申请笔数 * 100%
+    const successRate = totalCount > 0 ? (successCount / totalCount) * 100 : 0;
 
-    // 自动提现成功的记录（用于计算2分內占比和平均时间）
-    const autoWithdrawRecords = records.filter(r => r.isAutoWithdraw === 1);
-
-    // 2分内占比：转账成功且处理时间在两分内的笔数/自动提现笔数 * 100%
-    // AF = IF(AE <= "00:02:00", 1, 0)
-    const within3MinRecords = autoWithdrawRecords.filter(r =>
+    // 2分内占比 = 2分钟内的笔数 / 成功笔数 * 100%
+    const within2MinRecords = successRecords.filter(r =>
       r.avgTimeSeconds !== null && r.avgTimeSeconds >= 0 && r.avgTimeSeconds <= 120
     );
-    const within3MinRate = autoWithdrawRecords.length > 0 ? within3MinRecords.length / autoWithdrawRecords.length : 0;
+    const within3MinRate = successCount > 0 ? (within2MinRecords.length / successCount) * 100 : 0;
 
-    // 平均时间：转账成功的笔数的处理平均时间
-    const recordsWithTime = autoWithdrawRecords.filter(r =>
+    // 平均处理时间 = 成功笔数的平均处理时间
+    const recordsWithTime = successRecords.filter(r =>
       r.avgTimeSeconds !== null && r.avgTimeSeconds >= 0
     );
     const avgTime = recordsWithTime.length > 0
@@ -492,37 +542,47 @@ const analysisMetrics = computed(() => {
     return { successRate, within3MinRate, avgTime };
   };
 
-  // 整体提现
-  const withdrawOverall = calculateWithdrawCategoryMetrics(withdrawData);
+  // 整体提现：使用 wm.withdrawSuccessTotalCount 作为总申请笔数
+  const withdrawTotalApplication = wm?.withdrawSuccessTotalCount || withdrawData.length;
+  const withdrawOverall = calculateWithdrawCategoryMetrics(withdrawData, withdrawTotalApplication);
 
-  // 支付宝提现：商户名称包含「支付宝」或「支付宝」
-  const withdrawAlipay = calculateWithdrawCategoryMetrics(
-    withdrawData.filter(r => r.merchant && (r.merchant.includes('支付宝') || r.merchant.includes('支付宝')))
+  // 支付宝提现：remark === '支付宝'
+  const withdrawAlipayRecords = withdrawData.filter(r =>
+    r.remark === '支付宝' && r.requestAmount > 0
   );
+  const withdrawAlipay = calculateWithdrawCategoryMetrics(withdrawAlipayRecords);
 
-  // 微信提现：商户名称包含「微信」
-  const withdrawWechat = calculateWithdrawCategoryMetrics(
-    withdrawData.filter(r => r.merchant && r.merchant.includes('微信'))
+  // 微信提现：remark === '微信'
+  const withdrawWechatRecords = withdrawData.filter(r =>
+    r.remark === '微信' && r.requestAmount > 0
   );
+  const withdrawWechat = calculateWithdrawCategoryMetrics(withdrawWechatRecords);
 
-  // 金宝提现：转出账号以 gb 开头（不区分大小写）
-  const withdrawGB = calculateWithdrawCategoryMetrics(
-    withdrawData.filter(r => r.payoutAccount && r.payoutAccount.toLowerCase().startsWith('gb'))
-  );
+  // 金宝提现：转出账号以 gb 开头
+  const withdrawGBRecords = withdrawData.filter(r => {
+    if (!r.payoutAccount) return false;
+    const lower = r.payoutAccount.toLowerCase();
+    return lower.startsWith('gb');
+  });
+  const withdrawGB = calculateWithdrawCategoryMetrics(withdrawGBRecords);
 
-  // 极速提现：转出账号包含 auction 或 *****ion
-  const withdrawAuction = calculateWithdrawCategoryMetrics(
-    withdrawData.filter(r => r.payoutAccount && (r.payoutAccount.toLowerCase().includes('auction') || r.payoutAccount.includes('*****ion')))
+  // 极速提现（极速银行卡）：remark === '银行卡'
+  // 平均时间计算：receivingBank !== '支付宝' && transferStatus === '轉帳完成'
+  const withdrawAuctionRecords = withdrawData.filter(r =>
+    r.remark === '银行卡' && r.requestAmount > 0
   );
+  const withdrawAuction = calculateWithdrawCategoryMetrics(withdrawAuctionRecords);
 
-  // 第三方提现：转出账号排除 gb 开头和 auction/*****ion
-  const withdrawThirdParty = calculateWithdrawCategoryMetrics(
-    withdrawData.filter(r => {
-      if (!r.payoutAccount) return false;
-      const lower = r.payoutAccount.toLowerCase();
-      return !lower.startsWith('gb') && !lower.includes('auction') && !r.payoutAccount.includes('*****ion');
-    })
-  );
+  // 第三方提现：转出账号 非 gb, auction, *****ion
+  const withdrawThirdPartyRecords = withdrawData.filter(r => {
+    if (!r.payoutAccount) return false;
+    const lower = r.payoutAccount.toLowerCase();
+    if (lower.startsWith('gb')) return false;
+    if (lower.includes('auction')) return false;
+    if (r.payoutAccount.includes('*****ion')) return false;
+    return true;
+  });
+  const withdrawThirdParty = calculateWithdrawCategoryMetrics(withdrawThirdPartyRecords);
 
   return [
     { category: '整体', successRate: overallMetrics.successRate, within3MinRate: overallMetrics.within3MinRate, avgTime: overallMetrics.avgTime, withdrawSuccessRate: withdrawOverall.successRate, withdrawWithin3MinRate: withdrawOverall.within3MinRate, withdrawAvgTime: withdrawOverall.avgTime },
@@ -611,16 +671,45 @@ const onEndDateChange = () => {
 };
 
 // 导出周报
-const handleExport = () => {
-  if (weeklyMetrics.value) {
-    exportWeeklyToExcel(weeklyMetrics.value, analysisMetrics.value, weekRange.value);
+const handleExport = async () => {
+  if (!weeklyMetrics.value || isExporting.value) return;
+
+  isExporting.value = true;
+  exportProgress.value = '准备导出...';
+
+  try {
+    const onProgress = (progress) => {
+      exportProgress.value = `${progress.message} (${progress.step}/${progress.total})`;
+    };
+
+    await exportWeeklyToExcel(
+      weeklyMetrics.value,
+      analysisMetrics.value,
+      weekRange.value,
+      depositMetrics.value,
+      withdrawMetrics.value,
+      onProgress
+    );
+
+    exportProgress.value = '导出完成！';
+    setTimeout(() => {
+      exportProgress.value = '';
+    }, 2000);
+  } catch (error) {
+    console.error('导出失败:', error);
+    exportProgress.value = error.message || '导出失败，请重试';
+    setTimeout(() => {
+      exportProgress.value = '';
+    }, 3000);
+  } finally {
+    isExporting.value = false;
   }
 };
 
 // 导出充值纯文本报表
 const handleExportText = () => {
   if (depositMetrics.value) {
-    exportDepositToText(depositMetrics.value, weekRange.value);
+    exportDepositToText(depositMetrics.value, weekRange.value, withdrawMetrics.value, weeklyMetrics.value);
   }
 };
 
@@ -650,8 +739,11 @@ setDefaultDate();
           <input type="date" v-model="endDate" class="date-input" :max="today" @change="onEndDateChange" />
         </div>
         <div v-if="dateRangeError" class="date-error">{{ dateRangeError }}</div>
+        <div v-if="calculationError" class="calculation-error">{{ calculationError }}</div>
         <button @click="handleQuery" class="query-btn">查询</button>
-        <button @click="handleExport" class="export-btn" v-if="weeklyMetrics">导出 Excel</button>
+        <button @click="handleExport" class="export-btn" v-if="weeklyMetrics" :disabled="isExporting">
+          {{ isExporting ? exportProgress : '导出 Excel' }}
+        </button>
         <button @click="handleExportText" class="export-btn text-btn" v-if="depositMetrics">导出纯文本</button>
       </div>
     </div>
@@ -1255,11 +1347,11 @@ setDefaultDate();
             <tbody>
               <tr v-for="row in analysisMetrics" :key="row.category">
                 <td class="category-cell">{{ row.category }}</td>
-                <td class="rate-cell">{{ (row.successRate * 100).toFixed(2) }}%</td>
-                <td class="rate-cell">{{ (row.within3MinRate * 100).toFixed(2) }}%</td>
+                <td class="rate-cell">{{ row.successRate.toFixed(2) }}%</td>
+                <td class="rate-cell">{{ row.within3MinRate.toFixed(2) }}%</td>
                 <td class="time-cell">{{ formatTime(row.avgTime) }}</td>
-                <td class="withdraw-rate-cell">{{ row.withdrawSuccessRate === null ? '--' : (row.withdrawSuccessRate * 100).toFixed(2) + '%' }}</td>
-                <td class="withdraw-rate-cell">{{ row.withdrawWithin3MinRate === null ? '--' : (row.withdrawWithin3MinRate * 100).toFixed(2) + '%' }}</td>
+                <td class="withdraw-rate-cell">{{ row.withdrawSuccessRate === null ? '--' : row.withdrawSuccessRate.toFixed(2) + '%' }}</td>
+                <td class="withdraw-rate-cell">{{ row.withdrawWithin3MinRate === null ? '--' : row.withdrawWithin3MinRate.toFixed(2) + '%' }}</td>
                 <td class="withdraw-time-cell">{{ row.withdrawAvgTime === null ? '--' : formatTime(row.withdrawAvgTime) }}</td>
               </tr>
             </tbody>
@@ -1334,6 +1426,16 @@ setDefaultDate();
   border-radius: 6px;
 }
 
+.calculation-error {
+  color: #721c24;
+  font-size: 14px;
+  padding: 8px 12px;
+  background: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: 6px;
+  margin-top: 8px;
+}
+
 .export-btn {
   padding: 10px 20px;
   border: none;
@@ -1349,6 +1451,12 @@ setDefaultDate();
 
 .export-btn:hover {
   background: #4cae4c;
+}
+
+.export-btn:disabled {
+  background: #9e9e9e;
+  cursor: not-allowed;
+  opacity: 0.8;
 }
 
 .query-btn {
