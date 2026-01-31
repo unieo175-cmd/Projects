@@ -5,6 +5,10 @@ const props = defineProps({
   records: {
     type: Array,
     default: () => []
+  },
+  hideDate: {
+    type: Boolean,
+    default: false
   }
 });
 
@@ -127,8 +131,8 @@ const onDateToChange = () => {
 };
 
 const applyFilters = () => {
-  // 验证日期范围
-  if (!validateDateRange()) {
+  // 验证日期范围（仅在显示日期时）
+  if (!props.hideDate && !validateDateRange()) {
     return;
   }
 
@@ -139,16 +143,23 @@ const applyFilters = () => {
     filtered = filtered.filter(r => r.merchant === merchantFilter.value);
   }
 
-  // Date range
-  if (dateFrom.value) {
-    filtered = filtered.filter(r => r.requestTime >= dateFrom.value);
-  }
-  if (dateTo.value) {
-    filtered = filtered.filter(r => r.requestTime <= dateTo.value + ' 23:59:59');
+  // Date range（仅在显示日期时过滤）
+  if (!props.hideDate) {
+    if (dateFrom.value) {
+      filtered = filtered.filter(r => r.requestTime >= dateFrom.value);
+    }
+    if (dateTo.value) {
+      filtered = filtered.filter(r => r.requestTime <= dateTo.value + ' 23:59:59');
+    }
   }
 
   emit('filter', filtered);
-  emit('dateChange', { dateFrom: dateFrom.value, dateTo: dateTo.value });
+  // 仅在显示日期时发送日期变更事件
+  if (!props.hideDate) {
+    emit('dateChange', { dateFrom: dateFrom.value, dateTo: dateTo.value });
+  } else {
+    emit('dateChange', { dateFrom: '', dateTo: '' });
+  }
 };
 
 // Initial load
@@ -221,7 +232,7 @@ const handleMerchantBlur = () => {
         </div>
       </div>
 
-      <div class="date-range">
+      <div v-if="!hideDate" class="date-range">
         <label>从</label>
         <input
           v-model="dateFrom"
@@ -240,7 +251,7 @@ const handleMerchantBlur = () => {
         />
       </div>
 
-      <button @click="handleSearch" class="search-btn">查询</button>
+      <button v-if="!hideDate" @click="handleSearch" class="search-btn">查询</button>
       <button @click="handleExport" class="export-btn">导出 Excel</button>
     </div>
 

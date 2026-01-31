@@ -2262,6 +2262,14 @@ export const parseWithdrawCSV = (content) => {
   const lines = cleanContent.split('\n');
   const records = [];
 
+  console.log('提现 CSV 解析：总行数', lines.length);
+  if (lines.length > 0) {
+    console.log('提现 CSV 表头:', lines[0].substring(0, 200));
+  }
+  if (lines.length > 1) {
+    console.log('提现 CSV 第一行数据:', lines[1].substring(0, 200));
+  }
+
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i];
     if (!line.trim()) continue;
@@ -2292,7 +2300,13 @@ export const parseWithdrawCSV = (content) => {
         }
       }
       matches.push(current);
-      if (matches.length < 20) continue;
+      if (i === 1) {
+        console.log('提现 CSV 第一行列数:', matches.length);
+      }
+      if (matches.length < 20) {
+        if (i === 1) console.log('提现 CSV 列数不足 20，跳过');
+        continue;
+      }
       clean = (m) => (m || '').trim();
     }
 
@@ -2329,10 +2343,19 @@ export const parseWithdrawCSV = (content) => {
       transferStatus: matches[29] ? clean(matches[29]) : '' // AE 栏位 - 转账状态 (转账完成/转账失败)
     };
 
+    // 调试：打印第一条记录的关键字段
+    if (i === 1) {
+      console.log('提现第一条记录 - status:', record.status, ', transferStatus:', record.transferStatus, ', merchantReceiveStatus:', record.merchantReceiveStatus);
+      console.log('提现第一条记录 - 列数:', matches.length, ', matches[14]:', matches[14], ', matches[29]:', matches[29]);
+    }
+
     // 计算 isAutoWithdraw (AD栏位公式)：IF(AC="转账完成" AND P="通知完成", 1, 0)
-    // 同时检查繁简体
-    const isTransferDone = record.transferStatus === '转账完成' || record.transferStatus === '轉帳完成' || record.transferStatus === '转帐完成';
-    const isNotifyDone = record.merchantReceiveStatus === '通知完成' || record.merchantReceiveStatus === '通知完成';
+    // 若 transferStatus 为空则用 status 字段判断
+    const hasTransferStatus = record.transferStatus && record.transferStatus.trim() !== '';
+    const isTransferDone = hasTransferStatus
+      ? (record.transferStatus === '转账完成' || record.transferStatus === '轉帳完成' || record.transferStatus === '转帐完成')
+      : (record.status && (record.status.includes('提現完成') || record.status.includes('提现完成')));
+    const isNotifyDone = record.merchantReceiveStatus === '通知完成';
     record.isAutoWithdraw = (isTransferDone && isNotifyDone) ? 1 : 0;
 
     // remark 已从 CSV AD 栏读取，若为空则从商户名称计算
@@ -3042,8 +3065,11 @@ export const calculateWithdrawMetrics = (records, depositMetrics = null) => {
       bankCardWithdrawAmount += r.payoutAmount || 0;
     }
 
-    // 银行卡平均时间 (检查繁简体)
-    const isTransferComplete = r.transferStatus === '轉帳完成' || r.transferStatus === '转账完成' || r.transferStatus === '转帐完成';
+    // 银行卡平均时间 (检查繁简体，若 transferStatus 为空则用 status 字段)
+    const hasTransferStatus = r.transferStatus && r.transferStatus.trim() !== '';
+    const isTransferComplete = hasTransferStatus
+      ? (r.transferStatus === '轉帳完成' || r.transferStatus === '转账完成' || r.transferStatus === '转帐完成')
+      : (r.status && (r.status.includes('提現完成') || r.status.includes('提现完成')));
     if (r.receivingBank !== '支付宝' && isTransferComplete && r.avgTimeSeconds !== null && r.avgTimeSeconds >= 0) {
       bankCardAvgTimeSum += r.avgTimeSeconds;
       bankCardAvgTimeCount++;
@@ -3089,15 +3115,25 @@ export const calculateWithdrawMetrics = (records, depositMetrics = null) => {
   for (let i = 0; i < deduplicatedRecords.length; i++) {
     const r = deduplicatedRecords[i];
     const transferStatus = r.transferStatus || '';
+    const status = r.status || '';
     const actualAmount = r.actualAmount || 0;
 
+    // 判断提现是否成功：若 transferStatus 有值用它，否则用 status 字段
+    const hasTransferStatus = transferStatus.trim() !== '';
+    const isWithdrawSuccess = hasTransferStatus
+      ? (transferStatus === '轉帳完成' || transferStatus === '转帐完成' || transferStatus === '转账完成')
+      : (status.includes('提現完成') || status.includes('提现完成'));
+
     // 提现失败
-    if (transferStatus.includes('轉帳失敗') || transferStatus.includes('转帐失败')) {
+    const isWithdrawFailed = hasTransferStatus
+      ? (transferStatus.includes('轉帳失敗') || transferStatus.includes('转帐失败') || transferStatus.includes('转账失败'))
+      : (status.includes('提現失敗') || status.includes('提现失败'));
+    if (isWithdrawFailed) {
       withdrawFailedCount++;
     }
 
     // 提现成功
-    if (transferStatus === '轉帳完成' || transferStatus === '转帐完成') {
+    if (isWithdrawSuccess) {
       totalWithdrawCount++;
       totalWithdrawAmount += actualAmount;
 

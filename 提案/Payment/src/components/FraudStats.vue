@@ -64,9 +64,9 @@ const pageSize = 50;
 // 今日日期
 const today = new Date().toISOString().split('T')[0];
 
-// 日期搜索 - 起讫日期（默认当日）
-const startDate = ref(today);
-const endDate = ref(today);
+// 日期搜索 - 起讫日期（默认显示全部）
+const startDate = ref('');
+const endDate = ref('');
 
 // 日期范围错误信息
 const dateRangeError = ref('');
@@ -634,7 +634,6 @@ const pageNumbers = computed(() => {
           <label>结束日期：</label>
           <input type="date" v-model="endDate" :max="today" @change="onEndDateChange" />
           <button @click="handleSearch" class="btn-search">查询</button>
-          <button @click="showAll" class="btn-filter" :class="{ active: !startDate && !endDate }">全部</button>
           <button @click="exportToExcel" class="btn btn-export">导出数据</button>
         </div>
         <div v-if="dateRangeError" class="date-error">{{ dateRangeError }}</div>
@@ -700,13 +699,6 @@ const pageNumbers = computed(() => {
           <label>结束日期：</label>
           <input type="date" v-model="endDate" :max="today" @change="onEndDateChange" />
           <button @click="handleSearch" class="btn-search">查询</button>
-          <button
-            @click="showAll"
-            class="btn-filter"
-            :class="{ active: !startDate && !endDate }"
-          >
-            显示全部数据
-          </button>
         </div>
         <div v-if="dateRangeError" class="date-error">
           {{ dateRangeError }}

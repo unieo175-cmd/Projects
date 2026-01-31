@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:verify": "vite --config vite.config.verify.js",
     "build": "vite build",
+    "build:verify": "vite build --config vite.config.verify.js",
     "preview": "vite preview"
   },
   "dependencies": {
