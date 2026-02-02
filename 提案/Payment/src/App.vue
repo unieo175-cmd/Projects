@@ -65,6 +65,8 @@ const filteredDepositMetrics = computed(() => {
     });
   }
 
+  console.log('filteredDepositMetrics:', { startDate, endDate, totalRecords: depositRecords.value.length, filteredRecords: filtered.length });
+
   return calculateMetrics(filtered, withdrawMetrics.value, effectiveDate);
 });
 
@@ -292,9 +294,6 @@ const handleDateChange = ({ dateFrom, dateTo }) => {
           <h2 class="page-title">
             {{ activeTab === 'deposit' ? '充值分析报表' : activeTab === 'withdraw' ? '提现分析报表' : activeTab === 'weekly' ? '日/周报数据汇总' : '骗分统计' }}
           </h2>
-          <div class="data-info">
-            <span class="data-date">📅 数据日期：{{ dataDate }}</span>
-          </div>
         </div>
       </header>
 

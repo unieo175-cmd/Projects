@@ -184,17 +184,17 @@ const activeChannel = ref('all'); // 'all', 'bankCard', 'alipay', 'wechat'
                 <td>{{ (metrics.withdrawFailedCount || 0).toLocaleString() }}</td>
                 <td>--</td>
               </tr>
-              <tr>
+              <tr class="highlight-row">
                 <td>无卡空单率</td>
                 <td>{{ (metrics.withdrawEmptyOrderRate || 0).toFixed(2) }}%</td>
                 <td>--</td>
               </tr>
-              <tr>
-                <td>订单成功</td>
-                <td>{{ (metrics.withdrawOrderSuccessCount || 0).toLocaleString() }}</td>
-                <td>{{ formatAmount(metrics.withdrawOrderSuccessAmount || 0) }} 元</td>
+              <tr class="highlight-row">
+                <td>订单成功（筆數/金額）</td>
+                <td>{{ (metrics.withdrawOrderSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.withdrawOrderSuccessAmount || 0) }} 元</td>
+                <td>--</td>
               </tr>
-              <tr>
+              <tr class="highlight-row">
                 <td>订单成功占比</td>
                 <td>{{ (metrics.withdrawOrderSuccessRate || 0).toFixed(2) }}%</td>
                 <td>--</td>
@@ -648,5 +648,15 @@ const activeChannel = ref('all'); // 'all', 'bankCard', 'alipay', 'wechat'
   .status-label {
     width: 150px;
   }
+}
+
+/* 高亮行 - 订单成功占比用不同颜色区分 */
+.highlight-row {
+  background-color: #f0f7ff !important;
+}
+
+.highlight-row td {
+  color: #1a5fb4 !important;
+  font-weight: 600;
 }
 </style>

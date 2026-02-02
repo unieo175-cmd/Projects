@@ -18,10 +18,11 @@ const merchantFilter = ref('all');
 const merchantSearch = ref('');
 const showMerchantDropdown = ref(false);
 
-// 日期默认为今日
+// 日期默认为 2026-01-01
 const today = new Date().toISOString().split('T')[0];
-const dateFrom = ref(today);
-const dateTo = ref(today);
+const defaultDate = '2026-01-01';
+const dateFrom = ref(defaultDate);
+const dateTo = ref(defaultDate);
 
 
 // 日期范围错误信息
@@ -56,7 +57,7 @@ const validateDateRange = () => {
 // 开始日期变更时的防呆
 const onDateFromChange = () => {
   if (!dateFrom.value) {
-    dateFrom.value = today;
+    dateFrom.value = defaultDate;
     return;
   }
 
@@ -95,7 +96,7 @@ const onDateFromChange = () => {
 // 结束日期变更时的防呆
 const onDateToChange = () => {
   if (!dateTo.value) {
-    dateTo.value = dateFrom.value || today;
+    dateTo.value = dateFrom.value || defaultDate;
     return;
   }
 

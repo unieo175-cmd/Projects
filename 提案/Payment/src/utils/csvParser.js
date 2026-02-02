@@ -3059,6 +3059,11 @@ export const calculateWithdrawMetrics = (records, depositMetrics = null) => {
       autoWithdrawTimeCount++;
     }
 
+    // 首次调试：输出第一条符合条件的记录详情
+    if (i === 0 && r.isAutoWithdraw !== undefined) {
+      console.log('提现第一条记录 isAutoWithdraw:', r.isAutoWithdraw, 'avgTimeSeconds:', r.avgTimeSeconds);
+    }
+
     // 银行卡渠道
     if (r.remark === '银行卡' && r.requestAmount > 0) {
       bankCardWithdrawCount++;
@@ -3106,6 +3111,9 @@ export const calculateWithdrawMetrics = (records, depositMetrics = null) => {
 
   let withdrawFailedCount = 0;
   let totalWithdrawCount = 0, totalWithdrawAmount = 0;
+
+  // 调试：统计 status 字段的不同值
+  const statusCounts = {};
   let withdrawWithin2MinCount = 0, withdrawWithin2MinAmount = 0;
   let withdrawWithin2to5MinCount = 0, withdrawWithin2to5MinAmount = 0;
   let withdrawWithin5to15MinCount = 0, withdrawWithin5to15MinAmount = 0;
@@ -3118,16 +3126,21 @@ export const calculateWithdrawMetrics = (records, depositMetrics = null) => {
     const status = r.status || '';
     const actualAmount = r.actualAmount || 0;
 
-    // 判断提现是否成功：若 transferStatus 有值用它，否则用 status 字段
-    const hasTransferStatus = transferStatus.trim() !== '';
-    const isWithdrawSuccess = hasTransferStatus
-      ? (transferStatus === '轉帳完成' || transferStatus === '转帐完成' || transferStatus === '转账完成')
-      : (status.includes('提現完成') || status.includes('提现完成'));
+    // 调试：统计 status 值
+    const statusKey = status || '(空)';
+    statusCounts[statusKey] = (statusCounts[statusKey] || 0) + 1;
 
-    // 提现失败
-    const isWithdrawFailed = hasTransferStatus
-      ? (transferStatus.includes('轉帳失敗') || transferStatus.includes('转帐失败') || transferStatus.includes('转账失败'))
-      : (status.includes('提現失敗') || status.includes('提现失败'));
+    // 判断提现是否成功：同时检查 transferStatus 和 status 字段
+    const isWithdrawSuccess =
+      (transferStatus === '轉帳完成' || transferStatus === '转帐完成' || transferStatus === '转账完成') ||
+      (status.includes('提現完成') || status.includes('提现完成'));
+
+    // 提现失败：只计算明确的失败状态（不含异常）
+    const isWithdrawFailed =
+      (transferStatus.includes('轉帳失敗') || transferStatus.includes('转帐失败') || transferStatus.includes('转账失败')) ||
+      (status.includes('提現失敗') || status.includes('提现失败') ||
+       status.includes('商戶確認未到帳') || status.includes('商户确认未到账') ||
+       status.includes('未收單') || status.includes('未收单'));
     if (isWithdrawFailed) {
       withdrawFailedCount++;
     }
@@ -3172,15 +3185,49 @@ export const calculateWithdrawMetrics = (records, depositMetrics = null) => {
   const withdrawOver30MinRatio = (withdrawOver30MinCount / totalBase) * 100;
 
   const withdrawSuccessRate = len > 0 ? (totalWithdrawCount / len) * 100 : 0;
-  const withdrawOrderSuccessCount = withdrawSuccessTotalCount;
-  const withdrawOrderSuccessAmount = withdrawSuccessTotalAmount;
-  const withdrawOrderSuccessRate = len > 0 ? (withdrawOrderSuccessCount / len) * 100 : 0;
+  // 订单成功：使用充值的订单成功数据 (银行卡 + 支付宝，不含微信)
+  const bankCardOrderSuccess = depositMetrics?.totalOrderSuccessCount || 0;
+  const alipayOrderSuccess = depositMetrics?.alipayTotalOrderSuccessCount || 0;
+  const withdrawOrderSuccessCount = bankCardOrderSuccess + alipayOrderSuccess;
+
+  const bankCardOrderSuccessAmt = depositMetrics?.totalOrderSuccessAmount || 0;
+  const alipayOrderSuccessAmt = depositMetrics?.alipayTotalOrderSuccessAmount || 0;
+  const withdrawOrderSuccessAmount = bankCardOrderSuccessAmt + alipayOrderSuccessAmt;
+
+  // 订单成功占比 = 订单成功(加总笔数) / 总充直成功(含掉单)筆數 × 100%
+  const depositSuccessfulCount = depositMetrics?.successfulCount || 0;
+  const withdrawOrderSuccessRate = depositSuccessfulCount > 0 ? Math.round((withdrawOrderSuccessCount / depositSuccessfulCount) * 10000) / 100 : 0;
   const avgProcessingTime = autoWithdrawTimeCount > 0 ? autoWithdrawTimeSum / autoWithdrawTimeCount : 0;
+
+  // 调试：输出平均处理时间计算详情
+  console.log('平均处理时间计算:', {
+    autoWithdrawTimeSum: autoWithdrawTimeSum.toFixed(2),
+    autoWithdrawTimeCount,
+    avgProcessingTime: avgProcessingTime.toFixed(2) + '秒',
+    avgProcessingTimeFormatted: `${Math.floor(avgProcessingTime / 60)}:${Math.floor(avgProcessingTime % 60).toString().padStart(2, '0')}`
+  });
 
   // 从 depositMetrics 取得数据
   const jsWaitingNoMatch = depositMetrics?.jsWaitingNoMatch || 0;
-  const depositApplicationCount = depositMetrics?.totalApplicationCount || 0;
-  const withdrawEmptyOrderRate = depositApplicationCount > 0 ? (jsWaitingNoMatch / depositApplicationCount) * 100 : 0;
+  // 充直申请 = 银行卡申请 + 支付宝申请 (不含微信)
+  const bankCardAppCount = depositMetrics?.jisuApplicationCount || 0;
+  const alipayAppCount = depositMetrics?.alipayApplicationCount || 0;
+  const depositApplicationCount = bankCardAppCount + alipayAppCount;
+  // 无卡空单率 = JS充值等待最终无配对 / 充直申请 × 100% (四舍五入到小数点后2位)
+  const withdrawEmptyOrderRate = depositApplicationCount > 0 ? Math.round((jsWaitingNoMatch / depositApplicationCount) * 10000) / 100 : 0;
+
+  // 调试：输出 depositMetrics 相关数值
+  console.log('提现时间区段 - depositMetrics:', {
+    jsWaitingNoMatch,
+    depositApplicationCount,
+    withdrawEmptyOrderRate: withdrawEmptyOrderRate + '%',
+    bankCardOrderSuccess,
+    alipayOrderSuccess,
+    withdrawOrderSuccessCount,
+    withdrawOrderSuccessAmount,
+    successfulCount: depositMetrics?.successfulCount || 0,
+    withdrawOrderSuccessRate: withdrawOrderSuccessRate + '%'
+  });
 
   // 平均时间
   const bankCardAvgTime = bankCardAvgTimeCount > 0 ? bankCardAvgTimeSum / bankCardAvgTimeCount : 0;
@@ -3214,6 +3261,9 @@ export const calculateWithdrawMetrics = (records, depositMetrics = null) => {
   }
 
   const elapsed = performance.now() - startTime;
+  // 调试：输出 status 统计
+  console.log('提现 status 字段统计:', JSON.stringify(statusCounts));
+  console.log('提现成功笔数:', totalWithdrawCount, '失败笔数:', withdrawFailedCount, '总申请:', totalWithdrawCount + withdrawFailedCount);
   console.log(`calculateWithdrawMetrics 完成，耗时: ${elapsed.toFixed(2)}ms，处理 ${len} 条记录`);
 
   return {
