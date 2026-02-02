@@ -6,7 +6,8 @@ import WithdrawMetricsCards from './components/WithdrawMetricsCards.vue';
 import WeeklyReport from './components/WeeklyReport.vue';
 import Charts from './components/Charts.vue';
 import FraudStats from './components/FraudStats.vue';
-import { parseCSV, calculateMetrics, parseWithdrawCSV, calculateWithdrawMetrics, exportDepositToExcel, exportWithdrawToExcel } from './utils/csvParser';
+import { parseCSV, calculateMetrics, parseWithdrawCSV, calculateWithdrawMetrics, exportDepositToExcel, exportWithdrawToExcel, exportCompareToExcel } from './utils/csvParser';
+import HistoryView from './components/HistoryView.vue';
 import * as XLSX from 'xlsx';
 
 // 解析 XLSX 文件转换为 CSV 格式内容
@@ -63,8 +64,9 @@ const MAX_FILE_SIZE = 500 * 1024 * 1024;
 
 // IndexedDB 数据库名称和版本
 const DB_NAME = 'VerifyDataDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_NAME = 'verifyData';
+const HISTORY_STORE_NAME = 'uploadHistory';
 
 // 打开 IndexedDB 数据库
 const openDB = () => {
@@ -78,6 +80,11 @@ const openDB = () => {
       const db = event.target.result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+      }
+      // 新增 uploadHistory store
+      if (!db.objectStoreNames.contains(HISTORY_STORE_NAME)) {
+        const historyStore = db.createObjectStore(HISTORY_STORE_NAME, { keyPath: 'id' });
+        historyStore.createIndex('uploadTime', 'uploadTime', { unique: false });
       }
     };
   });
@@ -193,9 +200,249 @@ const loadFromStorage = async () => {
   }
 };
 
+// ===== 上传历史记录管理 =====
+const historyList = ref([]);
+const showHistoryModal = ref(false);
+
+// 获取数据日期范围
+const getDataDateRange = () => {
+  let minDate = null;
+  let maxDate = null;
+
+  const allRecords = [...depositRecords.value, ...withdrawRecords.value];
+  allRecords.forEach(r => {
+    const dateStr = r.requestTime ? r.requestTime.split(' ')[0] : null;
+    if (dateStr) {
+      if (!minDate || dateStr < minDate) minDate = dateStr;
+      if (!maxDate || dateStr > maxDate) maxDate = dateStr;
+    }
+  });
+
+  return { start: minDate || '', end: maxDate || '' };
+};
+
+// 生成历史记录 ID
+const generateHistoryId = (dateRange) => {
+  if (dateRange.start === dateRange.end) {
+    return dateRange.start;
+  }
+  return `${dateRange.start}_${dateRange.end}`;
+};
+
+// 保存到历史记录
+const saveToHistory = async () => {
+  if (!hasDepositData.value && !hasWithdrawData.value) {
+    alert('请先导入数据');
+    return;
+  }
+
+  const dateRange = getDataDateRange();
+  const historyId = generateHistoryId(dateRange);
+
+  // 检查是否已存在
+  const existing = await loadHistoryById(historyId);
+  if (existing) {
+    if (!confirm(`日期范围 ${historyId} 的记录已存在，是否覆盖？`)) {
+      return;
+    }
+  }
+
+  // 计算指标摘要
+  const depositMet = depositMetrics.value || {};
+  const withdrawMet = withdrawMetrics.value || {};
+
+  const historyRecord = {
+    id: historyId,
+    uploadTime: new Date().toISOString(),
+    dataDateRange: dateRange,
+    depositFileName: depositFileName.value,
+    withdrawFileName: withdrawFileName.value,
+    depositRecords: depositRecords.value,
+    withdrawRecords: withdrawRecords.value,
+    depositCount: depositRecords.value.length,
+    withdrawCount: withdrawRecords.value.length,
+    metrics: {
+      deposit: {
+        totalApplicationCount: depositMet.totalApplicationCount || 0,
+        successfulCount: depositMet.successfulCount || 0,
+        overallSuccessRate: depositMet.overallSuccessRate || 0,
+        totalApplicationAmount: depositMet.totalApplicationAmount || 0,
+        overallAvgTime: depositMet.overallAvgTime || 0,
+      },
+      withdraw: {
+        totalWithdrawCount: withdrawMet.totalWithdrawCount || 0,
+        totalWithdrawAmount: withdrawMet.totalWithdrawAmount || 0,
+        avgProcessingTime: withdrawMet.avgProcessingTime || 0,
+      },
+    }
+  };
+
+  try {
+    const db = await openDB();
+    const transaction = db.transaction([HISTORY_STORE_NAME], 'readwrite');
+    const store = transaction.objectStore(HISTORY_STORE_NAME);
+    // 存储完整数据
+    const serialized = JSON.stringify(historyRecord);
+    store.put({ id: historyId, data: serialized });
+
+    await new Promise((resolve, reject) => {
+      transaction.oncomplete = () => {
+        db.close();
+        resolve();
+      };
+      transaction.onerror = () => {
+        db.close();
+        reject(transaction.error);
+      };
+    });
+
+    alert(`已保存到历史记录：${historyId}`);
+    await loadHistoryList();
+  } catch (e) {
+    console.error('保存历史记录失败:', e);
+    alert('保存失败: ' + e.message);
+  }
+};
+
+// 加载历史记录列表
+const loadHistoryList = async () => {
+  try {
+    const db = await openDB();
+    const transaction = db.transaction([HISTORY_STORE_NAME], 'readonly');
+    const store = transaction.objectStore(HISTORY_STORE_NAME);
+    const request = store.getAll();
+
+    return new Promise((resolve, reject) => {
+      request.onsuccess = () => {
+        db.close();
+        const results = request.result || [];
+        historyList.value = results.map(item => {
+          try {
+            const parsed = JSON.parse(item.data);
+            return {
+              id: item.id,
+              uploadTime: parsed.uploadTime,
+              dataDateRange: parsed.dataDateRange,
+              depositFileName: parsed.depositFileName,
+              withdrawFileName: parsed.withdrawFileName,
+              depositCount: parsed.depositCount,
+              withdrawCount: parsed.withdrawCount,
+              metrics: parsed.metrics,
+            };
+          } catch {
+            return null;
+          }
+        }).filter(Boolean).sort((a, b) => new Date(b.uploadTime) - new Date(a.uploadTime));
+        resolve(historyList.value);
+      };
+      request.onerror = () => {
+        db.close();
+        reject(request.error);
+      };
+    });
+  } catch (e) {
+    console.error('加载历史列表失败:', e);
+    return [];
+  }
+};
+
+// 通过 ID 加载历史记录
+const loadHistoryById = async (id) => {
+  try {
+    const db = await openDB();
+    const transaction = db.transaction([HISTORY_STORE_NAME], 'readonly');
+    const store = transaction.objectStore(HISTORY_STORE_NAME);
+    const request = store.get(id);
+
+    return new Promise((resolve, reject) => {
+      request.onsuccess = () => {
+        db.close();
+        const result = request.result?.data;
+        if (result) {
+          try {
+            resolve(JSON.parse(result));
+          } catch {
+            resolve(null);
+          }
+        } else {
+          resolve(null);
+        }
+      };
+      request.onerror = () => {
+        db.close();
+        reject(request.error);
+      };
+    });
+  } catch (e) {
+    console.error('加载历史记录失败:', e);
+    return null;
+  }
+};
+
+// 从历史记录恢复数据
+const loadFromHistory = async (id) => {
+  const record = await loadHistoryById(id);
+  if (!record) {
+    alert('未找到该历史记录');
+    return;
+  }
+
+  // 恢复数据
+  depositRecords.value = record.depositRecords || [];
+  withdrawRecords.value = record.withdrawRecords || [];
+  depositFileName.value = record.depositFileName || '';
+  withdrawFileName.value = record.withdrawFileName || '';
+  hasDepositData.value = depositRecords.value.length > 0;
+  hasWithdrawData.value = withdrawRecords.value.length > 0;
+
+  if (depositRecords.value.length > 0 && depositRecords.value[0].requestTime) {
+    dataDate.value = depositRecords.value[0].requestTime.split(' ')[0];
+  }
+
+  allRecords.value = depositRecords.value;
+  filteredRecords.value = [...depositRecords.value];
+  activeTab.value = 'deposit';
+
+  // 保存到当前 session
+  await saveDepositToStorage();
+  await saveWithdrawToStorage();
+
+  alert(`已加载历史记录：${id}`);
+};
+
+// 删除历史记录
+const deleteHistory = async (id) => {
+  if (!confirm(`确定要删除历史记录 ${id} 吗？`)) return;
+
+  try {
+    const db = await openDB();
+    const transaction = db.transaction([HISTORY_STORE_NAME], 'readwrite');
+    const store = transaction.objectStore(HISTORY_STORE_NAME);
+    store.delete(id);
+
+    await new Promise((resolve, reject) => {
+      transaction.oncomplete = () => {
+        db.close();
+        resolve();
+      };
+      transaction.onerror = () => {
+        db.close();
+        reject(transaction.error);
+      };
+    });
+
+    await loadHistoryList();
+    alert('已删除历史记录');
+  } catch (e) {
+    console.error('删除历史记录失败:', e);
+    alert('删除失败: ' + e.message);
+  }
+};
+
 // 页面加载时从 IndexedDB 恢复数据
 onMounted(() => {
   loadFromStorage();
+  loadHistoryList();
 });
 
 // 测试点击
@@ -584,6 +831,7 @@ const hasCurrentData = computed(() => {
   if (activeTab.value === 'withdraw') return hasWithdrawData.value;
   if (activeTab.value === 'weekly') return hasDepositData.value || hasWithdrawData.value;
   if (activeTab.value === 'fraud') return true;
+  if (activeTab.value === 'history') return true;  // 历史记录页面总是显示
   return false;
 });
 </script>
@@ -635,6 +883,16 @@ const hasCurrentData = computed(() => {
           <span class="nav-icon">🚫</span>
           <span class="nav-text" v-show="!sidebarCollapsed">骗分统计</span>
         </button>
+        <div class="nav-divider" v-show="!sidebarCollapsed"></div>
+        <button
+          class="nav-item"
+          :class="{ active: activeTab === 'history' }"
+          @click="activeTab = 'history'"
+          :title="sidebarCollapsed ? '上传纪录' : ''"
+        >
+          <span class="nav-icon">📜</span>
+          <span class="nav-text" v-show="!sidebarCollapsed">上传纪录</span>
+        </button>
       </nav>
 
       <!-- 数据导入区域 -->
@@ -661,6 +919,11 @@ const hasCurrentData = computed(() => {
           </span>
         </label>
 
+        <!-- 保存到历史纪录 -->
+        <button class="save-history-btn" @click="saveToHistory" :disabled="!hasDepositData && !hasWithdrawData">
+          保存到纪录
+        </button>
+
         <!-- 清除数据按钮 -->
         <button class="clear-all-btn" @click="clearAllData" :disabled="!hasDepositData && !hasWithdrawData">
           清除所有数据
@@ -674,7 +937,7 @@ const hasCurrentData = computed(() => {
         <div class="header-content">
           <h2 class="page-title">
             <span class="verify-badge">验证版</span>
-            {{ activeTab === 'deposit' ? '充值分析报表' : activeTab === 'withdraw' ? '提现分析报表' : activeTab === 'weekly' ? '日/周报数据汇总' : '骗分统计' }}
+            {{ activeTab === 'deposit' ? '充值分析报表' : activeTab === 'withdraw' ? '提现分析报表' : activeTab === 'weekly' ? '日/周报数据汇总' : activeTab === 'history' ? '上传纪录' : '骗分统计' }}
           </h2>
           <div class="data-info">
             <span class="file-info" v-if="depositFileName">📥 充值: {{ depositFileName }}</span>
@@ -707,6 +970,14 @@ const hasCurrentData = computed(() => {
           </template>
           <template v-else-if="activeTab === 'fraud'">
             <FraudStats />
+          </template>
+          <template v-else-if="activeTab === 'history'">
+            <HistoryView
+              :historyList="historyList"
+              @load="loadFromHistory"
+              @delete="deleteHistory"
+              @refresh="loadHistoryList"
+            />
           </template>
           <template v-else>
             <SearchFilter :records="allRecords" :hideDate="true" @filter="handleFilter" @export="handleExport" @dateChange="handleDateChange" />
@@ -850,6 +1121,12 @@ body {
 .dark-theme .sidebar.collapsed .nav-item {
   justify-content: center;
   padding: 14px;
+}
+
+.dark-theme .nav-divider {
+  height: 1px;
+  background: #2a2a4a;
+  margin: 8px 20px;
 }
 
 /* 数据管理区域 */
@@ -1045,6 +1322,37 @@ body {
 .dark-theme .upload-label.has-data .upload-status {
   color: #00ff88;
   font-weight: 500;
+}
+
+/* 保存到历史纪录按钮 */
+.dark-theme .save-history-btn {
+  width: 100%;
+  padding: 10px 12px;
+  margin-top: 8px;
+  background: rgba(0, 217, 255, 0.1);
+  border: 1px solid rgba(0, 217, 255, 0.5);
+  border-radius: 6px;
+  color: #00d9ff;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  z-index: 10;
+}
+
+.dark-theme .save-history-btn:hover:not(:disabled) {
+  background: rgba(0, 217, 255, 0.2);
+  border-color: #00d9ff;
+}
+
+.dark-theme .save-history-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.dark-theme .save-history-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 /* 清除所有数据按钮 */
