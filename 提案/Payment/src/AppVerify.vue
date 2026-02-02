@@ -29,7 +29,7 @@ const withdrawRecords = ref([]);
 const isLoading = ref(false);
 const loadingProgress = ref(0);
 const loadingStatus = ref('等待导入数据...');
-const dataDate = ref('');
+const dataDate = ref('2026-01-01');
 const dateRange = ref({ dateFrom: '', dateTo: '' });
 
 // 数据导入状态
@@ -329,9 +329,11 @@ const depositMetrics = computed(() => {
 // 按日期筛选的充值指标
 const filteredDepositMetrics = computed(() => {
   const effectiveDate = dateRange.value.dateFrom || dataDate.value;
+  // 如果只有开始日期，视为单日筛选
   const startDate = dateRange.value.dateFrom || '';
   const endDate = dateRange.value.dateTo || startDate;
 
+  // 筛选充值记录
   let filtered = depositRecords.value;
   if (startDate) {
     filtered = depositRecords.value.filter(r => {
@@ -341,6 +343,8 @@ const filteredDepositMetrics = computed(() => {
       return true;
     });
   }
+
+  console.log('filteredDepositMetrics:', { startDate, endDate, totalRecords: depositRecords.value.length, filteredRecords: filtered.length });
 
   return calculateMetrics(filtered, withdrawMetrics.value, effectiveDate);
 });
@@ -520,7 +524,7 @@ const hasCurrentData = computed(() => {
             <FraudStats />
           </template>
           <template v-else>
-            <SearchFilter :records="allRecords" :hideDate="true" @filter="handleFilter" @export="handleExport" @dateChange="handleDateChange" />
+            <SearchFilter :records="allRecords" @filter="handleFilter" @export="handleExport" @dateChange="handleDateChange" />
             <MetricsCards v-if="activeTab === 'deposit'" :metrics="metrics" :dateRange="dateRange" :dataDate="dataDate" @channelChange="handleChannelChange" />
             <WithdrawMetricsCards v-else :metrics="metrics" />
             <Charts v-if="activeTab === 'deposit' && activeChannel === 'all'" :records="filteredRecords" />
