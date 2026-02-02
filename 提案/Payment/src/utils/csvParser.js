@@ -5,14 +5,24 @@ export const parseCSV = (content) => {
   const lines = cleanContent.split('\n');
   const records = [];
 
+  // ===== 資料清洗統計 =====
+  let totalRows = 0;
+  let skippedEmpty = 0;
+  let skippedShortColumns = 0;
+  let skippedTestQa = 0;
+
   // Status categories based on specification
   const successStatuses = ['已充值', '信用評分上分', '回單驗證上分', '用戶确认到账', '用户确认到帐', '银商确认到账', '信評上分', '自動補單', '商戶回調上分'];
   const buDanKeywords = ['補單', '补单'];
   const weiChongZhiKeywords = ['未充值'];
 
   for (let i = 1; i < lines.length; i++) {
+    totalRows++;
     const line = lines[i];
-    if (!line.trim()) continue;
+    if (!line.trim()) {
+      skippedEmpty++;
+      continue;
+    }
 
     // 支援兩種 CSV 格式：
     // 1. Excel 格式: "=""value"""
@@ -41,7 +51,10 @@ export const parseCSV = (content) => {
       }
       matches.push(current); // 最后一个栏位
 
-      if (matches.length < 20) continue;
+      if (matches.length < 20) {
+        skippedShortColumns++;
+        continue;
+      }
       clean = (m) => (m || '').trim();
     }
 
@@ -197,13 +210,23 @@ export const parseCSV = (content) => {
     // 过滤掉商户名称包含「test」、「qa」的记录（不剔除线下商户）
     const merchantLower = record.merchant.toLowerCase();
     if (merchantLower.includes('test') || merchantLower.includes('qa')) {
+      skippedTestQa++;
       continue;
     }
 
     records.push(record);
   }
 
-  console.log(`CSV 解析完成：共 ${lines.length} 行，解析出 ${records.length} 笔有效记录`);
+  // ===== 輸出資料清洗統計 =====
+  console.log('='.repeat(60));
+  console.log('【充值 CSV 資料清洗結果】');
+  console.log(`  CSV 總行數（不含標題）: ${totalRows.toLocaleString()}`);
+  console.log(`  跳過（空行）: ${skippedEmpty.toLocaleString()}`);
+  console.log(`  跳過（欄位不足）: ${skippedShortColumns.toLocaleString()}`);
+  console.log(`  跳過（test/qa 商戶）: ${skippedTestQa.toLocaleString()}`);
+  console.log(`  清洗後有效記錄數: ${records.length.toLocaleString()}`);
+  console.log('='.repeat(60));
+
   return records;
 };
 
@@ -380,10 +403,12 @@ export const calculateMetrics = (records, withdrawMetrics = null, dataDate = nul
 
     // ===== 全局指标 =====
     // 分类记录
+    // 總申請 = (銀行卡 + 支付寶 + 微信) + 線下
     const isInBankCard = hasJiSu && !hasAlipay && !hasWechat;
     const isInAlipay = hasAlipay;
     const isInWechat = hasWechat;
-    const isInCategory = isInBankCard || isInAlipay || isInWechat;
+    const isInOffline = hasOffline && !hasAlipay && !hasWechat && !hasJiSu; // 線下且非其他分類
+    const isInCategory = isInBankCard || isInAlipay || isInWechat || isInOffline;
 
     if (isInCategory) {
       if (receivedAmount > 0) {
@@ -2262,17 +2287,22 @@ export const parseWithdrawCSV = (content) => {
   const lines = cleanContent.split('\n');
   const records = [];
 
+  // ===== 資料清洗統計 =====
+  let totalRows = 0;
+  let skippedEmpty = 0;
+  let skippedShortColumns = 0;
+  let skippedTestQa = 0;
+  let skippedOffline = 0;
+
   console.log('提现 CSV 解析：总行数', lines.length);
-  if (lines.length > 0) {
-    console.log('提现 CSV 表头:', lines[0].substring(0, 200));
-  }
-  if (lines.length > 1) {
-    console.log('提现 CSV 第一行数据:', lines[1].substring(0, 200));
-  }
 
   for (let i = 1; i < lines.length; i++) {
+    totalRows++;
     const line = lines[i];
-    if (!line.trim()) continue;
+    if (!line.trim()) {
+      skippedEmpty++;
+      continue;
+    }
 
     // 支援兩種 CSV 格式：
     // 1. Excel 格式: "=""value"""
@@ -2280,7 +2310,8 @@ export const parseWithdrawCSV = (content) => {
     let matches = line.match(/\"=\"\"([^\"]*)\"\"\"/g);
     let clean;
 
-    if (matches && matches.length >= 20) {
+    // 至少需要 15 欄（到 status 欄位）
+    if (matches && matches.length >= 15) {
       // Excel 格式
       clean = (m) => m ? m.replace(/^\"=\"\"/, '').replace(/\"\"\"$/, '').trim() : '';
     } else {
@@ -2300,11 +2331,9 @@ export const parseWithdrawCSV = (content) => {
         }
       }
       matches.push(current);
-      if (i === 1) {
-        console.log('提现 CSV 第一行列数:', matches.length);
-      }
-      if (matches.length < 20) {
-        if (i === 1) console.log('提现 CSV 列数不足 20，跳过');
+      // 至少需要 15 欄（到 status 欄位）
+      if (matches.length < 15) {
+        skippedShortColumns++;
         continue;
       }
       clean = (m) => (m || '').trim();
@@ -2339,7 +2368,7 @@ export const parseWithdrawCSV = (content) => {
       payoutBank: matches[25] ? clean(matches[25]) : '',
       payoutAccount: matches[26] ? clean(matches[26]) : '',
       payoutAmount: matches[27] ? parseFloat(clean(matches[27]).replace(/,/g, '')) || 0 : 0,
-      remark: matches[28] ? clean(matches[28]) : '', // AD 栏位 - 说明 (银行卡/支付宝/微信)
+      remark: '', // 不從 CSV 讀取，後面會根據 receivingBank 計算
       transferStatus: matches[29] ? clean(matches[29]) : '' // AE 栏位 - 转账状态 (转账完成/转账失败)
     };
 
@@ -2358,16 +2387,21 @@ export const parseWithdrawCSV = (content) => {
     const isNotifyDone = record.merchantReceiveStatus === '通知完成';
     record.isAutoWithdraw = (isTransferDone && isNotifyDone) ? 1 : 0;
 
-    // remark 已从 CSV AD 栏读取，若为空则从商户名称计算
-    if (!record.remark) {
-      const merchantName = record.merchant || '';
-      if (merchantName.includes('支付宝') || merchantName.includes('支付寶')) {
-        record.remark = '支付宝';
-      } else if (merchantName.includes('微信')) {
-        record.remark = '微信';
-      } else {
-        record.remark = '银行卡';
-      }
+    // remark 从 receivingBank（收款銀行）欄位計算，不從 CSV 讀取
+    // 優先使用 receivingBank，若為空則用商戶名稱判斷
+    const receivingBank = record.receivingBank || '';
+    const merchantName = record.merchant || '';
+
+    if (receivingBank.includes('支付宝') || receivingBank.includes('支付寶')) {
+      record.remark = '支付宝';
+    } else if (receivingBank.includes('微信')) {
+      record.remark = '微信';
+    } else if (merchantName.includes('支付宝') || merchantName.includes('支付寶')) {
+      record.remark = '支付宝';
+    } else if (merchantName.includes('微信')) {
+      record.remark = '微信';
+    } else {
+      record.remark = '银行卡';
     }
 
     // 计算处理时间 (AE公式)：IF(V="", Q-T, Q-V)
@@ -2402,15 +2436,29 @@ export const parseWithdrawCSV = (content) => {
 
     // 过滤掉商户名称包含「线下」、「test」、「qa」的记录
     const merchantLower = record.merchant.toLowerCase();
-    if (record.merchant.includes('线下') || record.merchant.includes('線下') ||
-        merchantLower.includes('test') || merchantLower.includes('qa')) {
+    if (merchantLower.includes('test') || merchantLower.includes('qa')) {
+      skippedTestQa++;
+      continue;
+    }
+    if (record.merchant.includes('线下') || record.merchant.includes('線下')) {
+      skippedOffline++;
       continue;
     }
 
     records.push(record);
   }
 
-  console.log(`提现 CSV 解析完成：共 ${lines.length} 行，解析出 ${records.length} 笔有效记录`);
+  // ===== 輸出資料清洗統計 =====
+  console.log('='.repeat(60));
+  console.log('【提現 CSV 資料清洗結果】');
+  console.log(`  CSV 總行數（不含標題）: ${totalRows.toLocaleString()}`);
+  console.log(`  跳過（空行）: ${skippedEmpty.toLocaleString()}`);
+  console.log(`  跳過（欄位不足）: ${skippedShortColumns.toLocaleString()}`);
+  console.log(`  跳過（test/qa 商戶）: ${skippedTestQa.toLocaleString()}`);
+  console.log(`  跳過（线下/線下 商戶）: ${skippedOffline.toLocaleString()}`);
+  console.log(`  清洗後有效記錄數: ${records.length.toLocaleString()}`);
+  console.log('='.repeat(60));
+
   return records;
 };
 
@@ -3033,9 +3081,28 @@ export const calculateWithdrawMetrics = (records, depositMetrics = null) => {
   const startTime = performance.now();
   const TIMEOUT_MS = 180000; // 180秒超时
 
+  // ===== 先按商戶分類過濾：(銀行卡 + 支付寶 + 微信) + 線下 =====
+  const isInCategory = (r) => {
+    const merchant = r.merchant || '';
+    const hasJiSu = merchant.includes('极速充提3');
+    const hasAlipay = merchant.includes('支付宝') || merchant.includes('支付寶');
+    const hasWechat = merchant.includes('微信');
+    const hasOffline = merchant.includes('线下') || merchant.includes('線下');
+
+    const isInBankCard = hasJiSu && !hasAlipay && !hasWechat;
+    const isInAlipay = hasAlipay;
+    const isInWechat = hasWechat;
+    const isInOffline = hasOffline && !hasAlipay && !hasWechat && !hasJiSu;
+
+    return isInBankCard || isInAlipay || isInWechat || isInOffline;
+  };
+
+  const filteredRecords = records.filter(isInCategory);
+  console.log(`提現商戶分類過濾：原始 ${records.length} 筆 → 過濾後 ${filteredRecords.length} 筆`);
+
   // ===== 单次遍历处理去重和分类 =====
   const uniqueWithdrawRecords = {};
-  const len = records.length;
+  const len = filteredRecords.length;
 
   // 累加器
   let autoWithdrawTimeSum = 0, autoWithdrawTimeCount = 0;
@@ -3048,7 +3115,7 @@ export const calculateWithdrawMetrics = (records, depositMetrics = null) => {
 
   // 第一次遍历：去重 + 计算渠道指标
   for (let i = 0; i < len; i++) {
-    const r = records[i];
+    const r = filteredRecords[i];
 
     // 去重保留最后一笔
     uniqueWithdrawRecords[r.id] = r;

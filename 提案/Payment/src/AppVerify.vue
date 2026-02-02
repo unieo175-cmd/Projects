@@ -38,6 +38,10 @@ const hasWithdrawData = ref(false);
 const depositFileName = ref('');
 const withdrawFileName = ref('');
 
+// 文件输入 refs
+const depositFileInput = ref(null);
+const withdrawFileInput = ref(null);
+
 // 分页切换
 const activeTab = ref('deposit');
 
@@ -194,10 +198,188 @@ onMounted(() => {
   loadFromStorage();
 });
 
+// 测试点击
+const testClick = () => {
+  console.log('=== TEST CLICK ===');
+  window.alert('測試成功！');
+};
+
+// 打开文件选择器
+const openDepositFile = () => {
+  console.log('=== openDepositFile 被點擊 ===');
+  const input = depositFileInput.value;
+  if (input) {
+    console.log('觸發 depositFileInput.click()');
+    input.value = ''; // 重置以便重新选择同一文件
+    input.click();
+  } else {
+    console.error('depositFileInput ref 不存在');
+  }
+};
+
+const openWithdrawFile = () => {
+  console.log('=== openWithdrawFile 被點擊 ===');
+  const input = withdrawFileInput.value;
+  if (input) {
+    console.log('觸發 withdrawFileInput.click()');
+    input.value = '';
+    input.click();
+  } else {
+    console.error('withdrawFileInput ref 不存在');
+  }
+};
+
+// 拖放处理
+const handleDepositDrop = (e) => {
+  console.log('=== handleDepositDrop ===');
+  const files = e.dataTransfer.files;
+  if (files.length > 0) {
+    handleDepositUpload({ target: { files } });
+  }
+};
+
+const handleWithdrawDrop = (e) => {
+  console.log('=== handleWithdrawDrop ===');
+  const files = e.dataTransfer.files;
+  if (files.length > 0) {
+    handleWithdrawUpload({ target: { files } });
+  }
+};
+
+// 清除所有数据
+const clearAllData = async () => {
+  console.log('=== clearAllData 被點擊 ===');
+  if (!confirm('确定要清除所有已导入的数据吗？')) return;
+
+  try {
+    await indexedDB.deleteDatabase(DB_NAME);
+    console.log('IndexedDB 已清除');
+
+    // 重置所有状态
+    depositRecords.value = [];
+    withdrawRecords.value = [];
+    allRecords.value = [];
+    filteredRecords.value = [];
+    hasDepositData.value = false;
+    hasWithdrawData.value = false;
+    depositFileName.value = '';
+    withdrawFileName.value = '';
+    dataDate.value = '2026-01-01';
+
+    alert('数据已清除，请重新上传 CSV 文件');
+  } catch (e) {
+    console.error('清除数据失败:', e);
+    alert('清除失败: ' + e.message);
+  }
+};
+
+// 载入测试数据 (从 public/testdata 目录)
+const loadTestData = async () => {
+  console.log('=== 开始载入测试数据 ===');
+  isLoading.value = true;
+  loadingProgress.value = 0;
+  loadingStatus.value = '正在载入测试数据...';
+
+  try {
+    // 载入充值数据
+    loadingStatus.value = '正在载入充值数据...';
+    loadingProgress.value = 10;
+    console.log('正在 fetch /testdata/deposit.csv ...');
+    const depositResponse = await fetch('/testdata/deposit.csv');
+    console.log('deposit.csv response status:', depositResponse.status);
+    if (!depositResponse.ok) {
+      throw new Error('无法载入充值数据: ' + depositResponse.status);
+    }
+    const depositContent = await depositResponse.text();
+    console.log('充值 CSV 内容长度:', depositContent.length, '字符');
+    console.log('充值 CSV 行数:', depositContent.split('\n').length);
+    loadingProgress.value = 30;
+
+    console.log('开始解析充值数据...');
+    const depositParsed = parseCSV(depositContent);
+    console.log('充值解析结果:', depositParsed.length, '笔');
+    if (depositParsed.length > 0) {
+      console.log('第一笔充值记录:', JSON.stringify(depositParsed[0], null, 2));
+    } else {
+      console.warn('警告: 充值数据解析结果为空!');
+    }
+
+    depositRecords.value = depositParsed;
+    hasDepositData.value = depositParsed.length > 0;
+    depositFileName.value = '24437_充值紀錄_20260126_20260201.csv';
+
+    if (depositParsed.length > 0 && depositParsed[0].requestTime) {
+      dataDate.value = depositParsed[0].requestTime.split(' ')[0];
+    }
+    console.log('充值数据载入完成，记录数:', depositParsed.length);
+
+    // 载入提现数据
+    loadingStatus.value = '正在载入提现数据...';
+    loadingProgress.value = 50;
+    console.log('正在 fetch /testdata/withdraw.csv ...');
+    const withdrawResponse = await fetch('/testdata/withdraw.csv');
+    console.log('withdraw.csv response status:', withdrawResponse.status);
+    if (!withdrawResponse.ok) {
+      throw new Error('无法载入提现数据: ' + withdrawResponse.status);
+    }
+    const withdrawContent = await withdrawResponse.text();
+    console.log('提现 CSV 内容长度:', withdrawContent.length, '字符');
+    console.log('提现 CSV 行数:', withdrawContent.split('\n').length);
+    loadingProgress.value = 70;
+
+    console.log('开始解析提现数据...');
+    const withdrawParsed = parseWithdrawCSV(withdrawContent);
+    console.log('提现解析结果:', withdrawParsed.length, '笔');
+    if (withdrawParsed.length > 0) {
+      console.log('第一笔提现记录:', JSON.stringify(withdrawParsed[0], null, 2));
+    } else {
+      console.warn('警告: 提现数据解析结果为空!');
+    }
+
+    withdrawRecords.value = withdrawParsed;
+    hasWithdrawData.value = withdrawParsed.length > 0;
+    withdrawFileName.value = '24455_提現紀錄_20260126_20260201.csv';
+    console.log('提现数据载入完成，记录数:', withdrawParsed.length);
+
+    // 更新显示
+    allRecords.value = depositParsed;
+    filteredRecords.value = [...depositParsed];
+    activeTab.value = 'deposit';
+    console.log('已更新显示数据, allRecords:', allRecords.value.length, 'filteredRecords:', filteredRecords.value.length);
+
+    loadingProgress.value = 90;
+    loadingStatus.value = '正在保存数据...';
+
+    // 保存到 IndexedDB
+    await saveDepositToStorage();
+    await saveWithdrawToStorage();
+    console.log('数据已保存到 IndexedDB');
+
+    loadingProgress.value = 100;
+    loadingStatus.value = `测试数据载入完成！充值 ${depositParsed.length} 笔，提现 ${withdrawParsed.length} 笔`;
+    console.log('=== 测试数据载入完成 ===');
+
+  } catch (error) {
+    console.error('载入测试数据失败:', error);
+    console.error('错误堆栈:', error.stack);
+    loadingStatus.value = '载入失败: ' + error.message;
+    alert('载入测试数据失败: ' + error.message);
+  } finally {
+    setTimeout(() => {
+      isLoading.value = false;
+    }, 1000);
+  }
+};
+
 // 处理充值数据上传
 const handleDepositUpload = async (event) => {
+  console.log('handleDepositUpload 被调用', event.target.files);
   const file = event.target.files[0];
-  if (!file) return;
+  if (!file) {
+    console.log('没有选择文件');
+    return;
+  }
+  console.log('开始上传文件:', file.name, '大小:', file.size);
 
   if (file.size > MAX_FILE_SIZE) {
     alert('文件大小超过 500MB 限制，请选择较小的文件');
@@ -258,8 +440,13 @@ const handleDepositUpload = async (event) => {
 
 // 处理提现数据上传
 const handleWithdrawUpload = async (event) => {
+  console.log('handleWithdrawUpload 被调用', event.target.files);
   const file = event.target.files[0];
-  if (!file) return;
+  if (!file) {
+    console.log('没有选择文件');
+    return;
+  }
+  console.log('开始上传提现文件:', file.name, '大小:', file.size);
 
   if (file.size > MAX_FILE_SIZE) {
     alert('文件大小超过 500MB 限制，请选择较小的文件');
@@ -452,24 +639,32 @@ const hasCurrentData = computed(() => {
 
       <!-- 数据导入区域 -->
       <div class="import-section" v-show="!sidebarCollapsed">
-        <div class="import-title">导入数据</div>
-        <div class="import-item">
-          <label class="import-btn">
-            <input type="file" accept=".csv,.xlsx,.xls" @change="handleDepositUpload" hidden />
-            <span class="import-icon">📥</span>
-            <span>充值数据</span>
-          </label>
-          <span class="import-status" v-if="hasDepositData">✓</span>
-        </div>
-        <div class="import-item">
-          <label class="import-btn">
-            <input type="file" accept=".csv,.xlsx,.xls" @change="handleWithdrawUpload" hidden />
-            <span class="import-icon">📥</span>
-            <span>提现数据</span>
-          </label>
-          <span class="import-status" v-if="hasWithdrawData">✓</span>
-        </div>
-        <div class="import-hint">支持 CSV/Excel，限制: 500MB</div>
+        <div class="import-title">数据管理</div>
+
+        <!-- 充值数据 -->
+        <label class="upload-label" :class="{ 'has-data': hasDepositData }">
+          <input type="file" accept=".csv,.xlsx,.xls" @change="handleDepositUpload" />
+          <span class="upload-icon">{{ hasDepositData ? '✓' : '📊' }}</span>
+          <span class="upload-text">
+            <span class="upload-title">充值数据</span>
+            <span class="upload-status">{{ hasDepositData ? depositRecords.length.toLocaleString() + ' 笔' : '点击导入' }}</span>
+          </span>
+        </label>
+
+        <!-- 提现数据 -->
+        <label class="upload-label" :class="{ 'has-data': hasWithdrawData }">
+          <input type="file" accept=".csv,.xlsx,.xls" @change="handleWithdrawUpload" />
+          <span class="upload-icon">{{ hasWithdrawData ? '✓' : '💰' }}</span>
+          <span class="upload-text">
+            <span class="upload-title">提现数据</span>
+            <span class="upload-status">{{ hasWithdrawData ? withdrawRecords.length.toLocaleString() + ' 笔' : '点击导入' }}</span>
+          </span>
+        </label>
+
+        <!-- 清除数据按钮 -->
+        <button class="clear-all-btn" @click="clearAllData" :disabled="!hasDepositData && !hasWithdrawData">
+          清除所有数据
+        </button>
       </div>
     </aside>
 
@@ -482,9 +677,9 @@ const hasCurrentData = computed(() => {
             {{ activeTab === 'deposit' ? '充值分析报表' : activeTab === 'withdraw' ? '提现分析报表' : activeTab === 'weekly' ? '日/周报数据汇总' : '骗分统计' }}
           </h2>
           <div class="data-info">
-            <span class="data-date" v-if="dataDate">📅 数据日期：{{ dataDate }}</span>
-            <span class="file-info" v-if="depositFileName">充值: {{ depositFileName }}</span>
-            <span class="file-info" v-if="withdrawFileName">提现: {{ withdrawFileName }}</span>
+            <span class="file-info" v-if="depositFileName">📥 充值: {{ depositFileName }}</span>
+            <span class="file-info" v-if="withdrawFileName">📥 提现: {{ withdrawFileName }}</span>
+            <span class="version-badge">v1.0.0</span>
           </div>
         </div>
       </header>
@@ -503,17 +698,7 @@ const hasCurrentData = computed(() => {
         <div v-else-if="!hasCurrentData && activeTab !== 'fraud'" class="empty-state">
           <div class="empty-icon">📂</div>
           <h2>请先导入数据</h2>
-          <p>点击左侧「导入数据」按钮上传 CSV 或 Excel 文件</p>
-          <div class="upload-buttons">
-            <label v-if="activeTab === 'deposit' || activeTab === 'weekly'" class="upload-btn primary">
-              <input type="file" accept=".csv,.xlsx,.xls" @change="handleDepositUpload" hidden />
-              📥 导入充值数据
-            </label>
-            <label v-if="activeTab === 'withdraw' || activeTab === 'weekly'" class="upload-btn primary">
-              <input type="file" accept=".csv,.xlsx,.xls" @change="handleWithdrawUpload" hidden />
-              📥 导入提现数据
-            </label>
-          </div>
+          <p>请从左侧「数据管理」区域导入 CSV 文件</p>
         </div>
 
         <template v-else>
@@ -524,7 +709,7 @@ const hasCurrentData = computed(() => {
             <FraudStats />
           </template>
           <template v-else>
-            <SearchFilter :records="allRecords" @filter="handleFilter" @export="handleExport" @dateChange="handleDateChange" />
+            <SearchFilter :records="allRecords" :hideDate="true" @filter="handleFilter" @export="handleExport" @dateChange="handleDateChange" />
             <MetricsCards v-if="activeTab === 'deposit'" :metrics="metrics" :dateRange="dateRange" :dataDate="dataDate" @channelChange="handleChannelChange" />
             <WithdrawMetricsCards v-else :metrics="metrics" />
             <Charts v-if="activeTab === 'deposit' && activeChannel === 'all'" :records="filteredRecords" />
@@ -667,61 +852,253 @@ body {
   padding: 14px;
 }
 
-/* 数据导入区域 */
+/* 数据管理区域 */
 .dark-theme .import-section {
   margin-top: auto;
   padding: 16px;
   border-top: 1px solid #2a2a4a;
+  position: relative;
+  z-index: 100;
 }
 
 .dark-theme .import-title {
   font-size: 12px;
   color: #00d9ff;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 1px;
 }
 
-.dark-theme .import-item {
+/* 数据状态卡片 */
+.dark-theme .data-status-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.dark-theme .data-status-header {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 8px;
   margin-bottom: 8px;
 }
 
-.dark-theme .import-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
-  background: rgba(0, 217, 255, 0.1);
-  border: 1px solid #00d9ff;
-  border-radius: 6px;
-  color: #00d9ff;
+.dark-theme .data-label {
   font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.dark-theme .data-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+.dark-theme .data-badge.success {
+  background: rgba(0, 255, 136, 0.2);
+  color: #00ff88;
+}
+
+.dark-theme .data-badge.empty {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.dark-theme .data-status-info {
+  margin-bottom: 8px;
+}
+
+.dark-theme .record-count {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* 拖放区域样式 */
+.dark-theme .drop-zone {
+  background: rgba(0, 217, 255, 0.05);
+  border: 2px dashed rgba(0, 217, 255, 0.4);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
   cursor: pointer;
   transition: all 0.2s;
-  flex: 1;
+  text-align: center;
 }
 
-.dark-theme .import-btn:hover {
-  background: rgba(0, 217, 255, 0.2);
+.dark-theme .drop-zone:hover {
+  background: rgba(0, 217, 255, 0.15);
+  border-color: #00d9ff;
 }
 
-.dark-theme .import-icon {
-  font-size: 16px;
+.dark-theme .drop-zone.has-data {
+  background: rgba(0, 255, 136, 0.1);
+  border-color: rgba(0, 255, 136, 0.5);
+  border-style: solid;
 }
 
-.dark-theme .import-status {
-  color: #00ff88;
-  font-size: 16px;
+.dark-theme .drop-zone.has-data:hover {
+  background: rgba(0, 255, 136, 0.2);
+  border-color: #00ff88;
 }
 
-.dark-theme .import-hint {
+.dark-theme .drop-zone-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+.dark-theme .drop-zone-status {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.dark-theme .drop-zone.has-data .drop-zone-status {
+  color: #00ff88;
+}
+
+/* 侧边栏上传按钮 */
+.dark-theme .upload-label {
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  background: rgba(0, 217, 255, 0.08);
+  border: 1px solid rgba(0, 217, 255, 0.3);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.dark-theme .upload-label:hover {
+  background: rgba(0, 217, 255, 0.15);
+  border-color: #00d9ff;
+  transform: translateY(-1px);
+}
+
+.dark-theme .upload-label.has-data {
+  background: rgba(0, 255, 136, 0.1);
+  border-color: rgba(0, 255, 136, 0.4);
+}
+
+.dark-theme .upload-label.has-data:hover {
+  background: rgba(0, 255, 136, 0.18);
+  border-color: #00ff88;
+}
+
+/* 隐藏 file input */
+.dark-theme .upload-label input[type="file"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.dark-theme .upload-icon {
+  font-size: 20px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.dark-theme .upload-label.has-data .upload-icon {
+  background: rgba(0, 255, 136, 0.2);
+  color: #00ff88;
+}
+
+.dark-theme .upload-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dark-theme .upload-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.dark-theme .upload-status {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.dark-theme .upload-label.has-data .upload-status {
+  color: #00ff88;
+  font-weight: 500;
+}
+
+/* 清除所有数据按钮 */
+.dark-theme .clear-all-btn {
+  width: 100%;
+  padding: 10px 12px;
   margin-top: 8px;
+  background: transparent;
+  border: 1px solid rgba(255, 100, 100, 0.5);
+  border-radius: 6px;
+  color: #ff6464;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  z-index: 10;
+}
+
+.dark-theme .clear-all-btn:hover:not(:disabled) {
+  background: rgba(255, 100, 100, 0.2);
+  border-color: #ff6464;
+}
+
+.dark-theme .clear-all-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.dark-theme .clear-all-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* 隐藏但可访问的文件输入 */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* 隐藏的文件输入 - 使用 opacity 而非 display:none */
+.hidden-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+  z-index: -1;
 }
 
 /* 主内容区 - 深色版 */
@@ -789,6 +1166,16 @@ body {
   padding: 6px 12px;
   border-radius: 6px;
   border: 1px solid rgba(0, 217, 255, 0.3);
+}
+
+.dark-theme .version-badge {
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+  padding: 4px 10px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
 }
 
 .dark-theme .main {
