@@ -82,7 +82,7 @@ export const parseCSV = (content) => {
       status: clean(matches[13]),  // N栏：状态
       merchantReceiveStatus: clean(matches[14]),
       merchantCreditStatus: clean(matches[15]),
-      requestTime: clean(matches[16]),  // Q栏：请求日期
+      requestTime: clean(matches[16]).replace(/\//g, '-'),  // Q栏：请求日期，统一格式为 YYYY-MM-DD
       detailReceiveTime: clean(matches[17]),
       detailArriveTime: clean(matches[18]),
       notifyMerchantTime: clean(matches[19]),  // T栏：通知商户时间
@@ -2330,7 +2330,7 @@ export const parseWithdrawCSV = (content) => {
       notifyMerchantTime: clean(matches[16]),
       userId: clean(matches[17]),
       userLevel: clean(matches[18]),
-      requestTime: clean(matches[19]),
+      requestTime: clean(matches[19]).replace(/\//g, '-'), // 统一日期格式为 YYYY-MM-DD
       poolCreateTime: matches[20] ? clean(matches[20]) : '',
       remainPoolCreateTime: matches[21] ? clean(matches[21]) : '',
       transferId: matches[22] ? clean(matches[22]) : '',
