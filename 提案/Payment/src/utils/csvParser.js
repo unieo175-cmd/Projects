@@ -2235,7 +2235,7 @@ export const formatTimeMinutes = (seconds) => {
 };
 
 export const formatAmount = (amount) => {
-  return Math.round(amount).toLocaleString('zh-CN');
+  return Number(amount).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
 // Get unique channels from records
