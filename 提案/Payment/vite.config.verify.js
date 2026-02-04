@@ -21,7 +21,8 @@ export default defineConfig({
   base: '/',
   server: {
     port: 5176,
-    open: '/index-verify.html'
+    open: '/index-verify.html',
+    allowedHosts: ['.trycloudflare.com', '.loca.lt']
   },
   build: {
     outDir: 'dist-verify',
