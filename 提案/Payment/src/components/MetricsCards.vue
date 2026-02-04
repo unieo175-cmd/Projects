@@ -598,12 +598,12 @@ const timeCards = computed(() => [
             <span class="detail-value">{{ (metrics.thirdPartyOtherCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.thirdPartyOtherAmount || 0) }} 元</span>
           </div>
           <div class="section-formula">
-            <strong>数据范围：</strong>商户包含「极速充提3」且不含支付宝/微信/test/qa/线下，到账金额>0<br>
-            <strong>三方代收：</strong>银行卡代号非gb/auction开头，或是特定三方代收代码<br>
+            <strong>数据范围：</strong>商户不含支付宝/微信/test/qa/线下，到账金额>0<br>
+            <strong>三方代收：</strong>银行卡代号非gb/auction开头，或是特定三方代收代码(HTc2c/DDF/UC1020/GB-Dahaomen)<br>
             <strong>汇通：</strong>银行卡代号 HTc2c 开头<br>
             <strong>豆豆：</strong>银行卡代号 DDF 开头<br>
             <strong>UC聚合：</strong>银行卡代号 uc1020 开头<br>
-            <strong>其他：</strong>包含 GB-Dahaomen/Dahaomen 开头，排除汇通/豆豆/UC
+            <strong>其他：</strong>GB-Dahaomen/Dahaomen 开头，或非gb/auction开头
           </div>
         </div>
       </div>
@@ -647,13 +647,13 @@ const timeCards = computed(() => [
       <div class="metrics-section">
         <div class="section-header" @click="showCommercial = !showCommercial">
           <h3 class="section-title">商业平台</h3>
-          <span class="section-value">{{ (metrics.cnxApplicationCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.cnxSuccessAmount || 0) }} 元</span>
+          <span class="section-value">{{ ((metrics.cnxSuccessCount || 0) + (metrics.shenlaiSuccessCount || 0)).toLocaleString() }} 笔 / {{ formatAmount((metrics.cnxSuccessAmount || 0) + (metrics.shenlaiSuccessAmount || 0)) }} 元</span>
           <span class="toggle-icon">{{ showCommercial ? '▼' : '▶' }}</span>
         </div>
         <div v-show="showCommercial" class="c2c-content">
           <div class="detail-item">
             <span class="detail-label">外部充值成功</span>
-            <span class="detail-value">0 笔 / 0 元</span>
+            <span class="detail-value">{{ ((metrics.cnxSuccessCount || 0) + (metrics.shenlaiSuccessCount || 0)).toLocaleString() }} 笔 / {{ formatAmount((metrics.cnxSuccessAmount || 0) + (metrics.shenlaiSuccessAmount || 0)) }} 元</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">未收单</span>
@@ -668,10 +668,19 @@ const timeCards = computed(() => [
             <span class="detail-label">充值成功笔数</span>
             <span class="detail-value">{{ (metrics.cnxSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.cnxSuccessAmount || 0) }} 元</span>
           </div>
+          <div class="detail-header">外部商户_500彩</div>
+          <div class="detail-item">
+            <span class="detail-label">充值申请</span>
+            <span class="detail-value">{{ (metrics.shenlaiApplicationCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.shenlaiApplicationAmount || 0) }} 元</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">充值成功笔数</span>
+            <span class="detail-value">{{ (metrics.shenlaiSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.shenlaiSuccessAmount || 0) }} 元</span>
+          </div>
           <div class="section-formula">
-            <strong>数据范围：</strong>商户包含「CNX」<br>
-            <strong>充值申请：</strong>商户包含CNX的记录笔数和充值金额<br>
-            <strong>充值成功：</strong>商户包含CNX且到账金额>0的记录笔数和到账金额
+            <strong>数据范围：</strong>商户 = CNX交易所 或 外部商户_500彩<br>
+            <strong>充值申请：</strong>符合商户的记录笔数和充值金额<br>
+            <strong>充值成功：</strong>状态不含「未充值」且金额>0的记录
           </div>
         </div>
       </div>

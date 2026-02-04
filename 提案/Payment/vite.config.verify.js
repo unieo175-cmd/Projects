@@ -20,7 +20,7 @@ export default defineConfig({
   ],
   base: '/',
   server: {
-    port: 5174,
+    port: 5176,
     open: '/index-verify.html'
   },
   build: {

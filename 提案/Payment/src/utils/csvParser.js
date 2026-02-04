@@ -248,9 +248,9 @@ export const calculateMetrics = (records, withdrawMetrics = null, dataDate = nul
   const amountRangesSet = new Set(amountRanges);
 
   // 三方代收判断函数
-  const isThirdPartyDahaomen = (code) => code && (code.startsWith('GB-Dahaomen') || code.startsWith('Dahaomen'));
-  const isThirdPartyHuitong = (code) => code && code.startsWith('HTc2c');
-  const isThirdPartyDoudou = (code) => code && code.startsWith('DDF');
+  const isThirdPartyDahaomen = (code) => code && (code.toLowerCase().startsWith('gb-dahaomen') || code.toLowerCase().startsWith('dahaomen'));
+  const isThirdPartyHuitong = (code) => code && code.toLowerCase().startsWith('htc2c');
+  const isThirdPartyDoudou = (code) => code && code.toLowerCase().startsWith('ddf');
   const isThirdPartyUC = (code) => code && code.toLowerCase().startsWith('uc1020');
   const isKnownThirdParty = (code) => isThirdPartyHuitong(code) || isThirdPartyDoudou(code) || isThirdPartyUC(code);
 
@@ -304,6 +304,13 @@ export const calculateMetrics = (records, withdrawMetrics = null, dataDate = nul
   let thirdPartyUCCount = 0, thirdPartyUCAmount = 0;
   let thirdPartyOtherCount = 0, thirdPartyOtherAmount = 0;
 
+  // 全局三方代收 (所有商户，不限于极速充提3或支付宝)
+  let globalThirdPartyCount = 0, globalThirdPartyAmount = 0;
+  let globalThirdPartyHuitongCount = 0, globalThirdPartyHuitongAmount = 0;
+  let globalThirdPartyDoudouCount = 0, globalThirdPartyDoudouAmount = 0;
+  let globalThirdPartyUCCount = 0, globalThirdPartyUCAmount = 0;
+  let globalThirdPartyOtherCount = 0, globalThirdPartyOtherAmount = 0;
+
   // 支付宝
   let alipayNormalCardAppCount = 0, alipayExpressCardAppCount = 0, alipayJisuTikaCount = 0, alipayJisuTibaoCount = 0;
   let alipayWaitingForMatchCount = 0;
@@ -354,6 +361,9 @@ export const calculateMetrics = (records, withdrawMetrics = null, dataDate = nul
 
   // CNX
   let cnxApplicationCount = 0, cnxApplicationAmount = 0, cnxSuccessCount = 0, cnxSuccessAmount = 0;
+
+  // 外部商户_500彩
+  let shenlaiApplicationCount = 0, shenlaiApplicationAmount = 0, shenlaiSuccessCount = 0, shenlaiSuccessAmount = 0;
 
   // JS等待无配对
   let bankCardWaitingNoMatch = 0, alipayWaitingNoMatch = 0;
@@ -440,6 +450,28 @@ export const calculateMetrics = (records, withdrawMetrics = null, dataDate = nul
     if (receivedAmount > 0 && hasValidTime) {
       recordsWithAmountAndTimeSum += processingTime;
       recordsWithAmountAndTimeCount++;
+    }
+
+    // ===== 全局三方代收计数 (所有商户) =====
+    // 不受 isJisuRecord/isAlipayRecord 条件限制，只根据银行卡代号判断
+    if (bankCardCode && receivedAmount > 0 && !hasOffline && !hasTest && !hasQa) {
+      const codeLower = bankCardCode.toLowerCase();
+      if (isThirdPartyHuitong(bankCardCode)) {
+        globalThirdPartyCount++; globalThirdPartyAmount += receivedAmount;
+        globalThirdPartyHuitongCount++; globalThirdPartyHuitongAmount += receivedAmount;
+      } else if (isThirdPartyDoudou(bankCardCode)) {
+        globalThirdPartyCount++; globalThirdPartyAmount += receivedAmount;
+        globalThirdPartyDoudouCount++; globalThirdPartyDoudouAmount += receivedAmount;
+      } else if (isThirdPartyUC(bankCardCode)) {
+        globalThirdPartyCount++; globalThirdPartyAmount += receivedAmount;
+        globalThirdPartyUCCount++; globalThirdPartyUCAmount += receivedAmount;
+      } else if (isThirdPartyDahaomen(bankCardCode)) {
+        globalThirdPartyCount++; globalThirdPartyAmount += receivedAmount;
+        globalThirdPartyOtherCount++; globalThirdPartyOtherAmount += receivedAmount;
+      } else if (!codeLower.startsWith('gb') && !codeLower.startsWith('auction')) {
+        globalThirdPartyCount++; globalThirdPartyAmount += receivedAmount;
+        globalThirdPartyOtherCount++; globalThirdPartyOtherAmount += receivedAmount;
+      }
     }
 
     // 旧版时间分布
@@ -544,10 +576,19 @@ export const calculateMetrics = (records, withdrawMetrics = null, dataDate = nul
       if (bankCardCode && bankCardCode.includes('AUCTION_PAYMENT_CARD') && receivedAmount > 0 && hasMerchantConfirm) {
         c2cOver11MinSuccessCount++;
       }
+    }
 
-      // 三方代收
-      if (bankCardCode && receivedAmount > 0 && !hasOffline) {
-        const codeLower = bankCardCode.toLowerCase();
+    // ===== 银行卡三方代收（独立计算，不限于极速充提3）=====
+    // 条件：非支付宝、非微信、非test/qa/线下，到账金额>0
+    const isBankCardThirdPartyRecord = !hasAlipay && !hasWechat && !hasTest && !hasQa && !hasOffline;
+    if (isBankCardThirdPartyRecord && bankCardCode && receivedAmount > 0) {
+      const codeLower = bankCardCode.toLowerCase();
+      // 判断是否为三方代收：非gb/auction开头，或是特定三方代收代码
+      const isThirdParty = isThirdPartyHuitong(bankCardCode) || isThirdPartyDoudou(bankCardCode) ||
+                           isThirdPartyUC(bankCardCode) || isThirdPartyDahaomen(bankCardCode) ||
+                           (!codeLower.startsWith('gb') && !codeLower.startsWith('auction'));
+
+      if (isThirdParty) {
         if (isThirdPartyHuitong(bankCardCode)) {
           thirdPartyCount++; thirdPartyAmount += receivedAmount;
           thirdPartyHuitongCount++; thirdPartyHuitongAmount += receivedAmount;
@@ -780,12 +821,28 @@ export const calculateMetrics = (records, withdrawMetrics = null, dataDate = nul
     }
 
     // ===== CNX交易所 =====
-    if (bankCardCode && merchant === '极速充提3(银行卡)_CNX交易所') {
+    // 申請：merchant = "极速充提3(银行卡)_CNX交易所" (不限制bankCardCode)
+    if (merchant === '极速充提3(银行卡)_CNX交易所') {
       cnxApplicationCount++;
       cnxApplicationAmount += amount;
-      if (status.includes('已充值') && amount > 0) {
+      // 成功：狀態不是「未充值」且金額>0
+      const isUnpaid = status.includes('未充值');
+      if (!isUnpaid && amount > 0) {
         cnxSuccessCount++;
         cnxSuccessAmount += amount;
+      }
+    }
+
+    // ===== 外部商户_500彩 =====
+    // 申請：merchant = "外部商户_500彩" (不限制bankCardCode)
+    if (merchant === '外部商户_500彩') {
+      shenlaiApplicationCount++;
+      shenlaiApplicationAmount += amount;
+      // 成功：狀態不是「未充值」且金額>0
+      const isShenlaiUnpaid = status.includes('未充值');
+      if (!isShenlaiUnpaid && amount > 0) {
+        shenlaiSuccessCount++;
+        shenlaiSuccessAmount += amount;
       }
     }
   }
@@ -939,6 +996,18 @@ export const calculateMetrics = (records, withdrawMetrics = null, dataDate = nul
     thirdPartyOtherCount,
     thirdPartyOtherAmount,
 
+    // 全局三方代收 (所有商户)
+    globalThirdPartyCount,
+    globalThirdPartyAmount,
+    globalThirdPartyHuitongCount,
+    globalThirdPartyHuitongAmount,
+    globalThirdPartyDoudouCount,
+    globalThirdPartyDoudouAmount,
+    globalThirdPartyUCCount,
+    globalThirdPartyUCAmount,
+    globalThirdPartyOtherCount,
+    globalThirdPartyOtherAmount,
+
     // 支付宝商户
     alipayApplicationCount,
     alipayNormalCardAppCount,
@@ -1048,6 +1117,12 @@ export const calculateMetrics = (records, withdrawMetrics = null, dataDate = nul
     cnxApplicationAmount,
     cnxSuccessCount,
     cnxSuccessAmount,
+
+    // 外部商户_500彩
+    shenlaiApplicationCount,
+    shenlaiApplicationAmount,
+    shenlaiSuccessCount,
+    shenlaiSuccessAmount,
 
     // JS等待无配对
     jsWaitingNoMatch,
@@ -1404,9 +1479,9 @@ export const calculateMetricsLegacy = (records, withdrawMetrics = null, dataDate
 
   // ===== 三方代收（銀行卡）=====
   // 三方代收判断函数
-  const isThirdPartyDahaomen = (code) => code && (code.startsWith('GB-Dahaomen') || code.startsWith('Dahaomen'));
-  const isThirdPartyHuitong = (code) => code && code.startsWith('HTc2c');
-  const isThirdPartyDoudou = (code) => code && code.startsWith('DDF');
+  const isThirdPartyDahaomen = (code) => code && (code.toLowerCase().startsWith('gb-dahaomen') || code.toLowerCase().startsWith('dahaomen'));
+  const isThirdPartyHuitong = (code) => code && code.toLowerCase().startsWith('htc2c');
+  const isThirdPartyDoudou = (code) => code && code.toLowerCase().startsWith('ddf');
   const isThirdPartyUC = (code) => code && code.toLowerCase().startsWith('uc1020');
   // GB-DahaomenJFB 归类到「其他」，不再作为已知三方
   const isKnownThirdParty = (code) => isThirdPartyHuitong(code) || isThirdPartyDoudou(code) || isThirdPartyUC(code);
@@ -1978,21 +2053,36 @@ export const calculateMetricsLegacy = (records, withdrawMetrics = null, dataDate
     : 0;
 
   // ===== 6. 商业平台 - 极速充提3(银行卡)_CNX交易所 =====
-  // 充值_申请：bankCardCode不为空 且 merchant = "极速充提3(银行卡)_CNX交易所"
+  // 充值_申请：merchant = "极速充提3(银行卡)_CNX交易所" (不限制bankCardCode)
   const cnxRecords = records.filter(r =>
-    r.bankCardCode && r.bankCardCode !== '' &&
     r.merchant === '极速充提3(银行卡)_CNX交易所'
   );
   const cnxApplicationCount = cnxRecords.length;
   const cnxApplicationAmount = cnxRecords.reduce((sum, r) => sum + r.amount, 0);
 
-  // 充值成功笔数：状态包含「已充值」且充值金额>0
+  // 充值成功笔数：状态不是「未充值」且充值金额>0
   const cnxSuccessRecords = cnxRecords.filter(r =>
-    r.status && r.status.includes('已充值') &&
+    r.status && !r.status.includes('未充值') &&
     r.amount > 0
   );
   const cnxSuccessCount = cnxSuccessRecords.length;
   const cnxSuccessAmount = cnxSuccessRecords.reduce((sum, r) => sum + r.amount, 0);
+
+  // ===== 7. 商业平台 - 外部商户_500彩 =====
+  // 充值_申请：merchant = "外部商户_500彩" (不限制bankCardCode)
+  const shenlaiRecords = records.filter(r =>
+    r.merchant === '外部商户_500彩'
+  );
+  const shenlaiApplicationCount = shenlaiRecords.length;
+  const shenlaiApplicationAmount = shenlaiRecords.reduce((sum, r) => sum + r.amount, 0);
+
+  // 充值成功笔数：状态不是「未充值」且充值金额>0
+  const shenlaiSuccessRecords = shenlaiRecords.filter(r =>
+    r.status && !r.status.includes('未充值') &&
+    r.amount > 0
+  );
+  const shenlaiSuccessCount = shenlaiSuccessRecords.length;
+  const shenlaiSuccessAmount = shenlaiSuccessRecords.reduce((sum, r) => sum + r.amount, 0);
 
   // ===== JS充值等待最终无配对 =====
   // 公式：（銀行卡的建单成功等待无配对＋取无卡06提示）＋（支付寶的建单成功等待无配对＋取无卡06提示）
@@ -2224,6 +2314,11 @@ export const calculateMetricsLegacy = (records, withdrawMetrics = null, dataDate
     cnxApplicationAmount,
     cnxSuccessCount,
     cnxSuccessAmount,
+    // 外部商户_500彩
+    shenlaiApplicationCount,
+    shenlaiApplicationAmount,
+    shenlaiSuccessCount,
+    shenlaiSuccessAmount,
 
     // 旧指标 (保留兼容)
     totalAmount,
@@ -2969,13 +3064,23 @@ export const exportDepositToText = (metrics, weekRange, withdrawMetrics = null, 
     return (val * 100).toFixed(2) + '%';
   };
 
-  // 解析日期
-  let month = '';
-  let day = '';
+  // 解析日期範圍
+  let dateRangeText = '';
   if (weekRange && weekRange.start) {
     const startDate = new Date(weekRange.start);
-    month = startDate.getMonth() + 1;
-    day = startDate.getDate();
+    const startMonth = startDate.getMonth() + 1;
+    const startDay = startDate.getDate();
+
+    if (weekRange.end && weekRange.end !== weekRange.start) {
+      // 有結束日期且不同於開始日期，顯示範圍
+      const endDate = new Date(weekRange.end);
+      const endMonth = endDate.getMonth() + 1;
+      const endDay = endDate.getDate();
+      dateRangeText = `${startMonth}/${startDay}-${endMonth}/${endDay}`;
+    } else {
+      // 單日
+      dateRangeText = `${startMonth}/${startDay}`;
+    }
   }
 
   // 计算配对率
@@ -2985,7 +3090,7 @@ export const exportDepositToText = (metrics, weekRange, withdrawMetrics = null, 
   const alipaySuccessAfterMatchRate = m.alipayTotalMatchCount > 0 ? m.alipayTotalOrderSuccessCount / m.alipayTotalMatchCount : 0;
 
   // 银行卡区块
-  const bankCardText = `JS数据_${month}/${day}
+  const bankCardText = `JS数据_${dateRangeText}
 充值申请${safeNum(m.jisuApplicationCount)}笔(${safeNum(m.normalCardAppCount)}一般卡/${safeNum(m.expressCardAppCount)}极速提/${safeNum(m.waitingForMatchCount)}建单成功等待无配对/${safeNum(m.noCard06Count)}取无卡06提示)
 成功配对${safeNum(m.totalMatchCount)}笔/${safeNum(m.totalMatchAmount)}元
 -一般卡${safeNum(m.normalMatchCount)}笔/${safeNum(m.normalMatchAmount)}元
@@ -3011,7 +3116,7 @@ c2c${safeNum(m.c2cCount)}笔点确认平均${formatTimeText(m.c2cConfirmAvgTime)
 信评${safeNum(wkm.fraudBankCardCredit)}元/${safeNum(wkm.fraudBankCardCreditCount)}笔`;
 
   // 支付宝区块
-  const alipayText = `JS数据_${month}/${day}【支付宝】
+  const alipayText = `JS数据_${dateRangeText}【支付宝】
 充值申请${safeNum(m.alipayApplicationCount)}笔(${safeNum(m.alipayNormalCardAppCount)}一般卡/${safeNum(m.alipayExpressCardAppCount)}一般宝/${safeNum(m.alipayJisuTikaCount)}极速提卡/${safeNum(m.alipayJisuTibaoCount)}极速提宝/${safeNum(m.alipayWaitingForMatchCount)}建单成功等待无配对/${safeNum(m.alipayNoCard06Count)}取无卡06提示)
 成功配对${safeNum(m.alipayTotalMatchCount)}笔/${safeNum(m.alipayTotalMatchAmount)}元
 -一般卡${safeNum(m.alipayNormalMatchCount)}笔/${safeNum(m.alipayNormalMatchAmount)}元

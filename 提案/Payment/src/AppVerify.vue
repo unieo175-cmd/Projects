@@ -23,6 +23,42 @@ const getFileExtension = (filename) => {
   return filename.split('.').pop().toLowerCase();
 };
 
+// 检测 CSV 文件类型（充值 or 提现）
+const detectFileType = (content) => {
+  const lines = content.split('\n');
+  if (lines.length < 1) return 'unknown';
+
+  const header = lines[0].toLowerCase();
+
+  // 充值文件特征关键字（检查表头）
+  const depositKeywords = ['到帳金額', '到账金额', '銀行名稱', '银行名称', '銀行卡編碼', '银行卡编码', '收款商戶', '收款商户'];
+  // 提现文件特征关键字（检查表头）
+  const withdrawKeywords = ['收款銀行', '收款银行', '收款卡號', '收款卡号', '收款姓名', '收款地址', '出款商戶', '出款商户', '出款卡編碼', '出款卡编码'];
+
+  const hasDepositKeyword = depositKeywords.some(k => header.includes(k.toLowerCase()));
+  const hasWithdrawKeyword = withdrawKeywords.some(k => header.includes(k.toLowerCase()));
+
+  // 如果表头不够明确，检查数据行的特征
+  if (!hasDepositKeyword && !hasWithdrawKeyword && lines.length > 1) {
+    const dataLine = lines[1].toLowerCase();
+    // 充值数据通常有 "已充值", "未充值", "信用評分" 等状态
+    const depositStatusKeywords = ['已充值', '未充值', '信用評分', '信用评分', '回單驗證', '回单验证'];
+    // 提现数据通常有 "转账完成", "转账失败", "通知完成" 等状态
+    const withdrawStatusKeywords = ['转账完成', '轉帳完成', '转账失败', '轉帳失敗', '通知完成'];
+
+    const hasDepositStatus = depositStatusKeywords.some(k => dataLine.includes(k.toLowerCase()));
+    const hasWithdrawStatus = withdrawStatusKeywords.some(k => dataLine.includes(k.toLowerCase()));
+
+    if (hasDepositStatus && !hasWithdrawStatus) return 'deposit';
+    if (hasWithdrawStatus && !hasDepositStatus) return 'withdraw';
+  }
+
+  if (hasDepositKeyword && !hasWithdrawKeyword) return 'deposit';
+  if (hasWithdrawKeyword && !hasDepositKeyword) return 'withdraw';
+
+  return 'unknown';
+};
+
 const allRecords = ref([]);
 const filteredRecords = ref([]);
 const depositRecords = ref([]);
@@ -650,6 +686,34 @@ const handleDepositUpload = async (event) => {
       content = await file.text();
     }
 
+    // 检测文件类型
+    const detectedType = detectFileType(content);
+    console.log('检测到文件类型:', detectedType);
+
+    if (detectedType === 'withdraw') {
+      isLoading.value = false;
+      const confirmSwitch = confirm('检测到这可能是「提现」数据文件，而非「充值」数据文件。\n\n是否要改为导入到「提现数据」？\n\n点击「确定」导入为提现数据\n点击「取消」仍然按充值数据处理');
+      if (confirmSwitch) {
+        // 切换到提现数据处理
+        isLoading.value = true;
+        loadingStatus.value = '正在解析提现数据...';
+        const parsed = parseWithdrawCSV(content);
+        withdrawRecords.value = parsed;
+        hasWithdrawData.value = true;
+        withdrawFileName.value = file.name;
+        allRecords.value = parsed;
+        filteredRecords.value = [...parsed];
+        activeTab.value = 'withdraw';
+        loadingProgress.value = 100;
+        loadingStatus.value = `提现数据导入完成！共 ${parsed.length} 笔记录`;
+        saveWithdrawToStorage();
+        setTimeout(() => { isLoading.value = false; }, 500);
+        event.target.value = '';
+        return;
+      }
+      isLoading.value = true;
+    }
+
     loadingProgress.value = 60;
     loadingStatus.value = '正在解析充值数据...';
 
@@ -715,6 +779,37 @@ const handleWithdrawUpload = async (event) => {
       content = await parseXLSXToCSV(file);
     } else {
       content = await file.text();
+    }
+
+    // 检测文件类型
+    const detectedType = detectFileType(content);
+    console.log('检测到文件类型:', detectedType);
+
+    if (detectedType === 'deposit') {
+      isLoading.value = false;
+      const confirmSwitch = confirm('检测到这可能是「充值」数据文件，而非「提现」数据文件。\n\n是否要改为导入到「充值数据」？\n\n点击「确定」导入为充值数据\n点击「取消」仍然按提现数据处理');
+      if (confirmSwitch) {
+        // 切换到充值数据处理
+        isLoading.value = true;
+        loadingStatus.value = '正在解析充值数据...';
+        const parsed = parseCSV(content);
+        depositRecords.value = parsed;
+        hasDepositData.value = true;
+        depositFileName.value = file.name;
+        if (parsed.length > 0 && parsed[0].requestTime) {
+          dataDate.value = parsed[0].requestTime.split(' ')[0];
+        }
+        allRecords.value = parsed;
+        filteredRecords.value = [...parsed];
+        activeTab.value = 'deposit';
+        loadingProgress.value = 100;
+        loadingStatus.value = `充值数据导入完成！共 ${parsed.length} 笔记录`;
+        saveDepositToStorage();
+        setTimeout(() => { isLoading.value = false; }, 500);
+        event.target.value = '';
+        return;
+      }
+      isLoading.value = true;
     }
 
     loadingProgress.value = 60;
@@ -883,6 +978,7 @@ const hasCurrentData = computed(() => {
           <span class="nav-icon">🚫</span>
           <span class="nav-text" v-show="!sidebarCollapsed">骗分统计</span>
         </button>
+        <!-- 暫時隱藏上傳紀錄功能
         <div class="nav-divider" v-show="!sidebarCollapsed"></div>
         <button
           class="nav-item"
@@ -893,6 +989,7 @@ const hasCurrentData = computed(() => {
           <span class="nav-icon">📜</span>
           <span class="nav-text" v-show="!sidebarCollapsed">上传纪录</span>
         </button>
+        -->
       </nav>
 
       <!-- 数据导入区域 -->
@@ -919,10 +1016,11 @@ const hasCurrentData = computed(() => {
           </span>
         </label>
 
-        <!-- 保存到历史纪录 -->
+        <!-- 暫時隱藏保存到历史纪录
         <button class="save-history-btn" @click="saveToHistory" :disabled="!hasDepositData && !hasWithdrawData">
           保存到纪录
         </button>
+        -->
 
         <!-- 清除数据按钮 -->
         <button class="clear-all-btn" @click="clearAllData" :disabled="!hasDepositData && !hasWithdrawData">

@@ -6,6 +6,9 @@ import { resolve } from 'path'
 export default defineConfig(({ command }) => ({
   plugins: [vue()],
   base: command === 'serve' ? '/' : '/Projects/',
+  server: {
+    port: 5175
+  },
   build: {
     rollupOptions: {
       input: {
