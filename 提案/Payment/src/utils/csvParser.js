@@ -879,7 +879,8 @@ export const calculateMetrics = (records, withdrawMetrics = null, dataDate = nul
   const totalMatchAmount = normalMatchAmount + expressMatchAmount;
   const totalOrderSuccessCount = normalOrderSuccessCount + expressOrderSuccessCount;
   const totalOrderSuccessAmount = normalOrderSuccessAmount + expressOrderSuccessAmount;
-  const totalApplicationCount = successfulCount + invalidApplicationCount;
+  // 总申请笔数 = 所有記錄數（商戶只排除 test/qa，已在 CSV 解析時排除）
+  const totalApplicationCount = len;
 
   // 支付宝合计
   const alipayApplicationCount = alipayNormalCardAppCount + alipayExpressCardAppCount + alipayJisuTikaCount + alipayJisuTibaoCount;
@@ -1274,8 +1275,8 @@ export const calculateMetricsLegacy = (records, withdrawMetrics = null, dataDate
   const invalidApplicationRecords = allCategoryRecords.filter(r => r.receivedAmount === 0 && r.bankCardCode !== '');
   const invalidApplicationCount = invalidApplicationRecords.length;
 
-  // 总申请笔数 = 总充值成功 + 无效申请
-  const totalApplicationCount = successfulCount + invalidApplicationCount;
+  // 总申请笔数 = 所有記錄數（商戶只排除 test/qa）
+  const totalApplicationCount = allCategoryRecords.length;
 
   // 成功率 = 充值成功笔数 / 总申请笔数
   const overallSuccessRate = totalApplicationCount > 0 ? (successfulCount / totalApplicationCount) * 100 : 0;
@@ -2478,6 +2479,10 @@ export const formatAmount = (amount) => {
   return Number(amount).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
+export const formatAmountInteger = (amount) => {
+  return Math.round(Number(amount)).toLocaleString('zh-CN');
+};
+
 // Get unique channels from records
 export const getUniqueChannels = (records) => {
   const channels = new Set();
@@ -3625,7 +3630,8 @@ export const calculateWithdrawMetrics = (records, depositMetrics = null) => {
   console.log(`【渠道去重對比】微信 - 去重前: ${wechatWithdrawCount}筆/${wechatWithdrawAmount}元, 去重後: ${wechatWithdrawCountDeduped}筆/${wechatWithdrawAmountDeduped}元`);
 
   // 计算衍生指标
-  const withdrawSuccessTotalCount = withdrawWithin2MinCount + withdrawWithin2to5MinCount + withdrawWithin5to15MinCount + withdrawWithin15to30MinCount + withdrawOver30MinCount + withdrawFailedCount;
+  // 总提现申请笔数 = 提現成功筆數 + 提現失敗筆數（依據 CRITERIA.md 6.4）
+  const withdrawSuccessTotalCount = totalWithdrawCount + withdrawFailedCount;
   const withdrawSuccessTotalAmount = totalWithdrawAmount;
   const totalBase = withdrawSuccessTotalCount || 1;
 
@@ -3635,7 +3641,7 @@ export const calculateWithdrawMetrics = (records, depositMetrics = null) => {
   const withdrawWithin15to30MinRatio = (withdrawWithin15to30MinCount / totalBase) * 100;
   const withdrawOver30MinRatio = (withdrawOver30MinCount / totalBase) * 100;
 
-  const withdrawSuccessRate = len > 0 ? (totalWithdrawCount / len) * 100 : 0;
+  const withdrawSuccessRate = withdrawSuccessTotalCount > 0 ? (totalWithdrawCount / withdrawSuccessTotalCount) * 100 : 0;
   // 订单成功：使用充值的订单成功数据 (银行卡 + 支付宝，不含微信)
   const bankCardOrderSuccess = depositMetrics?.totalOrderSuccessCount || 0;
   const alipayOrderSuccess = depositMetrics?.alipayTotalOrderSuccessCount || 0;

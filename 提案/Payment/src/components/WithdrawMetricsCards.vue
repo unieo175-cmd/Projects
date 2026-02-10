@@ -1,12 +1,13 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { formatTime, formatAmount } from '../utils/csvParser';
+import { formatTime, formatAmount, formatAmountInteger } from '../utils/csvParser';
 
-// 格式化时间为 mm:ss 格式
+// 格式化时间为 mm:ss 格式（先四捨五入到整數秒，與 formatTime 一致）
 const formatTimeShort = (seconds) => {
   if (!seconds || seconds < 0) return '00:00';
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
+  const roundedSeconds = Math.round(seconds);
+  const mins = Math.floor(roundedSeconds / 60);
+  const secs = roundedSeconds % 60;
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 };
 
@@ -14,11 +15,21 @@ const props = defineProps({
   metrics: {
     type: Object,
     default: () => ({})
+  },
+  showFormula: {
+    type: Boolean,
+    default: false
   }
 });
 
 // 渠道切换
 const activeChannel = ref('all'); // 'all', 'bankCard', 'alipay', 'wechat'
+
+// 控制区域显示/隐藏
+const showTimeSection = ref(true);
+const showBankCardSection = ref(true);
+const showAlipaySection = ref(true);
+const showWechatSection = ref(true);
 
 </script>
 
@@ -61,29 +72,40 @@ const activeChannel = ref('all'); // 'all', 'bankCard', 'alipay', 'wechat'
       <!-- 重要信息 -->
       <div class="metrics-section">
         <div class="section-header">
-          <h3 class="section-title">提现总览</h3>
+          <h3 class="section-title">重要信息</h3>
         </div>
         <div class="metrics-grid four-grid">
-          <div class="metric-card">
-            <div class="card-header">
-              <span class="card-icon">📊</span>
-              <span class="card-title">提现成功笔数</span>
-            </div>
-            <div class="card-value" style="color: #0a84ff;">
-              {{ (metrics.totalWithdrawCount || 0).toLocaleString() }}
-              <span class="card-unit">笔</span>
-            </div>
-            <div class="card-formula">公式：transferStatus = 转账完成（按订单号去重）</div>
-          </div>
-
           <div class="metric-card">
             <div class="card-header">
               <span class="card-icon">💰</span>
               <span class="card-title">提现成功金额</span>
             </div>
             <div class="card-value" style="color: #30d158;">
-              {{ formatAmount(metrics.totalWithdrawAmount || 0) }}
+              {{ formatAmountInteger(metrics.totalWithdrawAmount || 0) }}
               <span class="card-unit">元</span>
+            </div>
+          </div>
+
+          <div class="metric-card">
+            <div class="card-header">
+              <span class="card-icon">📝</span>
+              <span class="card-title">提现申请笔数</span>
+            </div>
+            <div class="card-value" style="color: #8e8e93;">
+              {{ (metrics.withdrawSuccessTotalCount || 0).toLocaleString() }}
+              <span class="card-unit">笔</span>
+            </div>
+          </div>
+
+          <div class="metric-card">
+            <div class="card-header">
+              <span class="card-icon">✅</span>
+              <span class="card-title">提现成功笔数</span>
+            </div>
+            <div class="card-value" style="color: #ff9500;">
+              {{ (metrics.totalWithdrawCount || 0).toLocaleString() }}
+              <span class="card-unit">笔</span>
+              <span class="card-rate">（{{ (metrics.withdrawSuccessRate || 0).toFixed(2) }}%）</span>
             </div>
           </div>
 
@@ -96,27 +118,22 @@ const activeChannel = ref('all'); // 'all', 'bankCard', 'alipay', 'wechat'
               {{ formatTime(metrics.avgProcessingTime) }}
             </div>
           </div>
-
-          <div class="metric-card">
-            <div class="card-header">
-              <span class="card-icon">📋</span>
-              <span class="card-title">总提现申请笔数</span>
-            </div>
-            <div class="card-value" style="color: #8e8e93;">
-              {{ (metrics.withdrawSuccessTotalCount || 0).toLocaleString() }}
-              <span class="card-unit">笔</span>
-            </div>
-            <div class="card-formula">公式：提现成功笔数 + 提现失败笔数（按订单号去重）</div>
-          </div>
+        </div>
+        <div v-if="showFormula" class="section-formula">
+          <strong>提现成功金额：</strong>状态为「转账完成」的提现金额总和<br>
+          <strong>提现申请笔数：</strong>总提现申请笔数（按訂單號去重）<br>
+          <strong>提现成功笔数：</strong>提现成功笔数，成功率 = 提现成功笔数 / 总提现申请笔数 × 100%<br>
+          <strong>平均处理时间：</strong>所有成功提现的处理时间平均值
         </div>
       </div>
 
       <!-- 提现成功时间区段 -->
       <div class="metrics-section">
-        <div class="section-header">
+        <div class="section-header" @click="showTimeSection = !showTimeSection">
           <h3 class="section-title">提现成功时间区段</h3>
+          <span class="toggle-icon">{{ showTimeSection ? '▼' : '▶' }}</span>
         </div>
-        <div class="minute-analysis-content">
+        <div v-show="showTimeSection" class="minute-analysis-content">
           <table class="minute-table">
             <thead>
               <tr>
@@ -199,16 +216,19 @@ const activeChannel = ref('all'); // 'all', 'bankCard', 'alipay', 'wechat'
                 <td>{{ (metrics.withdrawOrderSuccessRate || 0).toFixed(2) }}%</td>
                 <td>--</td>
               </tr>
+              <tr class="highlight-row">
+                <td>平均处理时间</td>
+                <td>{{ formatTimeShort(metrics.avgProcessingTime) }}</td>
+                <td>--</td>
+              </tr>
             </tbody>
           </table>
         </div>
-        <div class="section-note">
-          <div class="note-title">计算公式说明：</div>
-          <div class="note-content">
-            <div>提现成功笔数：transferStatus = "转账完成"（按订单号去重）</div>
-            <div>总提现申請笔数：提现成功笔数 + 提现失败笔数（按订单号去重）</div>
-            <div>时间区段：transferStatus = "转账完成" 且处理时间在指定区间内（按订单号去重）</div>
-          </div>
+        <div v-if="showFormula && showTimeSection" class="section-formula">
+          <strong>时间区段：</strong>根据提现申请时间到转账完成时间的间隔进行分类统计<br>
+          <strong>无卡空单率：</strong>无卡空单笔数 / 充值申请笔数 × 100%（来自充值数据）<br>
+          <strong>订单成功：</strong>状态为「转账完成」且订单状态为成功的提现记录<br>
+          <strong>订单成功占比：</strong>订单成功笔数 / 总提现申请笔数 × 100%
         </div>
       </div>
     </template>
@@ -216,53 +236,68 @@ const activeChannel = ref('all'); // 'all', 'bankCard', 'alipay', 'wechat'
     <!-- ========== 银行卡渠道 ========== -->
     <template v-else-if="activeChannel === 'bankCard'">
       <div class="metrics-section">
-        <div class="section-header">
-          <h3 class="section-title">提现总览</h3>
+        <div class="section-header" @click="showBankCardSection = !showBankCardSection">
+          <h3 class="section-title">重要信息</h3>
+          <span class="toggle-icon">{{ showBankCardSection ? '▼' : '▶' }}</span>
         </div>
-        <div class="withdraw-content">
-          <div class="detail-item">
-            <span class="detail-label">提现申请</span>
-            <span class="detail-value">{{ (metrics.bankCardWithdrawCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.bankCardWithdrawAmount || 0) }} 元</span>
-          </div>
-          <div class="detail-item">
-            <span class="detail-label">充值配对率</span>
-            <span class="detail-value">{{ ((metrics.bankCardMatchRate || 0) * 100).toFixed(2) }}%</span>
-          </div>
-          <div class="detail-item sub-item">
-            <span class="detail-label">充值申请</span>
-            <span class="detail-value">{{ (metrics.bankCardDepositAppCount || 0).toLocaleString() }} 笔</span>
-          </div>
-          <div class="detail-item sub-item">
-            <span class="detail-label">成功配对</span>
-            <span class="detail-value">{{ (metrics.bankCardDepositMatchCount || 0).toLocaleString() }} 笔</span>
-          </div>
-          <div class="detail-item">
-            <span class="detail-label">配对后成功率</span>
-            <span class="detail-value">{{ ((metrics.bankCardSuccessAfterMatchRate || 0) * 100).toFixed(2) }}%</span>
-          </div>
-          <div class="detail-item sub-item">
-            <span class="detail-label">充值成功笔数</span>
-            <span class="detail-value">{{ (metrics.bankCardDepositSuccessCount || 0).toLocaleString() }} 笔</span>
-          </div>
-          <div class="detail-item sub-item">
-            <span class="detail-label">成功配对笔数</span>
-            <span class="detail-value">{{ (metrics.bankCardDepositMatchCount || 0).toLocaleString() }} 笔</span>
-          </div>
-          <div class="detail-item">
-            <span class="detail-label">平均处理时间</span>
-            <span class="detail-value">{{ formatTime(metrics.bankCardAvgTime) }}</span>
-          </div>
+        <div v-show="showBankCardSection" class="minute-analysis-content">
+          <table class="minute-table">
+            <thead>
+              <tr>
+                <th>项目</th>
+                <th>笔数/百分比</th>
+                <th>金额</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>提现申请</td>
+                <td>{{ (metrics.bankCardWithdrawCount || 0).toLocaleString() }}</td>
+                <td>{{ formatAmount(metrics.bankCardWithdrawAmount || 0) }} 元</td>
+              </tr>
+              <tr>
+                <td>充值配对率</td>
+                <td>{{ ((metrics.bankCardMatchRate || 0) * 100).toFixed(2) }}%</td>
+                <td>--</td>
+              </tr>
+              <tr class="sub-row">
+                <td class="indent">充值申请</td>
+                <td>{{ (metrics.bankCardDepositAppCount || 0).toLocaleString() }}</td>
+                <td>--</td>
+              </tr>
+              <tr class="sub-row">
+                <td class="indent">成功配对</td>
+                <td>{{ (metrics.bankCardDepositMatchCount || 0).toLocaleString() }}</td>
+                <td>--</td>
+              </tr>
+              <tr>
+                <td>配对后成功率</td>
+                <td>{{ ((metrics.bankCardSuccessAfterMatchRate || 0) * 100).toFixed(2) }}%</td>
+                <td>--</td>
+              </tr>
+              <tr class="sub-row">
+                <td class="indent">充值成功笔数</td>
+                <td>{{ (metrics.bankCardDepositSuccessCount || 0).toLocaleString() }}</td>
+                <td>--</td>
+              </tr>
+              <tr class="sub-row">
+                <td class="indent">成功配对笔数</td>
+                <td>{{ (metrics.bankCardDepositMatchCount || 0).toLocaleString() }}</td>
+                <td>--</td>
+              </tr>
+              <tr class="highlight-row">
+                <td>平均处理时间</td>
+                <td>{{ formatTime(metrics.bankCardAvgTime) }}</td>
+                <td>--</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-        <div class="section-note">
-          <div class="note-title">说明：</div>
-          <div class="note-content">
-            <div v-if="metrics.bankCardMatchRate === 0">充值配对率：尚缺公式计算</div>
-            <div v-if="metrics.bankCardSuccessAfterMatchRate === 0">配对后成功率：尚缺公式计算</div>
-            <div v-if="metrics.bankCardDepositAppCount === 0">充值申请：来自充值数据</div>
-            <div v-if="metrics.bankCardDepositMatchCount === 0">成功配对：来自充值数据</div>
-            <div v-if="metrics.bankCardDepositSuccessCount === 0">充值成功笔数：来自充值数据</div>
-            <div>平均处理时间：transferStatus = "转账完成" 的记录平均处理时间</div>
-          </div>
+        <div v-if="showFormula && showBankCardSection" class="section-formula">
+          <strong>提现申请：</strong>银行卡渠道的提现申请笔数和金额<br>
+          <strong>充值配对率：</strong>成功配对笔数 / 充值申请笔数 × 100%<br>
+          <strong>配对后成功率：</strong>充值成功笔数 / 成功配对笔数 × 100%<br>
+          <strong>平均处理时间：</strong>银行卡渠道成功提现的平均处理时间
         </div>
       </div>
     </template>
@@ -270,53 +305,68 @@ const activeChannel = ref('all'); // 'all', 'bankCard', 'alipay', 'wechat'
     <!-- ========== 支付宝渠道 ========== -->
     <template v-else-if="activeChannel === 'alipay'">
       <div class="metrics-section">
-        <div class="section-header">
-          <h3 class="section-title">提现总览</h3>
+        <div class="section-header" @click="showAlipaySection = !showAlipaySection">
+          <h3 class="section-title">重要信息</h3>
+          <span class="toggle-icon">{{ showAlipaySection ? '▼' : '▶' }}</span>
         </div>
-        <div class="withdraw-content">
-          <div class="detail-item">
-            <span class="detail-label">提现申请</span>
-            <span class="detail-value">{{ (metrics.alipayWithdrawCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.alipayWithdrawAmount || 0) }} 元</span>
-          </div>
-          <div class="detail-item">
-            <span class="detail-label">充值配对率</span>
-            <span class="detail-value">{{ ((metrics.alipayMatchRate || 0) * 100).toFixed(2) }}%</span>
-          </div>
-          <div class="detail-item sub-item">
-            <span class="detail-label">充值申请</span>
-            <span class="detail-value">{{ (metrics.alipayDepositAppCount || 0).toLocaleString() }} 笔</span>
-          </div>
-          <div class="detail-item sub-item">
-            <span class="detail-label">成功配对</span>
-            <span class="detail-value">{{ (metrics.alipayDepositMatchCount || 0).toLocaleString() }} 笔</span>
-          </div>
-          <div class="detail-item">
-            <span class="detail-label">配对后成功率</span>
-            <span class="detail-value">{{ ((metrics.alipaySuccessAfterMatchRate || 0) * 100).toFixed(2) }}%</span>
-          </div>
-          <div class="detail-item sub-item">
-            <span class="detail-label">充值成功笔数</span>
-            <span class="detail-value">{{ (metrics.alipayDepositSuccessCount || 0).toLocaleString() }} 笔</span>
-          </div>
-          <div class="detail-item sub-item">
-            <span class="detail-label">成功配对笔数</span>
-            <span class="detail-value">{{ (metrics.alipayDepositMatchCount || 0).toLocaleString() }} 笔</span>
-          </div>
-          <div class="detail-item">
-            <span class="detail-label">平均处理时间</span>
-            <span class="detail-value">{{ formatTime(metrics.alipayAvgTime) }}</span>
-          </div>
+        <div v-show="showAlipaySection" class="minute-analysis-content">
+          <table class="minute-table">
+            <thead>
+              <tr>
+                <th>项目</th>
+                <th>笔数/百分比</th>
+                <th>金额</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>提现申请</td>
+                <td>{{ (metrics.alipayWithdrawCount || 0).toLocaleString() }}</td>
+                <td>{{ formatAmount(metrics.alipayWithdrawAmount || 0) }} 元</td>
+              </tr>
+              <tr>
+                <td>充值配对率</td>
+                <td>{{ ((metrics.alipayMatchRate || 0) * 100).toFixed(2) }}%</td>
+                <td>--</td>
+              </tr>
+              <tr class="sub-row">
+                <td class="indent">充值申请</td>
+                <td>{{ (metrics.alipayDepositAppCount || 0).toLocaleString() }}</td>
+                <td>--</td>
+              </tr>
+              <tr class="sub-row">
+                <td class="indent">成功配对</td>
+                <td>{{ (metrics.alipayDepositMatchCount || 0).toLocaleString() }}</td>
+                <td>--</td>
+              </tr>
+              <tr>
+                <td>配对后成功率</td>
+                <td>{{ ((metrics.alipaySuccessAfterMatchRate || 0) * 100).toFixed(2) }}%</td>
+                <td>--</td>
+              </tr>
+              <tr class="sub-row">
+                <td class="indent">充值成功笔数</td>
+                <td>{{ (metrics.alipayDepositSuccessCount || 0).toLocaleString() }}</td>
+                <td>--</td>
+              </tr>
+              <tr class="sub-row">
+                <td class="indent">成功配对笔数</td>
+                <td>{{ (metrics.alipayDepositMatchCount || 0).toLocaleString() }}</td>
+                <td>--</td>
+              </tr>
+              <tr class="highlight-row">
+                <td>平均处理时间</td>
+                <td>{{ formatTime(metrics.alipayAvgTime) }}</td>
+                <td>--</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-        <div class="section-note">
-          <div class="note-title">说明：</div>
-          <div class="note-content">
-            <div v-if="metrics.alipayMatchRate === 0">充值配对率：尚缺公式计算</div>
-            <div v-if="metrics.alipaySuccessAfterMatchRate === 0">配对后成功率：尚缺公式计算</div>
-            <div v-if="metrics.alipayDepositAppCount === 0">充值申请：来自充值数据</div>
-            <div v-if="metrics.alipayDepositMatchCount === 0">成功配对：来自充值数据</div>
-            <div v-if="metrics.alipayDepositSuccessCount === 0">充值成功笔数：来自充值数据</div>
-            <div>平均处理时间：transferStatus = "转账完成" 的记录平均处理时间</div>
-          </div>
+        <div v-if="showFormula && showAlipaySection" class="section-formula">
+          <strong>提现申请：</strong>支付宝渠道的提现申请笔数和金额<br>
+          <strong>充值配对率：</strong>成功配对笔数 / 充值申请笔数 × 100%<br>
+          <strong>配对后成功率：</strong>充值成功笔数 / 成功配对笔数 × 100%<br>
+          <strong>平均处理时间：</strong>支付宝渠道成功提现的平均处理时间
         </div>
       </div>
     </template>
@@ -324,53 +374,68 @@ const activeChannel = ref('all'); // 'all', 'bankCard', 'alipay', 'wechat'
     <!-- ========== 微信渠道 ========== -->
     <template v-else-if="activeChannel === 'wechat'">
       <div class="metrics-section">
-        <div class="section-header">
-          <h3 class="section-title">提现总览</h3>
+        <div class="section-header" @click="showWechatSection = !showWechatSection">
+          <h3 class="section-title">重要信息</h3>
+          <span class="toggle-icon">{{ showWechatSection ? '▼' : '▶' }}</span>
         </div>
-        <div class="withdraw-content">
-          <div class="detail-item">
-            <span class="detail-label">提现申请</span>
-            <span class="detail-value">{{ (metrics.wechatWithdrawCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.wechatWithdrawAmount || 0) }} 元</span>
-          </div>
-          <div class="detail-item">
-            <span class="detail-label">充值配对率</span>
-            <span class="detail-value">{{ ((metrics.wechatMatchRate || 0) * 100).toFixed(2) }}%</span>
-          </div>
-          <div class="detail-item sub-item">
-            <span class="detail-label">充值申请</span>
-            <span class="detail-value">{{ (metrics.wechatDepositAppCount || 0).toLocaleString() }} 笔</span>
-          </div>
-          <div class="detail-item sub-item">
-            <span class="detail-label">成功配对</span>
-            <span class="detail-value">{{ (metrics.wechatDepositMatchCount || 0).toLocaleString() }} 笔</span>
-          </div>
-          <div class="detail-item">
-            <span class="detail-label">配对后成功率</span>
-            <span class="detail-value">{{ ((metrics.wechatSuccessAfterMatchRate || 0) * 100).toFixed(2) }}%</span>
-          </div>
-          <div class="detail-item sub-item">
-            <span class="detail-label">充值成功笔数</span>
-            <span class="detail-value">{{ (metrics.wechatDepositSuccessCount || 0).toLocaleString() }} 笔</span>
-          </div>
-          <div class="detail-item sub-item">
-            <span class="detail-label">成功配对笔数</span>
-            <span class="detail-value">{{ (metrics.wechatDepositMatchCount || 0).toLocaleString() }} 笔</span>
-          </div>
-          <div class="detail-item">
-            <span class="detail-label">平均处理时间</span>
-            <span class="detail-value">{{ formatTime(metrics.wechatAvgTime) }}</span>
-          </div>
+        <div v-show="showWechatSection" class="minute-analysis-content">
+          <table class="minute-table">
+            <thead>
+              <tr>
+                <th>项目</th>
+                <th>笔数/百分比</th>
+                <th>金额</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>提现申请</td>
+                <td>{{ (metrics.wechatWithdrawCount || 0).toLocaleString() }}</td>
+                <td>{{ formatAmount(metrics.wechatWithdrawAmount || 0) }} 元</td>
+              </tr>
+              <tr>
+                <td>充值配对率</td>
+                <td>{{ ((metrics.wechatMatchRate || 0) * 100).toFixed(2) }}%</td>
+                <td>--</td>
+              </tr>
+              <tr class="sub-row">
+                <td class="indent">充值申请</td>
+                <td>{{ (metrics.wechatDepositAppCount || 0).toLocaleString() }}</td>
+                <td>--</td>
+              </tr>
+              <tr class="sub-row">
+                <td class="indent">成功配对</td>
+                <td>{{ (metrics.wechatDepositMatchCount || 0).toLocaleString() }}</td>
+                <td>--</td>
+              </tr>
+              <tr>
+                <td>配对后成功率</td>
+                <td>{{ ((metrics.wechatSuccessAfterMatchRate || 0) * 100).toFixed(2) }}%</td>
+                <td>--</td>
+              </tr>
+              <tr class="sub-row">
+                <td class="indent">充值成功笔数</td>
+                <td>{{ (metrics.wechatDepositSuccessCount || 0).toLocaleString() }}</td>
+                <td>--</td>
+              </tr>
+              <tr class="sub-row">
+                <td class="indent">成功配对笔数</td>
+                <td>{{ (metrics.wechatDepositMatchCount || 0).toLocaleString() }}</td>
+                <td>--</td>
+              </tr>
+              <tr class="highlight-row">
+                <td>平均处理时间</td>
+                <td>{{ formatTime(metrics.wechatAvgTime) }}</td>
+                <td>--</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-        <div class="section-note">
-          <div class="note-title">说明：</div>
-          <div class="note-content">
-            <div v-if="metrics.wechatMatchRate === 0">充值配对率：尚缺公式计算</div>
-            <div v-if="metrics.wechatSuccessAfterMatchRate === 0">配对后成功率：尚缺公式计算</div>
-            <div v-if="metrics.wechatDepositAppCount === 0">充值申请：来自充值数据</div>
-            <div v-if="metrics.wechatDepositMatchCount === 0">成功配对：来自充值数据</div>
-            <div v-if="metrics.wechatDepositSuccessCount === 0">充值成功笔数：来自充值数据</div>
-            <div>平均处理时间：transferStatus = "转账完成" 的记录平均处理时间</div>
-          </div>
+        <div v-if="showFormula && showWechatSection" class="section-formula">
+          <strong>提现申请：</strong>微信渠道的提现申请笔数和金额<br>
+          <strong>充值配对率：</strong>成功配对笔数 / 充值申请笔数 × 100%<br>
+          <strong>配对后成功率：</strong>充值成功笔数 / 成功配对笔数 × 100%<br>
+          <strong>平均处理时间：</strong>微信渠道成功提现的平均处理时间
         </div>
       </div>
     </template>
@@ -430,6 +495,18 @@ const activeChannel = ref('all'); // 'all', 'bankCard', 'alipay', 'wechat'
   align-items: center;
   padding: 14px 20px;
   border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
+  user-select: none;
+}
+
+.section-header:hover {
+  background: #fafafa;
+}
+
+.toggle-icon {
+  font-size: 12px;
+  color: #999;
+  transition: transform 0.2s;
 }
 
 .section-title {
@@ -447,6 +524,10 @@ const activeChannel = ref('all'); // 'all', 'bankCard', 'alipay', 'wechat'
 
 .four-grid {
   grid-template-columns: repeat(4, 1fr);
+}
+
+.five-grid {
+  grid-template-columns: repeat(5, 1fr);
 }
 
 .metric-card {
@@ -492,44 +573,67 @@ const activeChannel = ref('all'); // 'all', 'bankCard', 'alipay', 'wechat'
   color: #999;
 }
 
-.card-formula {
-  font-size: 10px;
-  color: #999;
-  margin-top: 6px;
-  font-style: italic;
+.card-rate {
+  font-size: 14px;
+  font-weight: 500;
+  color: #0a84ff;
+  margin-left: 4px;
 }
 
-/* 提现内容 */
-.withdraw-content {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 16px 20px;
+/* 提现内容 - 表格样式 */
+.withdraw-table-content {
+  padding: 16px;
 }
 
-.detail-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+.withdraw-detail-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  overflow: hidden;
 }
 
-.detail-label {
-  font-size: 13px;
+.withdraw-detail-table th,
+.withdraw-detail-table td {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.withdraw-detail-table th {
+  background: #5cb85c;
+  color: #fff;
+  font-weight: 600;
+}
+
+.withdraw-detail-table th:nth-child(2),
+.withdraw-detail-table td:nth-child(2) {
+  text-align: right;
+  font-family: monospace;
+  color: #4a4a9e;
+  font-weight: 600;
+}
+
+.withdraw-detail-table tr:hover {
+  background: #fafafa;
+}
+
+.withdraw-detail-table tr.sub-row {
+  background: #fafafa;
+}
+
+.withdraw-detail-table tr.sub-row td.indent {
+  padding-left: 32px;
   color: #666;
 }
 
-.detail-value {
-  font-size: 13px;
-  color: #333;
-  font-family: monospace;
+.withdraw-detail-table tr.highlight-row {
+  background: #e8f5e9;
 }
 
-.detail-item.sub-item {
-  padding-left: 16px;
-}
-
-.detail-item.sub-item .detail-label {
-  color: #999;
+.withdraw-detail-table tr.highlight-row:hover {
+  background: #dcedc8;
 }
 
 /* 说明区块 */
@@ -638,10 +742,24 @@ const activeChannel = ref('all'); // 'all', 'bankCard', 'alipay', 'wechat'
   .four-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+
+  .five-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .five-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 @media (max-width: 768px) {
   .four-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .five-grid {
     grid-template-columns: 1fr;
   }
 
@@ -658,5 +776,20 @@ const activeChannel = ref('all'); // 'all', 'bankCard', 'alipay', 'wechat'
 .highlight-row td {
   color: #1a5fb4 !important;
   font-weight: 600;
+}
+
+/* 公式说明样式 */
+.section-formula {
+  font-size: 12px;
+  color: #888;
+  margin: 16px;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  line-height: 1.8;
+}
+
+.section-formula strong {
+  color: #666;
 }
 </style>

@@ -14,6 +14,10 @@ const props = defineProps({
   showMetricsAnalysisValues: {
     type: Boolean,
     default: false  // 預設隱藏計算值欄位
+  },
+  showFormula: {
+    type: Boolean,
+    default: false
   }
 });
 
@@ -959,7 +963,7 @@ const handleQuery = () => {
                 <span class="detail-value">{{ (depositMetrics?.alipayApplicationCount || 0).toLocaleString() }}</span>
               </div>
             </div>
-            <div class="section-formula">
+            <div v-if="showFormula" class="section-formula">
               銀行卡申請筆數 + 支付寶申請筆數
             </div>
           </div>
@@ -980,7 +984,7 @@ const handleQuery = () => {
                 <span class="detail-value">{{ (weeklyMetrics.alipayJsWaitingNoMatch || 0).toLocaleString() }}</span>
               </div>
             </div>
-            <div class="section-formula">
+            <div v-if="showFormula" class="section-formula">
               銀行卡(建單成功等待無配對+取無卡06提示) + 支付寶(建單成功等待無配對+取無卡06提示)<br>
               建單成功等待無配對 = bankCardCode為空的記錄數<br>
               取無卡06提示 = 數據來源：極速06統計表，依據商戶名稱判斷渠道加總（暫帶0）
@@ -1007,7 +1011,7 @@ const handleQuery = () => {
                 <span class="detail-value">{{ weeklyMetrics.matchNormalCardBao.toLocaleString() }}</span>
               </div>
             </div>
-            <div class="section-formula">
+            <div v-if="showFormula" class="section-formula">
               銀行卡一般卡 + 支付寶一般卡 + 一般寶
             </div>
           </div>
@@ -1032,7 +1036,7 @@ const handleQuery = () => {
                 <span class="detail-value">{{ weeklyMetrics.matchJSAlipayBao.toLocaleString() }}</span>
               </div>
             </div>
-            <div class="section-formula">
+            <div v-if="showFormula" class="section-formula">
               銀行卡極速提 + 支付寶極速提(卡) + 極速提(寶)
             </div>
           </div>
@@ -1043,13 +1047,13 @@ const handleQuery = () => {
               <span class="block-title">充值配对(配一般提)</span>
               <span class="block-value">{{ weeklyMetrics.matchNormalWithdraw.toLocaleString() }}</span>
             </div>
-            <div class="block-details">
+            <div v-if="showFormula" class="block-details">
               <div class="detail-item">
                 <span class="detail-label">说明</span>
                 <span class="detail-value note">待定义</span>
               </div>
             </div>
-            <div class="section-formula">
+            <div v-if="showFormula" class="section-formula">
               待定义
             </div>
           </div>
@@ -1078,7 +1082,7 @@ const handleQuery = () => {
                 <span class="detail-value">{{ weeklyMetrics.orderSuccessJS.toLocaleString() }}</span>
               </div>
             </div>
-            <div class="section-formula">
+            <div v-if="showFormula" class="section-formula">
               訂單成功(一般卡) + 訂單成功(Js+一般提)
             </div>
           </div>
@@ -1103,7 +1107,7 @@ const handleQuery = () => {
                 <span class="detail-value">{{ weeklyMetrics.orderSuccessNormalCardBao.toLocaleString() }}</span>
               </div>
             </div>
-            <div class="section-formula">
+            <div v-if="showFormula" class="section-formula">
               銀行卡訂單成功一般卡 + 支付寶訂單成功一般卡 + 一般寶
             </div>
           </div>
@@ -1128,7 +1132,7 @@ const handleQuery = () => {
                 <span class="detail-value">{{ weeklyMetrics.orderSuccessJSAlipayBao.toLocaleString() }}</span>
               </div>
             </div>
-            <div class="section-formula">
+            <div v-if="showFormula" class="section-formula">
               銀行卡訂單成功極速提 + 支付寶訂單成功極速提(卡) + 極速提(寶)
             </div>
           </div>
@@ -1139,13 +1143,13 @@ const handleQuery = () => {
               <span class="block-title">充值卡在待审核</span>
               <span class="block-value">{{ weeklyMetrics.pendingReview.toLocaleString() }}</span>
             </div>
-            <div class="block-details">
+            <div v-if="showFormula" class="block-details">
               <div class="detail-item">
                 <span class="detail-label">说明</span>
                 <span class="detail-value note">7/21起系统查核中笔数有列入</span>
               </div>
             </div>
-            <div class="section-formula">
+            <div v-if="showFormula" class="section-formula">
               7/21起系统查核中笔数有列入
             </div>
           </div>
@@ -1156,13 +1160,13 @@ const handleQuery = () => {
               <span class="block-title">未充值</span>
               <span class="block-value">{{ weeklyMetrics.notDeposited.toLocaleString() }}</span>
             </div>
-            <div class="block-details">
+            <div v-if="showFormula" class="block-details">
               <div class="detail-item">
                 <span class="detail-label">说明</span>
                 <span class="detail-value note">7/21起不含等待无配对</span>
               </div>
             </div>
-            <div class="section-formula">
+            <div v-if="showFormula" class="section-formula">
               7/21起不含等待无配对
             </div>
           </div>
@@ -1174,12 +1178,12 @@ const handleQuery = () => {
               <span class="block-value warning">{{ (weeklyMetrics.emptyOrderRate * 100).toFixed(2) }}%</span>
             </div>
             <div class="block-details">
-              <div class="detail-item">
+              <div v-if="showFormula" class="detail-item">
                 <span class="detail-label">计算公式</span>
                 <span class="detail-value note">JS充值等待最终无配对 / 充值申请</span>
               </div>
             </div>
-            <div class="section-formula">
+            <div v-if="showFormula" class="section-formula">
               JS充值等待最終無配對 / 充值申請 × 100%
             </div>
           </div>
@@ -1212,7 +1216,7 @@ const handleQuery = () => {
                 <span class="detail-value">{{ formatAmount(weeklyMetrics.orderSuccessAmountOther) }} 元</span>
               </div>
             </div>
-            <div class="section-formula">
+            <div v-if="showFormula" class="section-formula">
               配一般卡金額 + 配極速金額 + 其他(公式候補)
             </div>
           </div>
@@ -1237,7 +1241,7 @@ const handleQuery = () => {
                 <span class="detail-value">{{ formatAmount(weeklyMetrics.orderSuccessAmountNormalCardBao) }} 元</span>
               </div>
             </div>
-            <div class="section-formula">
+            <div v-if="showFormula" class="section-formula">
               銀行卡訂單成功一般卡金額 + 支付寶訂單成功一般卡金額 + 一般寶金額
             </div>
           </div>
@@ -1262,7 +1266,7 @@ const handleQuery = () => {
                 <span class="detail-value">{{ formatAmount(weeklyMetrics.orderSuccessAmountJSAlipayBao) }} 元</span>
               </div>
             </div>
-            <div class="section-formula">
+            <div v-if="showFormula" class="section-formula">
               銀行卡訂單成功極速提金額 + 支付寶訂單成功極速提(卡)金額 + 極速提(寶)金額
             </div>
           </div>
@@ -1273,13 +1277,13 @@ const handleQuery = () => {
               <span class="block-title">充值订单成功(金额)</span>
               <span class="block-value">{{ formatAmount(weeklyMetrics.orderSuccessAmountOther) }} 元</span>
             </div>
-            <div class="block-details">
+            <div v-if="showFormula" class="block-details">
               <div class="detail-item">
                 <span class="detail-label">说明</span>
                 <span class="detail-value note">公式候补</span>
               </div>
             </div>
-            <div class="section-formula">
+            <div v-if="showFormula" class="section-formula">
               公式候補
             </div>
           </div>
@@ -1309,7 +1313,7 @@ const handleQuery = () => {
             </div>
           </div>
         </div>
-        <div class="section-formula">
+        <div v-if="showFormula" class="section-formula">
           <strong>计算公式说明：</strong><br>
           - 提现平均处理时间（卡）= 提現分析的銀行卡的平均處理時間<br>
           - 提现平均处理时间（宝）= 提現分析的支付寶的平均處理時間
@@ -1354,8 +1358,8 @@ const handleQuery = () => {
               <span class="block-title">骗分成本占比</span>
               <span class="block-value warning">{{ (weeklyMetrics.fraudCostRatio * 100).toFixed(2) }}%</span>
             </div>
-            <div class="block-details">
-              <div class="detail-item">
+            <div v-if="showFormula" class="block-details">
+              <div v-if="showFormula" class="detail-item">
                 <span class="detail-label">计算公式</span>
                 <span class="detail-value note">骗分 / 配极速充值订单成功(金额)</span>
               </div>
@@ -1368,15 +1372,15 @@ const handleQuery = () => {
               <span class="block-title">JS提现返利</span>
               <span class="block-value">{{ formatAmount(weeklyMetrics.jsWithdrawRebate) }} 元</span>
             </div>
-            <div class="block-details">
-              <div class="detail-item">
+            <div v-if="showFormula" class="block-details">
+              <div v-if="showFormula" class="detail-item">
                 <span class="detail-label">计算公式</span>
                 <span class="detail-value note">提现记录H栏(merchantRebate)加总</span>
               </div>
             </div>
           </div>
         </div>
-        <div class="section-formula">
+        <div v-if="showFormula" class="section-formula">
           <strong>计算公式说明：</strong><br>
           - 數據來源：選單中的「騙分統計」（依篩選日期範圍加總）<br>
           - 骗分 = 银行卡骗分(人工+信评) + 支付宝骗分(人工+信评)<br>
@@ -1406,7 +1410,7 @@ const handleQuery = () => {
                 <span class="detail-label">充值申请</span>
                 <span class="detail-value">{{ weeklyMetrics.depositApplicationCount.toLocaleString() }}</span>
               </div>
-              <div class="detail-item">
+              <div v-if="showFormula" class="detail-item">
                 <span class="detail-label">计算公式</span>
                 <span class="detail-value note">(配一般卡+配JS+配一般提) / 充值申请</span>
               </div>
@@ -1420,7 +1424,7 @@ const handleQuery = () => {
               <span class="block-value">{{ (weeklyMetrics.depositWithdrawMatchRate * 100).toFixed(2) }}%</span>
             </div>
             <div class="block-details">
-              <div class="detail-item">
+              <div v-if="showFormula" class="detail-item">
                 <span class="detail-label">计算公式</span>
                 <span class="detail-value note">公式待确认</span>
               </div>
@@ -1442,7 +1446,7 @@ const handleQuery = () => {
                 <span class="detail-label">充值配对总数</span>
                 <span class="detail-value">{{ weeklyMetrics.totalMatch.toLocaleString() }}</span>
               </div>
-              <div class="detail-item">
+              <div v-if="showFormula" class="detail-item">
                 <span class="detail-label">计算公式</span>
                 <span class="detail-value note">(一般卡+Js+一般提) / 充值配对总数</span>
               </div>
@@ -1460,7 +1464,7 @@ const handleQuery = () => {
                 <span class="detail-label">未充值</span>
                 <span class="detail-value">{{ weeklyMetrics.notDeposited.toLocaleString() }}</span>
               </div>
-              <div class="detail-item">
+              <div v-if="showFormula" class="detail-item">
                 <span class="detail-label">计算公式</span>
                 <span class="detail-value note">未充值 / (配JS+配一般提)</span>
               </div>
@@ -1474,14 +1478,14 @@ const handleQuery = () => {
               <span class="block-value warning">{{ (weeklyMetrics.withdrawFailRate * 100).toFixed(2) }}%</span>
             </div>
             <div class="block-details">
-              <div class="detail-item">
+              <div v-if="showFormula" class="detail-item">
                 <span class="detail-label">计算公式</span>
                 <span class="detail-value note">公式后补</span>
               </div>
             </div>
           </div>
         </div>
-        <div class="section-formula">
+        <div v-if="showFormula" class="section-formula">
           <strong>計算公式說明：</strong><br>
           - 充值配对率 = (充值配對(配一般卡) + 充值配對(配JS) + 充值配對(配一般提)) / 充值申請 × 100%<br>
           - 充提配对率 = 公式待確認<br>
@@ -1536,7 +1540,7 @@ const handleQuery = () => {
             </tbody>
           </table>
         </div>
-        <div class="section-formula">
+        <div v-if="showFormula" class="section-formula">
           <strong>充值計算公式說明：</strong><br>
           - 整體數據範圍：商戶只排除 test/qa（不排除線下、外部商戶等）<br>
           - 支付寶數據範圍：商戶含「支付寶/支付宝」且排除 test/qa/線下<br>

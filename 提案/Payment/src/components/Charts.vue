@@ -119,69 +119,103 @@ const bankDistribution = computed(() => {
     .map(([name, amount]) => ({ name, amount }));
 });
 
-// Calculate hourly distribution (使用所有充值成功记录，包含线下商户，显示笔数和金额)
-const hourlyDistribution = computed(() => {
-  const hoursData = new Array(24).fill(null).map(() => ({ count: 0, amount: 0 }));
-
-  allSuccessRecords.value.forEach(r => {
-    if (r.requestTime) {
-      const match = r.requestTime.match(/(\d{2}):\d{2}:\d{2}/);
-      if (match) {
-        const hour = parseInt(match[1]);
-        hoursData[hour].count++;
-        hoursData[hour].amount += r.receivedAmount;
-      }
-    }
-  });
-
-  const maxCount = Math.max(...hoursData.map(h => h.count)) || 1;
-  return hoursData.map((data, hour) => ({
-    hour: `${hour.toString().padStart(2, '0')}:00`,
-    count: data.count,
-    amount: data.amount,
-    percent: (data.count / maxCount * 100)
-  }));
-});
-
 const maxBankAmount = computed(() => {
   if (bankDistribution.value.length === 0) return 1;
   return Math.max(...bankDistribution.value.map(b => b.amount));
 });
 
-// 状态分布：极速银行卡/支付宝/微信 充值成功比例
+// 状态分布：极速银行卡/支付宝/微信/外部商戶/线下 充值成功比例
+// 範圍：所有商戶但排除 test/qa
 const statusDistribution = computed(() => {
   const dist = {
-    bankCard: { count: 0, amount: 0 },
-    alipay: { count: 0, amount: 0 },
-    wechat: { count: 0, amount: 0 }
+    bankCard: { count: 0, amount: 0 },      // 极速银行卡
+    alipay: { count: 0, amount: 0 },        // 极速支付宝
+    wechat: { count: 0, amount: 0 },        // 极速微信
+    external: { count: 0, amount: 0 },      // 外部商戶
+    offline: { count: 0, amount: 0 }        // 线下
   };
 
-  // 遍历所有充值成功记录 (receivedAmount > 0)
-  props.records.filter(r => r.receivedAmount > 0).forEach(r => {
-    const hasJiSu = r.merchant && r.merchant.includes('极速充提3');
-    const hasOffline = r.merchant && r.merchant.includes('线下充值');
-    const hasAlipay = r.merchant && (r.merchant.includes('支付宝') || r.merchant.includes('支付宝'));
-    const hasWechat = r.merchant && r.merchant.includes('微信');
+  // 訂單成功條件：正規化狀態有值且≠未充值/图文复核(已超时)/审核中(已超时)
+  const isOrderSuccess = (r) => {
+    const status = r.normalizedStatus || r.status || '';
+    if (!status) return false;
+    if (status.includes('未充值')) return false;
+    if (status.includes('图文复核(已超时)') || status.includes('圖文複核(已超時)')) return false;
+    if (status.includes('审核中(已超时)') || status.includes('審核中(已超時)')) return false;
+    return true;
+  };
 
-    if (hasAlipay) {
+  // 外部商戶判斷：商戶名稱以「外部商戶」開頭
+  const isExternalMerchant = (merchant) => {
+    if (!merchant) return false;
+    return merchant.startsWith('外部商戶') || merchant.startsWith('外部商户');
+  };
+
+  // 外部商戶充值成功條件：狀態不含「未充值」且金額>0
+  const isExternalSuccess = (r) => {
+    const status = r.status || '';
+    if (status.includes('未充值')) return false;
+    return (r.amount || 0) > 0;
+  };
+
+  // 遍历所有记录
+  // 統一充值成功條件：到帳金額 > 0（與重要信息的總充值成功筆數一致）
+  props.records.forEach(r => {
+    const merchant = r.merchant || '';
+    const m = merchant.toLowerCase();
+
+    // 排除 test/qa
+    if (m.includes('test') || m.includes('qa')) return;
+
+    // 基本充值成功條件：到帳金額 > 0
+    const receivedAmount = r.receivedAmount || 0;
+    if (receivedAmount <= 0) return;
+
+    const hasJiSu = merchant.includes('极速充提3');
+    const hasOffline = merchant.includes('線下') || merchant.includes('线下');
+    const hasAlipay = merchant.includes('支付宝') || merchant.includes('支付寶');
+    const hasWechat = merchant.includes('微信');
+
+    // 1. 外部商戶（以「外部商戶」開頭）
+    if (isExternalMerchant(merchant)) {
+      dist.external.count++;
+      dist.external.amount += receivedAmount;
+    }
+    // 2. 线下商戶
+    else if (hasOffline) {
+      dist.offline.count++;
+      dist.offline.amount += receivedAmount;
+    }
+    // 3. 极速支付宝
+    else if (hasJiSu && hasAlipay) {
       dist.alipay.count++;
-      dist.alipay.amount += r.receivedAmount;
-    } else if (hasWechat) {
+      dist.alipay.amount += receivedAmount;
+    }
+    // 4. 极速微信
+    else if (hasJiSu && hasWechat) {
       dist.wechat.count++;
-      dist.wechat.amount += r.receivedAmount;
-    } else if ((hasJiSu || hasOffline) && !hasAlipay && !hasWechat) {
-      // 银行卡：极速充提3 或 线下充值（不含支付宝/微信）
+      dist.wechat.amount += receivedAmount;
+    }
+    // 5. 极速银行卡
+    else if (hasJiSu && !hasAlipay && !hasWechat) {
       dist.bankCard.count++;
-      dist.bankCard.amount += r.receivedAmount;
+      dist.bankCard.amount += receivedAmount;
+    }
+    // 6. 其他商戶（非以上分類但到帳金額>0）
+    else {
+      dist.external.count++;
+      dist.external.amount += receivedAmount;
     }
   });
 
-  const total = dist.bankCard.count + dist.alipay.count + dist.wechat.count || 1;
+  const total = dist.bankCard.count + dist.alipay.count + dist.wechat.count + dist.external.count + dist.offline.count || 1;
 
   return [
     { label: '极速银行卡', value: dist.bankCard.count, amount: dist.bankCard.amount, percent: (dist.bankCard.count / total * 100).toFixed(1), color: '#ff9f0a' },
     { label: '极速支付宝', value: dist.alipay.count, amount: dist.alipay.amount, percent: (dist.alipay.count / total * 100).toFixed(1), color: '#0a84ff' },
-    { label: '极速微信', value: dist.wechat.count, amount: dist.wechat.amount, percent: (dist.wechat.count / total * 100).toFixed(1), color: '#30d158' }
+    { label: '极速微信', value: dist.wechat.count, amount: dist.wechat.amount, percent: (dist.wechat.count / total * 100).toFixed(1), color: '#30d158' },
+    { label: '外部商戶', value: dist.external.count, amount: dist.external.amount, percent: (dist.external.count / total * 100).toFixed(1), color: '#af52de' },
+    { label: '线下', value: dist.offline.count, amount: dist.offline.amount, percent: (dist.offline.count / total * 100).toFixed(1), color: '#8e8e93' }
   ].filter(d => d.value > 0);
 });
 
@@ -283,18 +317,6 @@ const statusTotalCount = computed(() => {
         </div>
       </div>
     </div>
-
-    <!-- Hourly Distribution -->
-    <div class="chart-card wide">
-      <h3>24小时交易分布</h3>
-      <div class="hourly-chart">
-        <div v-for="item in hourlyDistribution" :key="item.hour" class="hour-bar" :title="`${item.count}笔 / ${(item.amount / 10000).toFixed(1)}万`">
-          <div class="hour-tooltip">{{ item.count }}笔<br>{{ (item.amount / 10000).toFixed(1) }}万</div>
-          <div class="hour-fill" :style="{ height: item.percent + '%' }"></div>
-          <span class="hour-label">{{ item.hour.split(':')[0] }}</span>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -311,10 +333,6 @@ const statusTotalCount = computed(() => {
   border-radius: 8px;
   padding: 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-
-.chart-card.wide {
-  grid-column: span 2;
 }
 
 .chart-card h3 {
@@ -459,67 +477,9 @@ const statusTotalCount = computed(() => {
   font-family: monospace;
 }
 
-/* Hourly Chart */
-.hourly-chart {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  height: 120px;
-  gap: 4px;
-}
-
-.hour-bar {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  height: 100%;
-  position: relative;
-}
-
-.hour-tooltip {
-  display: none;
-  position: absolute;
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #333;
-  color: #fff;
-  padding: 6px 10px;
-  border-radius: 6px;
-  font-size: 11px;
-  white-space: nowrap;
-  text-align: center;
-  z-index: 10;
-  margin-bottom: 4px;
-}
-
-.hour-bar:hover .hour-tooltip {
-  display: block;
-}
-
-.hour-fill {
-  width: 100%;
-  background: linear-gradient(180deg, #30d158, #34c759);
-  border-radius: 2px 2px 0 0;
-  margin-top: auto;
-  transition: height 0.3s;
-  min-height: 2px;
-}
-
-.hour-label {
-  font-size: 10px;
-  color: #666;
-  margin-top: 8px;
-}
-
 @media (max-width: 900px) {
   .charts-container {
     grid-template-columns: 1fr;
-  }
-
-  .chart-card.wide {
-    grid-column: span 1;
   }
 }
 </style>

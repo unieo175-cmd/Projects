@@ -6,6 +6,8 @@ import WithdrawMetricsCards from './components/WithdrawMetricsCards.vue';
 import WeeklyReport from './components/WeeklyReport.vue';
 import Charts from './components/Charts.vue';
 import FraudStats from './components/FraudStats.vue';
+// import PrdPage from './components/PrdPage.vue';  // 暫時隱藏
+import PmMetrics from './components/PmMetrics.vue';
 import { parseCSV, calculateMetrics, parseWithdrawCSV, calculateWithdrawMetrics, exportDepositToExcel, exportWithdrawToExcel, exportCompareToExcel } from './utils/csvParser';
 import HistoryView from './components/HistoryView.vue';
 import * as XLSX from 'xlsx';
@@ -927,6 +929,8 @@ const hasCurrentData = computed(() => {
   if (activeTab.value === 'weekly') return hasDepositData.value || hasWithdrawData.value;
   if (activeTab.value === 'fraud') return true;
   if (activeTab.value === 'history') return true;  // 历史记录页面总是显示
+  // if (activeTab.value === 'prd') return true;  // PRD页面總是顯示（暫時隱藏）
+  if (activeTab.value === 'pm') return true;  // PM专用页面总是显示
   return false;
 });
 </script>
@@ -977,6 +981,26 @@ const hasCurrentData = computed(() => {
         >
           <span class="nav-icon">🚫</span>
           <span class="nav-text" v-show="!sidebarCollapsed">骗分统计</span>
+        </button>
+        <!-- 暫時隱藏 PRD 文件
+        <button
+          class="nav-item"
+          :class="{ active: activeTab === 'prd' }"
+          @click="activeTab = 'prd'"
+          :title="sidebarCollapsed ? 'PRD文件' : ''"
+        >
+          <span class="nav-icon">📋</span>
+          <span class="nav-text" v-show="!sidebarCollapsed">PRD文件</span>
+        </button>
+        -->
+        <button
+          class="nav-item pm-link"
+          :class="{ active: activeTab === 'pm' }"
+          @click="activeTab = 'pm'"
+          :title="sidebarCollapsed ? 'PM專用' : ''"
+        >
+          <span class="nav-icon">👤</span>
+          <span class="nav-text" v-show="!sidebarCollapsed">PM專用</span>
         </button>
         <!-- 暫時隱藏上傳紀錄功能
         <div class="nav-divider" v-show="!sidebarCollapsed"></div>
@@ -1035,7 +1059,7 @@ const hasCurrentData = computed(() => {
         <div class="header-content">
           <h2 class="page-title">
             <span class="verify-badge">验证版</span>
-            {{ activeTab === 'deposit' ? '充值分析报表' : activeTab === 'withdraw' ? '提现分析报表' : activeTab === 'weekly' ? '日/周报数据汇总' : activeTab === 'history' ? '上传纪录' : '骗分统计' }}
+            {{ activeTab === 'deposit' ? '充值分析报表' : activeTab === 'withdraw' ? '提现分析报表' : activeTab === 'weekly' ? '日/周报数据汇总' : activeTab === 'history' ? '上传纪录' : activeTab === 'prd' ? 'PRD文件' : activeTab === 'pm' ? 'PM專用' : '骗分统计' }}
           </h2>
           <div class="data-info">
             <span class="file-info" v-if="depositFileName">📥 充值: {{ depositFileName }}</span>
@@ -1064,7 +1088,7 @@ const hasCurrentData = computed(() => {
 
         <template v-else>
           <template v-if="activeTab === 'weekly'">
-            <WeeklyReport :depositRecords="depositRecords" :withdrawRecords="withdrawRecords" />
+            <WeeklyReport :depositRecords="depositRecords" :withdrawRecords="withdrawRecords" :showFormula="true" />
           </template>
           <template v-else-if="activeTab === 'fraud'">
             <FraudStats />
@@ -1077,10 +1101,18 @@ const hasCurrentData = computed(() => {
               @refresh="loadHistoryList"
             />
           </template>
+          <!-- 暫時隱藏 PRD 文件
+          <template v-else-if="activeTab === 'prd'">
+            <PrdPage :isVerifyVersion="true" />
+          </template>
+          -->
+          <template v-else-if="activeTab === 'pm'">
+            <PmMetrics />
+          </template>
           <template v-else>
             <SearchFilter :records="allRecords" :hideDate="true" @filter="handleFilter" @export="handleExport" @dateChange="handleDateChange" />
-            <MetricsCards v-if="activeTab === 'deposit'" :metrics="metrics" :dateRange="dateRange" :dataDate="dataDate" @channelChange="handleChannelChange" />
-            <WithdrawMetricsCards v-else :metrics="metrics" />
+            <MetricsCards v-if="activeTab === 'deposit'" :metrics="metrics" :dateRange="dateRange" :dataDate="dataDate" :showFormula="true" @channelChange="handleChannelChange" />
+            <WithdrawMetricsCards v-else :metrics="metrics" :showFormula="true" />
             <Charts v-if="activeTab === 'deposit' && activeChannel === 'all'" :records="filteredRecords" />
           </template>
         </template>
@@ -1204,6 +1236,107 @@ body {
   background: rgba(0, 217, 255, 0.15);
   color: #00d9ff;
   border-left-color: #00d9ff;
+}
+
+/* PM 專用按鈕樣式 */
+.dark-theme .nav-item.pm-link {
+  color: #ff9f0a;
+}
+
+.dark-theme .nav-item.pm-link:hover {
+  background: rgba(255, 159, 10, 0.15);
+  color: #ffb84d;
+}
+
+.dark-theme .nav-item.pm-link.active {
+  background: rgba(255, 159, 10, 0.2);
+  color: #ff9f0a;
+  border-left-color: #ff9f0a;
+}
+
+/* PM 頁面樣式 */
+.pm-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.pm-header {
+  text-align: center;
+  margin-bottom: 40px;
+  padding-bottom: 20px;
+  border-bottom: 2px solid #ff9f0a;
+}
+
+.pm-header h1 {
+  font-size: 32px;
+  color: #ff9f0a;
+  margin-bottom: 8px;
+}
+
+.pm-subtitle {
+  color: #888;
+  font-size: 16px;
+}
+
+.pm-content {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+.pm-card {
+  background: #16213e;
+  border-radius: 12px;
+  padding: 24px;
+  border: 1px solid #2a3f5f;
+}
+
+.pm-card h3 {
+  color: #fff;
+  font-size: 18px;
+  margin-bottom: 12px;
+}
+
+.pm-card p {
+  color: #aaa;
+  font-size: 14px;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.pm-btn {
+  background: #0a84ff;
+  color: #fff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  margin-right: 8px;
+  margin-bottom: 8px;
+  transition: background 0.2s;
+}
+
+.pm-btn:hover {
+  background: #0070e0;
+}
+
+.pm-link-btn {
+  display: inline-block;
+  background: #30d158;
+  color: #fff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  text-decoration: none;
+  transition: background 0.2s;
+}
+
+.pm-link-btn:hover {
+  background: #28b84d;
 }
 
 .dark-theme .nav-icon {

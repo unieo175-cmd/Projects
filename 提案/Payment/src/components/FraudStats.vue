@@ -33,22 +33,20 @@ const saveLogsToStorage = () => {
   localStorage.setItem('fraudOperationLogs', JSON.stringify(operationLogs.value));
 };
 
+// 渠道类型选项
+const channelTypes = ['银行卡', '支付宝', '微信'];
+
 // 新增表单
 const newRecord = ref({
   date: new Date().toISOString().split('T')[0],
-  bankCardManualAmount: '',
-  bankCardManualCount: '',
-  bankCardCreditAmount: '',
-  bankCardCreditCount: '',
-  bankCardFraudBlacklistCount: '',
-  bankCardCardVerifyCount: '',
-  alipayManualAmount: '',
-  alipayManualCount: '',
-  alipayCreditAmount: '',
-  alipayCreditCount: '',
-  alipayNoReceiptCount: '',
-  alipayFraudBlacklistCount: '',
-  alipayCardVerifyCount: '',
+  type: '银行卡',
+  manualAmount: '',
+  manualCount: '',
+  creditAmount: '',
+  creditCount: '',
+  noReceiptCount: '',
+  fraudBlacklistCount: '',
+  cardVerifyCount: '',
   remark: '',
   operator: ''
 });
@@ -99,39 +97,29 @@ const addRecord = () => {
 
   const record = {
     id: Date.now(),
-    ...newRecord.value,
-    bankCardManualAmount: parseFloat(newRecord.value.bankCardManualAmount) || 0,
-    bankCardManualCount: parseInt(newRecord.value.bankCardManualCount) || 0,
-    bankCardCreditAmount: parseFloat(newRecord.value.bankCardCreditAmount) || 0,
-    bankCardCreditCount: parseInt(newRecord.value.bankCardCreditCount) || 0,
-    bankCardFraudBlacklistCount: parseInt(newRecord.value.bankCardFraudBlacklistCount) || 0,
-    bankCardCardVerifyCount: parseInt(newRecord.value.bankCardCardVerifyCount) || 0,
-    alipayManualAmount: parseFloat(newRecord.value.alipayManualAmount) || 0,
-    alipayManualCount: parseInt(newRecord.value.alipayManualCount) || 0,
-    alipayCreditAmount: parseFloat(newRecord.value.alipayCreditAmount) || 0,
-    alipayCreditCount: parseInt(newRecord.value.alipayCreditCount) || 0,
-    alipayNoReceiptCount: parseInt(newRecord.value.alipayNoReceiptCount) || 0,
-    alipayFraudBlacklistCount: parseInt(newRecord.value.alipayFraudBlacklistCount) || 0,
-    alipayCardVerifyCount: parseInt(newRecord.value.alipayCardVerifyCount) || 0,
+    date: newRecord.value.date,
+    type: newRecord.value.type,
+    manualAmount: parseFloat(newRecord.value.manualAmount) || 0,
+    manualCount: parseInt(newRecord.value.manualCount) || 0,
+    creditAmount: parseFloat(newRecord.value.creditAmount) || 0,
+    creditCount: parseInt(newRecord.value.creditCount) || 0,
+    noReceiptCount: parseInt(newRecord.value.noReceiptCount) || 0,
+    fraudBlacklistCount: parseInt(newRecord.value.fraudBlacklistCount) || 0,
+    cardVerifyCount: parseInt(newRecord.value.cardVerifyCount) || 0,
+    remark: newRecord.value.remark,
     operator: currentUser.value,
     createdAt: new Date().toISOString()
   };
 
   // 检查是否所有数值皆为 0（当日无骗分数据）
   const hasData =
-    record.bankCardManualAmount > 0 ||
-    record.bankCardManualCount > 0 ||
-    record.bankCardCreditAmount > 0 ||
-    record.bankCardCreditCount > 0 ||
-    record.bankCardFraudBlacklistCount > 0 ||
-    record.bankCardCardVerifyCount > 0 ||
-    record.alipayManualAmount > 0 ||
-    record.alipayManualCount > 0 ||
-    record.alipayCreditAmount > 0 ||
-    record.alipayCreditCount > 0 ||
-    record.alipayNoReceiptCount > 0 ||
-    record.alipayFraudBlacklistCount > 0 ||
-    record.alipayCardVerifyCount > 0;
+    record.manualAmount > 0 ||
+    record.manualCount > 0 ||
+    record.creditAmount > 0 ||
+    record.creditCount > 0 ||
+    record.noReceiptCount > 0 ||
+    record.fraudBlacklistCount > 0 ||
+    record.cardVerifyCount > 0;
 
   if (!hasData) {
     alert('所有数值皆为 0，当日无骗分数据，不予新增');
@@ -144,6 +132,7 @@ const addRecord = () => {
   // 写入操作 Log
   addOperationLog('ADD', record.id, {
     date: record.date,
+    type: record.type,
     remark: record.remark || '无备注'
   });
 
@@ -164,21 +153,17 @@ const updateRecord = () => {
   if (index !== -1) {
     const originalRecord = fraudRecords.value[index];
     const updatedRecord = {
-      ...newRecord.value,
       id: editingId.value,
-      bankCardManualAmount: parseFloat(newRecord.value.bankCardManualAmount) || 0,
-      bankCardManualCount: parseInt(newRecord.value.bankCardManualCount) || 0,
-      bankCardCreditAmount: parseFloat(newRecord.value.bankCardCreditAmount) || 0,
-      bankCardCreditCount: parseInt(newRecord.value.bankCardCreditCount) || 0,
-      bankCardFraudBlacklistCount: parseInt(newRecord.value.bankCardFraudBlacklistCount) || 0,
-      bankCardCardVerifyCount: parseInt(newRecord.value.bankCardCardVerifyCount) || 0,
-      alipayManualAmount: parseFloat(newRecord.value.alipayManualAmount) || 0,
-      alipayManualCount: parseInt(newRecord.value.alipayManualCount) || 0,
-      alipayCreditAmount: parseFloat(newRecord.value.alipayCreditAmount) || 0,
-      alipayCreditCount: parseInt(newRecord.value.alipayCreditCount) || 0,
-      alipayNoReceiptCount: parseInt(newRecord.value.alipayNoReceiptCount) || 0,
-      alipayFraudBlacklistCount: parseInt(newRecord.value.alipayFraudBlacklistCount) || 0,
-      alipayCardVerifyCount: parseInt(newRecord.value.alipayCardVerifyCount) || 0,
+      date: newRecord.value.date,
+      type: newRecord.value.type,
+      manualAmount: parseFloat(newRecord.value.manualAmount) || 0,
+      manualCount: parseInt(newRecord.value.manualCount) || 0,
+      creditAmount: parseFloat(newRecord.value.creditAmount) || 0,
+      creditCount: parseInt(newRecord.value.creditCount) || 0,
+      noReceiptCount: parseInt(newRecord.value.noReceiptCount) || 0,
+      fraudBlacklistCount: parseInt(newRecord.value.fraudBlacklistCount) || 0,
+      cardVerifyCount: parseInt(newRecord.value.cardVerifyCount) || 0,
+      remark: newRecord.value.remark,
       operator: originalRecord.operator || currentUser.value,
       createdAt: originalRecord.createdAt,
       lastEditedBy: currentUser.value,
@@ -190,6 +175,7 @@ const updateRecord = () => {
     // 写入操作 Log
     addOperationLog('EDIT', editingId.value, {
       date: updatedRecord.date,
+      type: updatedRecord.type,
       originalOperator: originalRecord.operator,
       remark: updatedRecord.remark || '无备注'
     });
@@ -222,19 +208,14 @@ const resetForm = () => {
   editingId.value = null;
   newRecord.value = {
     date: new Date().toISOString().split('T')[0],
-    bankCardManualAmount: '',
-    bankCardManualCount: '',
-    bankCardCreditAmount: '',
-    bankCardCreditCount: '',
-    bankCardFraudBlacklistCount: '',
-    bankCardCardVerifyCount: '',
-    alipayManualAmount: '',
-    alipayManualCount: '',
-    alipayCreditAmount: '',
-    alipayCreditCount: '',
-    alipayNoReceiptCount: '',
-    alipayFraudBlacklistCount: '',
-    alipayCardVerifyCount: '',
+    type: '银行卡',
+    manualAmount: '',
+    manualCount: '',
+    creditAmount: '',
+    creditCount: '',
+    noReceiptCount: '',
+    fraudBlacklistCount: '',
+    cardVerifyCount: '',
     remark: '',
     operator: ''
   };
@@ -270,22 +251,13 @@ const exportToExcel = () => {
     [''],
     ['总骗分金额', totalFraudAmount.value],
     [''],
-    ['银行卡渠道'],
-    ['骗分拉黑(笔)', totals.value.bankCardFraudBlacklistCount],
-    ['卡验及人验(笔)', totals.value.bankCardCardVerifyCount],
-    ['人工笔数', totals.value.bankCardManualCount],
-    ['人工金额(元)', totals.value.bankCardManualAmount],
-    ['信评笔数', totals.value.bankCardCreditCount],
-    ['信评金额(元)', totals.value.bankCardCreditAmount],
-    [''],
-    ['支付宝渠道'],
-    ['骗分拉黑(笔)', totals.value.alipayFraudBlacklistCount],
-    ['卡验及人验(笔)', totals.value.alipayCardVerifyCount],
-    ['人工笔数', totals.value.alipayManualCount],
-    ['人工金额(元)', totals.value.alipayManualAmount],
-    ['信评笔数', totals.value.alipayCreditCount],
-    ['信评金额(元)', totals.value.alipayCreditAmount],
-    ['没上传回单(笔)', totals.value.alipayNoReceiptCount],
+    ['骗分拉黑(笔)', totals.value.fraudBlacklistCount],
+    ['卡验及人验(笔)', totals.value.cardVerifyCount],
+    ['人工笔数', totals.value.manualCount],
+    ['人工金额(元)', totals.value.manualAmount],
+    ['信评笔数', totals.value.creditCount],
+    ['信评金额(元)', totals.value.creditAmount],
+    ['没上传回单重复出款充值上分(笔)', totals.value.noReceiptCount],
   ];
 
   const ws1 = XLSX.utils.aoa_to_sheet(summaryData);
@@ -294,29 +266,22 @@ const exportToExcel = () => {
   // 明细数据
   if (exportRecords.length > 0) {
     const detailHeaders = [
-      '日期',
-      '银行卡-骗分拉黑(笔)', '银行卡-卡验人验(笔)', '银行卡-人工笔数', '银行卡-人工金额',
-      '银行卡-信评笔数', '银行卡-信评金额',
-      '支付宝-骗分拉黑(笔)', '支付宝-卡验人验(笔)', '支付宝-人工笔数', '支付宝-人工金额',
-      '支付宝-信评笔数', '支付宝-信评金额', '支付宝-没上传回单(笔)',
+      '日期', '渠道类型',
+      '骗分拉黑(笔)', '卡验人验(笔)', '人工笔数', '人工金额',
+      '信评笔数', '信评金额', '没上传回单重复出款充值上分(笔)',
       '备注'
     ];
 
     const detailData = exportRecords.map(r => [
       r.date,
-      r.bankCardFraudBlacklistCount || 0,
-      r.bankCardCardVerifyCount || 0,
-      r.bankCardManualCount || 0,
-      r.bankCardManualAmount || 0,
-      r.bankCardCreditCount || 0,
-      r.bankCardCreditAmount || 0,
-      r.alipayFraudBlacklistCount || 0,
-      r.alipayCardVerifyCount || 0,
-      r.alipayManualCount || 0,
-      r.alipayManualAmount || 0,
-      r.alipayCreditCount || 0,
-      r.alipayCreditAmount || 0,
-      r.alipayNoReceiptCount || 0,
+      r.type || '银行卡',
+      r.fraudBlacklistCount || 0,
+      r.cardVerifyCount || 0,
+      r.manualCount || 0,
+      r.manualAmount || 0,
+      r.creditCount || 0,
+      r.creditAmount || 0,
+      r.noReceiptCount || 0,
       r.remark || ''
     ]);
 
@@ -438,41 +403,28 @@ const filteredRecords = computed(() => {
 // 计算总计（依筛选后的数据）
 const totals = computed(() => {
   return filteredRecords.value.reduce((acc, r) => {
-    acc.bankCardManualAmount += r.bankCardManualAmount || 0;
-    acc.bankCardManualCount += r.bankCardManualCount || 0;
-    acc.bankCardCreditAmount += r.bankCardCreditAmount || 0;
-    acc.bankCardCreditCount += r.bankCardCreditCount || 0;
-    acc.bankCardFraudBlacklistCount += r.bankCardFraudBlacklistCount || 0;
-    acc.bankCardCardVerifyCount += r.bankCardCardVerifyCount || 0;
-    acc.alipayManualAmount += r.alipayManualAmount || 0;
-    acc.alipayManualCount += r.alipayManualCount || 0;
-    acc.alipayCreditAmount += r.alipayCreditAmount || 0;
-    acc.alipayCreditCount += r.alipayCreditCount || 0;
-    acc.alipayNoReceiptCount += r.alipayNoReceiptCount || 0;
-    acc.alipayFraudBlacklistCount += r.alipayFraudBlacklistCount || 0;
-    acc.alipayCardVerifyCount += r.alipayCardVerifyCount || 0;
+    acc.manualAmount += r.manualAmount || 0;
+    acc.manualCount += r.manualCount || 0;
+    acc.creditAmount += r.creditAmount || 0;
+    acc.creditCount += r.creditCount || 0;
+    acc.noReceiptCount += r.noReceiptCount || 0;
+    acc.fraudBlacklistCount += r.fraudBlacklistCount || 0;
+    acc.cardVerifyCount += r.cardVerifyCount || 0;
     return acc;
   }, {
-    bankCardManualAmount: 0,
-    bankCardManualCount: 0,
-    bankCardCreditAmount: 0,
-    bankCardCreditCount: 0,
-    bankCardFraudBlacklistCount: 0,
-    bankCardCardVerifyCount: 0,
-    alipayManualAmount: 0,
-    alipayManualCount: 0,
-    alipayCreditAmount: 0,
-    alipayCreditCount: 0,
-    alipayNoReceiptCount: 0,
-    alipayFraudBlacklistCount: 0,
-    alipayCardVerifyCount: 0
+    manualAmount: 0,
+    manualCount: 0,
+    creditAmount: 0,
+    creditCount: 0,
+    noReceiptCount: 0,
+    fraudBlacklistCount: 0,
+    cardVerifyCount: 0
   });
 });
 
 // 总骗分金额
 const totalFraudAmount = computed(() => {
-  return totals.value.bankCardManualAmount + totals.value.bankCardCreditAmount +
-         totals.value.alipayManualAmount + totals.value.alipayCreditAmount;
+  return totals.value.manualAmount + totals.value.creditAmount;
 });
 
 // 总页数
@@ -513,6 +465,15 @@ const goToPage = (page) => {
   }
 };
 
+// 获取类型徽章样式
+const getTypeBadgeClass = (type) => {
+  switch (type) {
+    case '支付宝': return 'type-alipay';
+    case '微信': return 'type-wechat';
+    default: return 'type-bankcard';
+  }
+};
+
 // 生成页码数组
 const pageNumbers = computed(() => {
   const pages = [];
@@ -546,72 +507,52 @@ const pageNumbers = computed(() => {
     <!-- 输入表单 -->
     <div class="form-section">
       <h3>{{ editingId ? '编辑记录' : '新增骗分记录' }}</h3>
-      <!-- 操作人栏位：数据将对接后端登录用户账号 -->
-      <div class="form-grid">
+
+      <!-- 日期和类型选择 -->
+      <div class="form-header-row">
         <div class="form-group">
           <label>日期</label>
           <input type="date" v-model="newRecord.date" :max="today" @change="onRecordDateChange" />
         </div>
+        <div class="form-group">
+          <label>渠道类型</label>
+          <select v-model="newRecord.type">
+            <option v-for="type in channelTypes" :key="type" :value="type">{{ type }}</option>
+          </select>
+        </div>
+      </div>
 
-        <div class="form-divider">银行卡渠道</div>
-
+      <!-- 输入字段 -->
+      <div class="form-fields-grid">
         <div class="form-group">
           <label>骗分拉黑(笔)</label>
-          <input type="number" v-model="newRecord.bankCardFraudBlacklistCount" placeholder="0" />
+          <input type="number" v-model="newRecord.fraudBlacklistCount" placeholder="0" />
         </div>
         <div class="form-group">
           <label>卡验及人验(笔)</label>
-          <input type="number" v-model="newRecord.bankCardCardVerifyCount" placeholder="0" />
+          <input type="number" v-model="newRecord.cardVerifyCount" placeholder="0" />
         </div>
         <div class="form-group">
           <label>人工笔数</label>
-          <input type="number" v-model="newRecord.bankCardManualCount" placeholder="0" />
+          <input type="number" v-model="newRecord.manualCount" placeholder="0" />
         </div>
         <div class="form-group">
           <label>人工金额(元)</label>
-          <input type="number" v-model="newRecord.bankCardManualAmount" placeholder="0" />
+          <input type="number" v-model="newRecord.manualAmount" placeholder="0" />
         </div>
         <div class="form-group">
           <label>信评笔数</label>
-          <input type="number" v-model="newRecord.bankCardCreditCount" placeholder="0" />
+          <input type="number" v-model="newRecord.creditCount" placeholder="0" />
         </div>
         <div class="form-group">
           <label>信评金额(元)</label>
-          <input type="number" v-model="newRecord.bankCardCreditAmount" placeholder="0" />
-        </div>
-
-        <div class="form-divider">支付宝渠道</div>
-
-        <div class="form-group">
-          <label>骗分拉黑(笔)</label>
-          <input type="number" v-model="newRecord.alipayFraudBlacklistCount" placeholder="0" />
+          <input type="number" v-model="newRecord.creditAmount" placeholder="0" />
         </div>
         <div class="form-group">
-          <label>卡验及人验(笔)</label>
-          <input type="number" v-model="newRecord.alipayCardVerifyCount" placeholder="0" />
-        </div>
-        <div class="form-group">
-          <label>人工笔数</label>
-          <input type="number" v-model="newRecord.alipayManualCount" placeholder="0" />
-        </div>
-        <div class="form-group">
-          <label>人工金额(元)</label>
-          <input type="number" v-model="newRecord.alipayManualAmount" placeholder="0" />
-        </div>
-        <div class="form-group">
-          <label>信评笔数</label>
-          <input type="number" v-model="newRecord.alipayCreditCount" placeholder="0" />
-        </div>
-        <div class="form-group">
-          <label>信评金额(元)</label>
-          <input type="number" v-model="newRecord.alipayCreditAmount" placeholder="0" />
-        </div>
-        <div class="form-group span-2">
           <label>没上传回单重复出款充值上分(笔)</label>
-          <input type="number" v-model="newRecord.alipayNoReceiptCount" placeholder="0" />
+          <input type="number" v-model="newRecord.noReceiptCount" placeholder="0" />
         </div>
-
-        <div class="form-group full-width">
+        <div class="form-group">
           <label>备注</label>
           <input type="text" v-model="newRecord.remark" placeholder="选填" />
         </div>
@@ -627,60 +568,27 @@ const pageNumbers = computed(() => {
     <!-- 统计摘要 -->
     <div class="summary-section">
       <h3>统计摘要</h3>
-      <div class="summary-search-section">
-        <div class="search-row">
-          <label>开始日期：</label>
-          <input type="date" v-model="startDate" :max="today" @change="onStartDateChange" />
-          <label>结束日期：</label>
-          <input type="date" v-model="endDate" :max="today" @change="onEndDateChange" />
-          <button @click="handleSearch" class="btn-search">查询</button>
-          <button @click="exportToExcel" class="btn btn-export">导出数据</button>
-        </div>
-        <div v-if="dateRangeError" class="date-error">{{ dateRangeError }}</div>
-        <div v-if="startDate || endDate" class="summary-date-info">
-          查询范围：{{ getDateRangeDescription() }}
-        </div>
-      </div>
+      <!-- 统计卡片 -->
       <div class="summary-grid">
         <div class="summary-card">
-          <div class="summary-label">总骗分金额</div>
-          <div class="summary-value">{{ totalFraudAmount.toLocaleString() }} 元</div>
+          <div class="summary-label">骗分拉黑</div>
+          <div class="summary-value">{{ totals.fraudBlacklistCount }} 笔</div>
         </div>
         <div class="summary-card">
-          <div class="summary-label">银行卡-人工</div>
-          <div class="summary-value">{{ totals.bankCardManualCount }} 笔 / {{ totals.bankCardManualAmount.toLocaleString() }} 元</div>
+          <div class="summary-label">卡验及人验</div>
+          <div class="summary-value">{{ totals.cardVerifyCount }} 笔</div>
         </div>
         <div class="summary-card">
-          <div class="summary-label">银行卡-信评</div>
-          <div class="summary-value">{{ totals.bankCardCreditCount }} 笔 / {{ totals.bankCardCreditAmount.toLocaleString() }} 元</div>
+          <div class="summary-label">人工</div>
+          <div class="summary-value">{{ totals.manualCount }} 笔 / {{ totals.manualAmount.toLocaleString() }} 元</div>
         </div>
         <div class="summary-card">
-          <div class="summary-label">银行卡-骗分拉黑</div>
-          <div class="summary-value">{{ totals.bankCardFraudBlacklistCount }} 笔</div>
+          <div class="summary-label">信评</div>
+          <div class="summary-value">{{ totals.creditCount }} 笔 / {{ totals.creditAmount.toLocaleString() }} 元</div>
         </div>
         <div class="summary-card">
-          <div class="summary-label">银行卡-卡验及人验</div>
-          <div class="summary-value">{{ totals.bankCardCardVerifyCount }} 笔</div>
-        </div>
-        <div class="summary-card">
-          <div class="summary-label">支付宝-人工</div>
-          <div class="summary-value">{{ totals.alipayManualCount }} 笔 / {{ totals.alipayManualAmount.toLocaleString() }} 元</div>
-        </div>
-        <div class="summary-card">
-          <div class="summary-label">支付宝-信评</div>
-          <div class="summary-value">{{ totals.alipayCreditCount }} 笔 / {{ totals.alipayCreditAmount.toLocaleString() }} 元</div>
-        </div>
-        <div class="summary-card">
-          <div class="summary-label">支付宝-骗分拉黑</div>
-          <div class="summary-value">{{ totals.alipayFraudBlacklistCount }} 笔</div>
-        </div>
-        <div class="summary-card">
-          <div class="summary-label">支付宝-卡验及人验</div>
-          <div class="summary-value">{{ totals.alipayCardVerifyCount }} 笔</div>
-        </div>
-        <div class="summary-card">
-          <div class="summary-label">支付宝-没上传回单</div>
-          <div class="summary-value">{{ totals.alipayNoReceiptCount }} 笔</div>
+          <div class="summary-label">没上传回单重复出款充值上分</div>
+          <div class="summary-value">{{ totals.noReceiptCount }} 笔</div>
         </div>
       </div>
     </div>
@@ -712,16 +620,12 @@ const pageNumbers = computed(() => {
           <thead>
             <tr>
               <th>日期</th>
-              <th>银行卡-人工</th>
-              <th>银行卡-信评</th>
-              <th>银行卡-骗分拉黑</th>
-              <th>银行卡-卡验人验</th>
-              <th>支付宝-人工</th>
-              <th>支付宝-信评</th>
-              <th>支付宝-骗分拉黑</th>
-              <th>支付宝-卡验人验</th>
-              <th>没上传回单</th>
-              <th>取无卡06提示</th>
+              <th>渠道类型</th>
+              <th>人工</th>
+              <th>信评</th>
+              <th>骗分拉黑</th>
+              <th>卡验人验</th>
+              <th>没上传回单重复出款充值上分</th>
               <th>操作人</th>
               <th>备注</th>
               <th>操作</th>
@@ -730,16 +634,16 @@ const pageNumbers = computed(() => {
           <tbody>
             <tr v-for="record in paginatedRecords" :key="record.id">
               <td>{{ record.date }}</td>
-              <td>{{ record.bankCardManualCount }}笔/{{ record.bankCardManualAmount }}元</td>
-              <td>{{ record.bankCardCreditCount }}笔/{{ record.bankCardCreditAmount }}元</td>
-              <td>{{ record.bankCardFraudBlacklistCount }}笔</td>
-              <td>{{ record.bankCardCardVerifyCount }}笔</td>
-              <td>{{ record.alipayManualCount }}笔/{{ record.alipayManualAmount }}元</td>
-              <td>{{ record.alipayCreditCount }}笔/{{ record.alipayCreditAmount }}元</td>
-              <td>{{ record.alipayFraudBlacklistCount }}笔</td>
-              <td>{{ record.alipayCardVerifyCount }}笔</td>
-              <td>{{ record.alipayNoReceiptCount }}笔</td>
-              <td>{{ (record.date === '2026-01-01' || record.date === '2026/01/01') ? '2' : '0' }}</td>
+              <td>
+                <span class="type-badge" :class="getTypeBadgeClass(record.type)">
+                  {{ record.type || '银行卡' }}
+                </span>
+              </td>
+              <td>{{ record.manualCount || 0 }}笔/{{ record.manualAmount || 0 }}元</td>
+              <td>{{ record.creditCount || 0 }}笔/{{ record.creditAmount || 0 }}元</td>
+              <td>{{ record.fraudBlacklistCount || 0 }}笔</td>
+              <td>{{ record.cardVerifyCount || 0 }}笔</td>
+              <td>{{ record.noReceiptCount || 0 }}笔</td>
               <td>{{ record.operator || '-' }}</td>
               <td>{{ record.remark || '-' }}</td>
               <td class="actions">
@@ -748,7 +652,7 @@ const pageNumbers = computed(() => {
               </td>
             </tr>
             <tr v-if="filteredRecords.length === 0">
-              <td colspan="14" class="empty">{{ dateRangeError ? dateRangeError : (startDate || endDate ? '找不到该日期范围的记录' : '暂无记录') }}</td>
+              <td colspan="10" class="empty">{{ dateRangeError ? dateRangeError : (startDate || endDate ? '找不到该日期范围的记录' : '暂无记录') }}</td>
             </tr>
           </tbody>
         </table>
@@ -806,6 +710,53 @@ const pageNumbers = computed(() => {
   margin-bottom: 16px;
   color: #333;
   font-size: 16px;
+}
+
+.form-header-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.form-header-row .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-header-row .form-group input[type="date"] {
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  height: 42px;
+  box-sizing: border-box;
+}
+
+.form-header-row .form-group select {
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  min-width: 120px;
+  height: 42px;
+  background: #fff;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.form-header-row .form-group select:focus,
+.form-header-row .form-group input:focus {
+  outline: none;
+  border-color: #4a4a9e;
+}
+
+.form-fields-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 16px;
 }
 
 .form-grid {
@@ -913,39 +864,18 @@ const pageNumbers = computed(() => {
   font-size: 16px;
 }
 
-.summary-date-info {
-  font-size: 13px;
-  color: #666;
-  margin-bottom: 12px;
-  padding: 8px 12px;
-  background: #e3f2fd;
-  border-radius: 6px;
-}
-
 .summary-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 16px;
 }
 
 .summary-card {
-  background: #f8f9fa;
+  background: #fff;
   border-radius: 8px;
-  padding: 16px;
+  padding: 12px;
   text-align: center;
-}
-
-.summary-card:first-child {
-  background: linear-gradient(135deg, #4a4a9e 0%, #5a5abe 100%);
-  color: #fff;
-}
-
-.summary-card:first-child .summary-label {
-  color: rgba(255, 255, 255, 0.8);
-}
-
-.summary-card:first-child .summary-value {
-  color: #fff;
+  border: 1px solid #e8e8e8;
 }
 
 .summary-label {
@@ -958,38 +888,6 @@ const pageNumbers = computed(() => {
   font-size: 16px;
   font-weight: 600;
   color: #333;
-}
-
-/* 统计摘要搜索区 */
-.summary-search-section {
-  background: #f8f9fa;
-  border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 16px;
-}
-
-.summary-search-section .search-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.summary-search-section .search-row label {
-  font-size: 14px;
-  color: #666;
-}
-
-.summary-search-section .search-row input[type="date"] {
-  padding: 8px 12px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  font-size: 14px;
-}
-
-.summary-search-section .search-row input[type="date"]:focus {
-  outline: none;
-  border-color: #4a4a9e;
 }
 
 /* 记录列表 */
@@ -1154,6 +1052,30 @@ const pageNumbers = computed(() => {
   opacity: 1;
 }
 
+/* 类型徽章 */
+.type-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.type-bankcard {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.type-alipay {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.type-wechat {
+  background: #e8f5e9;
+  color: #388e3c;
+}
+
 .empty {
   text-align: center;
   color: #999;
@@ -1210,24 +1132,27 @@ const pageNumbers = computed(() => {
 }
 
 @media (max-width: 900px) {
-  .form-grid {
+  .form-header-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .form-header-row .form-group {
+    width: 100%;
+  }
+
+  .form-header-row .form-group input[type="date"],
+  .form-header-row .form-group select {
+    width: 100%;
+  }
+
+  .form-fields-grid {
     grid-template-columns: repeat(2, 1fr);
-  }
-
-  .form-divider {
-    grid-column: span 2;
-  }
-
-  .form-group.full-width {
-    grid-column: span 2;
   }
 
   .summary-grid {
     grid-template-columns: repeat(2, 1fr);
-  }
-
-  .summary-card:first-child {
-    grid-column: span 2;
   }
 
   .records-header {

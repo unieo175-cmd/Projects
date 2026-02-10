@@ -288,21 +288,22 @@ const handleDateChange = ({ dateFrom, dateTo }) => {
         </button>
         <button
           class="nav-item"
-          :class="{ active: activeTab === 'prd' }"
-          @click="activeTab = 'prd'"
-          :title="sidebarCollapsed ? 'PRD文件' : ''"
-        >
-          <span class="nav-icon">📄</span>
-          <span class="nav-text" v-show="!sidebarCollapsed">PRD文件</span>
-        </button>
-        <button
-          class="nav-item"
           :class="{ active: activeTab === 'params' }"
           @click="activeTab = 'params'"
           :title="sidebarCollapsed ? '報表三方設定' : ''"
         >
           <span class="nav-icon">⚙️</span>
           <span class="nav-text" v-show="!sidebarCollapsed">報表三方設定</span>
+        </button>
+        <div class="nav-divider"></div>
+        <button
+          class="nav-item"
+          :class="{ active: activeTab === 'prd' }"
+          @click="activeTab = 'prd'"
+          :title="sidebarCollapsed ? 'PRD文件' : ''"
+        >
+          <span class="nav-icon">📄</span>
+          <span class="nav-text" v-show="!sidebarCollapsed">PRD文件</span>
         </button>
       </nav>
     </aside>
@@ -491,6 +492,12 @@ body {
 
 .sidebar.collapsed .nav-item .nav-icon {
   margin: 0;
+}
+
+.nav-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.2);
+  margin: 8px 16px;
 }
 
 .nav-group {
