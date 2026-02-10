@@ -6,6 +6,8 @@ import WithdrawMetricsCards from './components/WithdrawMetricsCards.vue';
 import WeeklyReport from './components/WeeklyReport.vue';
 import Charts from './components/Charts.vue';
 import FraudStats from './components/FraudStats.vue';
+import PrdPage from './components/PrdPage.vue';
+import ReportParams from './components/ReportParams.vue';
 import { parseCSV, calculateMetrics, parseWithdrawCSV, calculateWithdrawMetrics, exportDepositToExcel, exportWithdrawToExcel } from './utils/csvParser';
 
 const allRecords = ref([]);
@@ -202,8 +204,8 @@ const loadWeeklyData = async () => {
 watch(activeTab, (newTab) => {
   if (newTab === 'weekly') {
     loadWeeklyData();
-  } else if (newTab === 'fraud') {
-    // 骗分统计使用 localStorage，不需要加载 CSV
+  } else if (newTab === 'fraud' || newTab === 'prd' || newTab === 'params') {
+    // 骗分统计、PRD文件和報表三方設定不需要加载 CSV
     isLoading.value = false;
   } else {
     loadData(newTab);
@@ -284,6 +286,24 @@ const handleDateChange = ({ dateFrom, dateTo }) => {
           <span class="nav-icon">🚫</span>
           <span class="nav-text" v-show="!sidebarCollapsed">骗分统计</span>
         </button>
+        <button
+          class="nav-item"
+          :class="{ active: activeTab === 'prd' }"
+          @click="activeTab = 'prd'"
+          :title="sidebarCollapsed ? 'PRD文件' : ''"
+        >
+          <span class="nav-icon">📄</span>
+          <span class="nav-text" v-show="!sidebarCollapsed">PRD文件</span>
+        </button>
+        <button
+          class="nav-item"
+          :class="{ active: activeTab === 'params' }"
+          @click="activeTab = 'params'"
+          :title="sidebarCollapsed ? '報表三方設定' : ''"
+        >
+          <span class="nav-icon">⚙️</span>
+          <span class="nav-text" v-show="!sidebarCollapsed">報表三方設定</span>
+        </button>
       </nav>
     </aside>
 
@@ -292,7 +312,7 @@ const handleDateChange = ({ dateFrom, dateTo }) => {
       <header class="header">
         <div class="header-content">
           <h2 class="page-title">
-            {{ activeTab === 'deposit' ? '充值分析报表' : activeTab === 'withdraw' ? '提现分析报表' : activeTab === 'weekly' ? '日/周报数据汇总' : '骗分统计' }}
+            {{ activeTab === 'deposit' ? '充值分析报表' : activeTab === 'withdraw' ? '提现分析报表' : activeTab === 'weekly' ? '日/周报数据汇总' : activeTab === 'fraud' ? '骗分统计' : activeTab === 'params' ? '報表三方設定' : 'PRD文件' }}
           </h2>
         </div>
       </header>
@@ -308,7 +328,7 @@ const handleDateChange = ({ dateFrom, dateTo }) => {
           <p class="loading-status">{{ loadingStatus }}</p>
         </div>
 
-        <div v-else-if="allRecords.length === 0" class="empty-state">
+        <div v-else-if="allRecords.length === 0 && activeTab !== 'prd' && activeTab !== 'params'" class="empty-state">
           <div class="empty-icon">📊</div>
           <h2>无法加载数据</h2>
           <p>请确认数据来源是否正确</p>
@@ -316,10 +336,16 @@ const handleDateChange = ({ dateFrom, dateTo }) => {
 
         <template v-else>
           <template v-if="activeTab === 'weekly'">
-            <WeeklyReport :depositRecords="depositRecords" :withdrawRecords="withdrawRecords" />
+            <WeeklyReport :depositRecords="depositRecords" :withdrawRecords="withdrawRecords" :showMetricsAnalysisValues="false" />
           </template>
           <template v-else-if="activeTab === 'fraud'">
             <FraudStats />
+          </template>
+          <template v-else-if="activeTab === 'prd'">
+            <PrdPage />
+          </template>
+          <template v-else-if="activeTab === 'params'">
+            <ReportParams />
           </template>
           <template v-else>
             <SearchFilter :records="allRecords" @filter="handleFilter" @export="handleExport" @dateChange="handleDateChange" />

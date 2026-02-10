@@ -7,7 +7,7 @@ export default defineConfig(({ command }) => ({
   plugins: [vue()],
   base: command === 'serve' ? '/' : '/Projects/',
   server: {
-    port: 5175,
+    port: 5173,
     allowedHosts: ['.trycloudflare.com', '.loca.lt']
   },
   build: {
