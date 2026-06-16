@@ -65,6 +65,7 @@ const today = new Date().toISOString().split('T')[0];
 // 日期搜索 - 起讫日期（默认显示全部）
 const startDate = ref('');
 const endDate = ref('');
+const selectedType = ref('');
 
 // 日期范围错误信息
 const dateRangeError = ref('');
@@ -396,6 +397,10 @@ const filteredRecords = computed(() => {
     const recordDate = r.date;
     if (startDate.value && recordDate < startDate.value) return false;
     if (endDate.value && recordDate > endDate.value) return false;
+    if (selectedType.value) {
+      const recordType = r.type || '银行卡';
+      if (recordType !== selectedType.value) return false;
+    }
     return true;
   });
 });
@@ -425,6 +430,33 @@ const totals = computed(() => {
 // 总骗分金额
 const totalFraudAmount = computed(() => {
   return totals.value.manualAmount + totals.value.creditAmount;
+});
+
+// 統計摘要：依日期加總，不受渠道篩選影響
+const summaryTotals = computed(() => {
+  return fraudRecords.value
+    .filter(r => {
+      const d = r.date;
+      if (startDate.value && d < startDate.value) return false;
+      if (endDate.value && d > endDate.value) return false;
+      return true;
+    })
+    .reduce((acc, r) => {
+      acc.manualCount += r.manualCount || 0;
+      acc.manualAmount += r.manualAmount || 0;
+      acc.creditCount += r.creditCount || 0;
+      acc.creditAmount += r.creditAmount || 0;
+      acc.fraudBlacklistCount += r.fraudBlacklistCount || 0;
+      acc.cardVerifyCount += r.cardVerifyCount || 0;
+      acc.noReceiptCount += r.noReceiptCount || 0;
+      return acc;
+    }, {
+      manualCount: 0, manualAmount: 0,
+      creditCount: 0, creditAmount: 0,
+      fraudBlacklistCount: 0,
+      cardVerifyCount: 0,
+      noReceiptCount: 0
+    });
 });
 
 // 总页数
@@ -565,34 +597,6 @@ const pageNumbers = computed(() => {
       </div>
     </div>
 
-    <!-- 统计摘要 -->
-    <div class="summary-section">
-      <h3>统计摘要</h3>
-      <!-- 统计卡片 -->
-      <div class="summary-grid">
-        <div class="summary-card">
-          <div class="summary-label">骗分拉黑</div>
-          <div class="summary-value">{{ totals.fraudBlacklistCount }} 笔</div>
-        </div>
-        <div class="summary-card">
-          <div class="summary-label">卡验及人验</div>
-          <div class="summary-value">{{ totals.cardVerifyCount }} 笔</div>
-        </div>
-        <div class="summary-card">
-          <div class="summary-label">人工</div>
-          <div class="summary-value">{{ totals.manualCount }} 笔 / {{ totals.manualAmount.toLocaleString() }} 元</div>
-        </div>
-        <div class="summary-card">
-          <div class="summary-label">信评</div>
-          <div class="summary-value">{{ totals.creditCount }} 笔 / {{ totals.creditAmount.toLocaleString() }} 元</div>
-        </div>
-        <div class="summary-card">
-          <div class="summary-label">没上传回单重复出款充值上分</div>
-          <div class="summary-value">{{ totals.noReceiptCount }} 笔</div>
-        </div>
-      </div>
-    </div>
-
     <!-- 记录列表 -->
     <div class="records-section">
       <div class="records-header">
@@ -606,6 +610,13 @@ const pageNumbers = computed(() => {
           <input type="date" v-model="startDate" :max="today" @change="onStartDateChange" />
           <label>结束日期：</label>
           <input type="date" v-model="endDate" :max="today" @change="onEndDateChange" />
+          <label>渠道类型：</label>
+          <select v-model="selectedType" class="select-type">
+            <option value="">全部</option>
+            <option value="银行卡">银行卡</option>
+            <option value="支付宝">支付宝</option>
+            <option value="微信">微信</option>
+          </select>
           <button @click="handleSearch" class="btn-search">查询</button>
         </div>
         <div v-if="dateRangeError" class="date-error">
@@ -613,6 +624,35 @@ const pageNumbers = computed(() => {
         </div>
         <div v-if="startDate || endDate" class="date-info">
           查询范围：{{ getDateRangeDescription() }}
+        </div>
+      </div>
+
+      <!-- 统计摘要 -->
+      <div class="summary-section">
+        <h3>统计摘要</h3>
+        <div class="summary-grid">
+          <div class="summary-card">
+            <div class="summary-label">人工</div>
+            <div class="summary-value">{{ summaryTotals.manualCount }} 筆</div>
+            <div class="summary-sub">{{ summaryTotals.manualAmount.toLocaleString() }} 元</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-label">信評</div>
+            <div class="summary-value">{{ summaryTotals.creditCount }} 筆</div>
+            <div class="summary-sub">{{ summaryTotals.creditAmount.toLocaleString() }} 元</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-label">騙分拉黑</div>
+            <div class="summary-value">{{ summaryTotals.fraudBlacklistCount }} 筆</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-label">卡驗及人驗</div>
+            <div class="summary-value">{{ summaryTotals.cardVerifyCount }} 筆</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-label">沒上傳回單重複出款充值上分</div>
+            <div class="summary-value">{{ summaryTotals.noReceiptCount }} 筆</div>
+          </div>
         </div>
       </div>
       <div class="table-container">
@@ -890,6 +930,12 @@ const pageNumbers = computed(() => {
   color: #333;
 }
 
+.summary-sub {
+  font-size: 13px;
+  color: #888;
+  margin-top: 4px;
+}
+
 /* 记录列表 */
 .records-section {
   background: #fff;
@@ -946,6 +992,20 @@ const pageNumbers = computed(() => {
 }
 
 .search-row input[type="date"]:focus {
+  outline: none;
+  border-color: #4a4a9e;
+}
+
+.select-type {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.select-type:focus {
   outline: none;
   border-color: #4a4a9e;
 }
