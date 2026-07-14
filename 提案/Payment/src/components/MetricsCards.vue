@@ -1,6 +1,10 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
-import { formatTime, formatTimeMinutes, formatAmount, formatAmountInteger } from '../utils/csvParser';
+import { formatAmountInteger } from '../utils/csvParser';
+import MetricsAllTab from './MetricsAllTab.vue';
+import MetricsBankCardTab from './MetricsBankCardTab.vue';
+import MetricsAlipayTab from './MetricsAlipayTab.vue';
+import MetricsWechatTab from './MetricsWechatTab.vue';
 
 const props = defineProps({
   metrics: {
@@ -31,33 +35,15 @@ watch(activeChannel, (newChannel) => {
   emit('channelChange', newChannel);
 });
 
-// 控制区域显示/隐藏
-const showGeneral = ref(true);
-const showJisu = ref(true);
-const showAlipay = ref(true);
-const showWechat = ref(true);
-const showWechatC2c = ref(false);
-const showWechatThirdParty = ref(false);
-const showWechatFraud = ref(false);
-const showC2c = ref(true);
-const showFraud = ref(true);
-const showCommercial = ref(true);
-const showTime = ref(true);
-const showAlipayC2c = ref(true);
-const showAlipayFraud = ref(true);
-const showMinuteAnalysis = ref(true);
-const showThirdParty = ref(true);
-const showAlipayThirdParty = ref(true);
-
 // 金额区间列表
 const amountRanges = [100, 200, 300, 500, 1000, 1500, 2000, 3000, 5000, 6000, 7000, 8000, 9000, 10000, 15000, 20000, 30000];
 
 // 从 localStorage 读取骗分统计数据
 const fraudStats = computed(() => {
   const defaultStats = {
-    bankCard: { manualCount: 0, manualAmount: 0, creditCount: 0, creditAmount: 0, fraudBlacklistCount: 0, cardVerifyCount: 0 },
+    bankCard: { manualCount: 0, manualAmount: 0, creditCount: 0, creditAmount: 0, noReceiptCount: 0, fraudBlacklistCount: 0, cardVerifyCount: 0 },
     alipay: { manualCount: 0, manualAmount: 0, creditCount: 0, creditAmount: 0, noReceiptCount: 0, fraudBlacklistCount: 0, cardVerifyCount: 0 },
-    wechat: { manualCount: 0, manualAmount: 0, creditCount: 0, creditAmount: 0 }
+    wechat: { manualCount: 0, manualAmount: 0, creditCount: 0, creditAmount: 0, noReceiptCount: 0 }
   };
 
   try {
@@ -98,9 +84,9 @@ const fraudStats = computed(() => {
 
   // 初始化结果
   const result = {
-    bankCard: { manualCount: 0, manualAmount: 0, creditCount: 0, creditAmount: 0, fraudBlacklistCount: 0, cardVerifyCount: 0 },
+    bankCard: { manualCount: 0, manualAmount: 0, creditCount: 0, creditAmount: 0, noReceiptCount: 0, fraudBlacklistCount: 0, cardVerifyCount: 0 },
     alipay: { manualCount: 0, manualAmount: 0, creditCount: 0, creditAmount: 0, noReceiptCount: 0, fraudBlacklistCount: 0, cardVerifyCount: 0 },
-    wechat: { manualCount: 0, manualAmount: 0, creditCount: 0, creditAmount: 0 }
+    wechat: { manualCount: 0, manualAmount: 0, creditCount: 0, creditAmount: 0, noReceiptCount: 0 }
   };
 
   // 加总所有符合条件的记录
@@ -110,6 +96,7 @@ const fraudStats = computed(() => {
     result.bankCard.manualAmount += parseFloat(r.bankCardManualAmount) || 0;
     result.bankCard.creditCount += parseFloat(r.bankCardCreditCount) || 0;
     result.bankCard.creditAmount += parseFloat(r.bankCardCreditAmount) || 0;
+    result.bankCard.noReceiptCount += parseFloat(r.bankCardNoReceiptCount) || 0;
     result.bankCard.fraudBlacklistCount += parseFloat(r.bankCardFraudBlacklistCount) || 0;
     result.bankCard.cardVerifyCount += parseFloat(r.bankCardCardVerifyCount) || 0;
 
@@ -121,6 +108,13 @@ const fraudStats = computed(() => {
     result.alipay.noReceiptCount += parseFloat(r.alipayNoReceiptCount) || 0;
     result.alipay.fraudBlacklistCount += parseFloat(r.alipayFraudBlacklistCount) || 0;
     result.alipay.cardVerifyCount += parseFloat(r.alipayCardVerifyCount) || 0;
+
+    // 微信
+    result.wechat.manualCount += parseFloat(r.wechatManualCount) || 0;
+    result.wechat.manualAmount += parseFloat(r.wechatManualAmount) || 0;
+    result.wechat.creditCount += parseFloat(r.wechatCreditCount) || 0;
+    result.wechat.creditAmount += parseFloat(r.wechatCreditAmount) || 0;
+    result.wechat.noReceiptCount += parseFloat(r.wechatNoReceiptCount) || 0;
   });
 
     return result;
@@ -157,56 +151,103 @@ const generalCards = computed(() => [
   }
 ]);
 
-// 24小时交易分布
-const hourlyDistribution = computed(() => {
-  const data = props.metrics.hourlyDistribution || new Array(24).fill(null).map((_, hour) => ({
-    hour: `${hour.toString().padStart(2, '0')}:00`,
-    count: 0,
-    amount: 0,
-    percent: 0
-  }));
+// 是否符合日交易分析顯示條件（span >= 2 日）
+const isMultiDay = computed(() => {
+  const { dateFrom, dateTo } = props.dateRange;
+  if (!dateFrom || !dateTo || dateFrom === dateTo) return false;
+  const span = Math.round((new Date(dateTo) - new Date(dateFrom)) / 86400000);
+  return span >= 2;
+});
 
-  // 計算最大值用於百分比
-  const maxCount = Math.max(...data.map(d => d.count), 1);
-  const maxAmount = Math.max(...data.map(d => d.amount), 1);
+// 跨日天數
+const daySpan = computed(() => {
+  const { dateFrom, dateTo } = props.dateRange;
+  if (!dateFrom || !dateTo) return 0;
+  return Math.round((new Date(dateTo) - new Date(dateFrom)) / 86400000);
+});
 
-  return data.map(item => ({
-    ...item,
-    countPercent: (item.count / maxCount) * 100,
-    amountPercent: (item.amount / maxAmount) * 100
+// 圖表模式：h4 = 4小時刻度，daily = 每日刻度，daily2 = 每2日刻度
+const chartMode = computed(() => {
+  const span = daySpan.value;
+  if (span <= 3) return 'h4';
+  if (span <= 15) return 'daily';
+  return 'daily2';
+});
+
+// X 軸刻度規則說明
+const xAxisRuleText = computed(() => {
+  switch (chartMode.value) {
+    case 'h4': return 'X 軸：時間，每 4 小時一刻度';
+    case 'daily': return 'X 軸：日期，每 1 日一刻度';
+    case 'daily2': return 'X 軸：日期，每 2 日一刻度';
+  }
+});
+
+// 圖表資料（依模式聚合）
+const chartData = computed(() => {
+  const series = props.metrics.hourlySeries;
+  if (!series || series.length === 0) return [];
+  const mode = chartMode.value;
+
+  let slots = [];
+  if (mode === 'h4') {
+    const slotMap = {};
+    series.forEach(({ date, hour, count, amount }) => {
+      const slotHour = Math.floor(hour / 4) * 4;
+      const key = `${date}_${slotHour}`;
+      if (!slotMap[key]) slotMap[key] = { date, slotHour, count: 0, amount: 0 };
+      slotMap[key].count += count;
+      slotMap[key].amount += amount;
+    });
+    slots = Object.entries(slotMap)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([, d]) => {
+        const mm = d.date.slice(5, 7);
+        const dd = d.date.slice(8, 10);
+        const hh = d.slotHour.toString().padStart(2, '0');
+        return { label: `${mm}/${dd} ${hh}:00`, showLabel: true, count: d.count, amount: d.amount };
+      });
+  } else {
+    const dayMap = {};
+    series.forEach(({ date, count, amount }) => {
+      if (!dayMap[date]) dayMap[date] = { count: 0, amount: 0 };
+      dayMap[date].count += count;
+      dayMap[date].amount += amount;
+    });
+    slots = Object.entries(dayMap)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, d], index) => ({
+        label: date.slice(5).replace('-', '/'),
+        showLabel: mode === 'daily' || index % 2 === 0,
+        count: d.count,
+        amount: d.amount
+      }));
+  }
+
+  const maxC = Math.max(...slots.map(s => s.count), 1);
+  const maxA = Math.max(...slots.map(s => s.amount), 1);
+  return slots.map(s => ({
+    ...s,
+    countPercent: (s.count / maxC) * 100,
+    amountPercent: (s.amount / maxA) * 100
   }));
 });
 
 // 最大金額（用於左 Y 軸標籤）
-const maxAmount = computed(() => {
-  const data = hourlyDistribution.value;
-  return Math.max(...data.map(d => d.amount), 1);
-});
+const maxAmount = computed(() => Math.max(...chartData.value.map(d => d.amount), 1));
 
 // 最大筆數（用於右 Y 軸標籤）
-const maxCount = computed(() => {
-  const data = hourlyDistribution.value;
-  return Math.max(...data.map(d => d.count), 1);
-});
+const maxCount = computed(() => Math.max(...chartData.value.map(d => d.count), 1));
 
 // 折線上的數據點
-const amountLinePoints = computed(() => {
-  const data = hourlyDistribution.value;
-  if (!data || data.length === 0) return [];
+const amountLinePoints = computed(() => chartData.value.map(item => ({ percent: item.amountPercent, amount: item.amount })));
 
-  return data.map((item, index) => ({
-    percent: item.amountPercent,
-    amount: item.amount
-  }));
-});
-
-// 折線 polyline 點座標 (viewBox: 0 0 240 100)
+// 折線 polyline 點座標
 const amountLinePolylinePoints = computed(() => {
-  const data = hourlyDistribution.value;
+  const data = chartData.value;
   if (!data || data.length === 0) return '';
-
   return data.map((item, index) => {
-    const x = (index + 0.5) * 10; // 240 / 24 = 10
+    const x = (index + 0.5) * 10;
     const y = 100 - item.amountPercent;
     return `${x},${y}`;
   }).join(' ');
@@ -247,1052 +288,44 @@ const amountLinePolylinePoints = computed(() => {
       </button>
     </div>
 
-    <!-- ========== 全部渠道 ========== -->
-    <template v-if="activeChannel === 'all'">
-      <!-- 重要信息 -->
-      <div class="metrics-section">
-        <div class="section-header" @click="showGeneral = !showGeneral">
-          <h3 class="section-title">重要信息</h3>
-          <span class="toggle-icon">{{ showGeneral ? '▼' : '▶' }}</span>
-        </div>
-        <div v-show="showGeneral" class="metrics-grid six-grid">
-          <div
-            v-for="card in generalCards"
-            :key="card.title"
-            class="metric-card"
-          >
-            <div class="card-header">
-              <span class="card-icon">{{ card.icon }}</span>
-              <span class="card-title">{{ card.title }}</span>
-            </div>
-            <div class="card-value" :style="{ color: card.color }">
-              {{ card.value }}
-              <span v-if="card.unit" class="card-unit" :style="{ color: card.unitColor || card.color }">{{ card.unit }}</span>
-              <span v-if="card.successCount" class="card-unit">
-                (<span :style="{ color: card.successColor }">{{ card.successCount }}</span>/<span style="color: #8e8e93">{{ card.totalCount }}</span>)
-              </span>
-            </div>
-                      </div>
-        </div>
-      </div>
-
-      <!-- 24小时交易分布 -->
-      <div class="metrics-section">
-        <div class="section-header" @click="showTime = !showTime">
-          <h3 class="section-title">24小时交易分布</h3>
-          <span class="toggle-icon">{{ showTime ? '▼' : '▶' }}</span>
-        </div>
-        <div v-show="showTime" class="hourly-distribution">
-          <div class="hourly-chart-wrapper">
-            <!-- 左 Y 軸：金額 -->
-            <div class="y-axis y-axis-left">
-              <span>{{ (maxAmount / 10000).toFixed(0) }}萬</span>
-              <span>{{ (maxAmount / 20000).toFixed(0) }}萬</span>
-              <span>0</span>
-            </div>
-            <!-- 圖表區域 -->
-            <div class="hourly-chart-container">
-              <!-- 金額與筆數長條圖 -->
-              <div class="hourly-chart">
-                <!-- 背景虛線網格 -->
-                <div class="grid-lines">
-                  <div class="grid-line"></div>
-                  <div class="grid-line"></div>
-                  <div class="grid-line"></div>
-                  <div class="grid-line"></div>
-                  <div class="grid-line"></div>
-                </div>
-                <!-- 金額折線 -->
-                <svg class="amount-line-svg" viewBox="0 0 240 100" preserveAspectRatio="none">
-                  <polyline
-                    :points="amountLinePolylinePoints"
-                    class="amount-line"
-                    vector-effect="non-scaling-stroke"
-                  />
-                  <circle
-                    v-for="(point, index) in amountLinePoints"
-                    :key="index"
-                    :cx="(index + 0.5) * 10"
-                    :cy="100 - point.percent"
-                    r="1.5"
-                    class="amount-point"
-                    vector-effect="non-scaling-stroke"
-                  />
-                </svg>
-                <div
-                  v-for="item in hourlyDistribution"
-                  :key="item.hour"
-                  class="hour-bar-group"
-                >
-                  <div class="hour-tooltip">
-                    <div class="tooltip-amount">金額：{{ (item.amount / 10000).toFixed(2) }}萬</div>
-                    <div class="tooltip-count">筆數：{{ item.count.toLocaleString() }}筆</div>
-                  </div>
-                  <div class="bar-pair">
-                    <div class="bar-count" :style="{ height: item.countPercent + '%' }"></div>
-                  </div>
-                  <span class="hour-label">{{ item.hour.split(':')[0] }}</span>
-                </div>
-              </div>
-            </div>
-            <!-- 右 Y 軸：筆數 -->
-            <div class="y-axis y-axis-right">
-              <span>{{ maxCount.toLocaleString() }}筆</span>
-              <span>{{ Math.round(maxCount / 2).toLocaleString() }}筆</span>
-              <span>0</span>
-            </div>
-          </div>
-          <!-- X 軸標籤 -->
-          <div class="x-axis-label">Hour</div>
-          <!-- 圖例 -->
-          <div class="chart-legend">
-            <span class="legend-item"><span class="legend-line amount-line"></span>金額（左軸折線）</span>
-            <span class="legend-item"><span class="legend-color count-bar-color"></span>筆數（右軸柱狀）</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- 充值成功时间区段 -->
-      <div class="metrics-section">
-        <div class="section-header" @click="showMinuteAnalysis = !showMinuteAnalysis">
-          <h3 class="section-title">充值成功时间区段</h3>
-          <span class="toggle-icon">{{ showMinuteAnalysis ? '▼' : '▶' }}</span>
-        </div>
-        <div v-show="showMinuteAnalysis" class="minute-analysis-content">
-          <table class="minute-table">
-            <thead>
-              <tr>
-                <th>项目</th>
-                <th>笔数/百分比</th>
-                <th>金额</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>总申请笔数</td>
-                <td>{{ (metrics.totalApplicationCount || 0).toLocaleString() }}</td>
-                <td>--</td>
-              </tr>
-              <tr>
-                <td>总充值成功（含掉单）</td>
-                <td>{{ (metrics.minuteAnalysisTotalCount || 0).toLocaleString() }}</td>
-                <td>{{ formatAmount(metrics.minuteAnalysisTotalAmount || 0) }} 元</td>
-              </tr>
-              <tr>
-                <td>2分钟内</td>
-                <td>{{ (metrics.minuteWithin2MinCount || 0).toLocaleString() }} ({{ (metrics.minuteWithin2MinRatio || 0).toFixed(2) }}%)</td>
-                <td>{{ formatAmount(metrics.minuteWithin2MinAmount || 0) }} 元</td>
-              </tr>
-              <tr>
-                <td>2-3分钟</td>
-                <td>{{ (metrics.minuteWithin2to3MinCount || 0).toLocaleString() }} ({{ (metrics.minuteWithin2to3MinRatio || 0).toFixed(2) }}%)</td>
-                <td>{{ formatAmount(metrics.minuteWithin2to3MinAmount || 0) }} 元</td>
-              </tr>
-              <tr>
-                <td>3-5分钟</td>
-                <td>{{ (metrics.minuteWithin3to5MinCount || 0).toLocaleString() }} ({{ (metrics.minuteWithin3to5MinRatio || 0).toFixed(2) }}%)</td>
-                <td>{{ formatAmount(metrics.minuteWithin3to5MinAmount || 0) }} 元</td>
-              </tr>
-              <tr>
-                <td>5-15分钟</td>
-                <td>{{ (metrics.minuteWithin5to15MinCount || 0).toLocaleString() }} ({{ (metrics.minuteWithin5to15MinRatio || 0).toFixed(2) }}%)</td>
-                <td>{{ formatAmount(metrics.minuteWithin5to15MinAmount || 0) }} 元</td>
-              </tr>
-              <tr>
-                <td>15-30分钟</td>
-                <td>{{ (metrics.minuteWithin15to30MinCount || 0).toLocaleString() }} ({{ (metrics.minuteWithin15to30MinRatio || 0).toFixed(2) }}%)</td>
-                <td>{{ formatAmount(metrics.minuteWithin15to30MinAmount || 0) }} 元</td>
-              </tr>
-              <tr>
-                <td>30分钟以上</td>
-                <td>{{ (metrics.minuteOver30MinCount || 0).toLocaleString() }} ({{ (metrics.minuteOver30MinRatio || 0).toFixed(2) }}%)</td>
-                <td>{{ formatAmount(metrics.minuteOver30MinAmount || 0) }} 元</td>
-              </tr>
-              <tr class="divider-row">
-                <td colspan="3"></td>
-              </tr>
-              <tr>
-                <td>无效申请</td>
-                <td>{{ (metrics.minuteInvalidCount || 0).toLocaleString() }}</td>
-                <td>-- / ({{ (metrics.minuteInvalidRatio || 0).toFixed(2) }}%)</td>
-              </tr>
-              <tr>
-                <td>掉单</td>
-                <td>{{ (metrics.minuteDropCount || 0).toLocaleString() }}</td>
-                <td>-- / ({{ (metrics.minuteDropRatio || 0).toFixed(2) }}%)</td>
-              </tr>
-              <tr class="highlight-row">
-                <td>平均处理时间</td>
-                <td>{{ formatTime(metrics.minuteAvgTime) }}</td>
-                <td>--</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </template>
-
-    <!-- ========== 银行卡渠道 ========== -->
-    <template v-else-if="activeChannel === 'bankCard'">
-      <!-- 极速（银行卡） -->
-      <div class="metrics-section">
-        <div class="section-header" @click="showJisu = !showJisu">
-          <h3 class="section-title">极速（银行卡）</h3>
-          <span class="toggle-icon">{{ showJisu ? '▼' : '▶' }}</span>
-        </div>
-        <div v-show="showJisu" class="jisu-content">
-          <!-- 1. 充值申请笔数 -->
-          <div class="jisu-block">
-            <div class="block-header">
-              <span class="block-title">充值申请笔数</span>
-              <span class="block-value">{{ (metrics.jisuApplicationCount || 0).toLocaleString() }}</span>
-            </div>
-            <div class="block-details">
-              <div class="detail-item">
-                <span class="detail-label">一般卡</span>
-                <span class="detail-value">{{ (metrics.normalCardAppCount || 0).toLocaleString() }}</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">极速提</span>
-                <span class="detail-value">{{ (metrics.expressCardAppCount || 0).toLocaleString() }}</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">建单成功等待无配对</span>
-                <span class="detail-value">{{ (metrics.waitingForMatchCount || 0).toLocaleString() }}</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">取无卡06提示</span>
-                <span class="detail-value">{{ (metrics.noCard06Count || 0).toLocaleString() }}</span>
-              </div>
-            </div>
-            <div v-if="showFormula" class="block-formula">
-              <strong>数据范围：</strong>商户包含「极速充提3」且不含支付宝/微信/test/qa/线下<br>
-              <strong>一般卡：</strong>银行卡代号有值且≠AUCTION_PAYMENT_CARD<br>
-              <strong>极速提：</strong>银行卡代号=AUCTION_PAYMENT_CARD<br>
-              <strong>建单成功等待无配对：</strong>银行卡代号为空的笔数<br>
-              <strong>取无卡06提示：</strong>数据来源：极速06统计表<br>
-              <strong>充值申请笔数：</strong>一般卡 + 极速提 + 建单成功等待无配对 + 取无卡06提示
-            </div>
-          </div>
-
-          <!-- 2. 成功配对笔数/金额 -->
-          <div class="jisu-block">
-            <div class="block-header">
-              <span class="block-title">成功配对</span>
-              <span class="block-value">{{ (metrics.totalMatchCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.totalMatchAmount || 0) }} 元</span>
-            </div>
-            <div class="block-details">
-              <div class="detail-item">
-                <span class="detail-label">一般卡</span>
-                <span class="detail-value">{{ (metrics.normalMatchCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.normalMatchAmount || 0) }} 元</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">极速提</span>
-                <span class="detail-value">{{ (metrics.expressMatchCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.expressMatchAmount || 0) }} 元</span>
-              </div>
-            </div>
-            <div v-if="showFormula" class="block-formula">
-              <strong>一般卡：</strong>银行卡代号有值且≠AUCTION_PAYMENT_CARD<br>
-              <strong>极速提：</strong>银行卡代号=AUCTION_PAYMENT_CARD<br>
-              <strong>金额：</strong>使用充值金额（申请金额）计算
-            </div>
-          </div>
-
-          <!-- 3. 订单成功笔数/金额 -->
-          <div class="jisu-block">
-            <div class="block-header">
-              <span class="block-title">订单成功</span>
-              <span class="block-value">{{ (metrics.totalOrderSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.totalOrderSuccessAmount || 0) }} 元</span>
-            </div>
-            <div class="block-details">
-              <div class="detail-item">
-                <span class="detail-label">一般卡</span>
-                <span class="detail-value">{{ (metrics.normalOrderSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.normalOrderSuccessAmount || 0) }} 元</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">极速提</span>
-                <span class="detail-value">{{ (metrics.expressOrderSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.expressOrderSuccessAmount || 0) }} 元</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">信评上分</span>
-                <span class="detail-value">{{ (metrics.creditScoreSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.creditScoreSuccessAmount || 0) }} 元 / {{ formatTime(metrics.creditScoreAvgTime) }}</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">平均处理时间</span>
-                <span class="detail-value">{{ formatTime(metrics.noCreditDowngradeAvgTime) }}</span>
-              </div>
-            </div>
-            <div v-if="showFormula" class="block-formula">
-              <strong>一般卡：</strong>银行卡代号有值且≠AUCTION_PAYMENT_CARD，正规化状态≠「未充值」「审核中(已超时)/審核中(已超時)」<br>
-              <strong>极速提：</strong>银行卡代号=AUCTION_PAYMENT_CARD，到账金额>0，状态≠「未充值」「审核中(已超时)/審核中(已超時)」<br>
-              <strong>信评上分：</strong>到账金额>0 且状态包含「信用」<br>
-              <strong>平均处理时间：</strong>到账金额>0 的平均处理时间
-            </div>
-          </div>
-
-          <!-- 4. 没信评降等配卡 -->
-          <div class="jisu-block">
-            <div class="block-header">
-              <span class="block-title">没信评降等配卡</span>
-              <span class="block-value">
-                {{ (metrics.noCreditDowngradeTotal || 0).toLocaleString() }} 笔
-              </span>
-            </div>
-            <div class="block-details amount-list scrollable-list">
-              <div
-                v-for="amt in amountRanges"
-                :key="amt"
-                class="detail-item"
-              >
-                <span class="detail-label">{{ amt.toLocaleString() }} 元</span>
-                <span class="detail-value">{{ (metrics.noCreditDowngradeByAmount?.[amt] || 0).toLocaleString() }} 笔</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">其他金额</span>
-                <span class="detail-value">{{ (metrics.noCreditDowngradeByAmount?.['other'] || 0).toLocaleString() }} 笔</span>
-              </div>
-            </div>
-            <div v-if="showFormula" class="block-formula">
-              <strong>条件：</strong>银行卡代号≠AUCTION_PAYMENT_CARD，到账金额≠0，用户等级≠0且≠-1<br>
-              <strong>分组：</strong>按充值金额（申请金额）分组统计
-            </div>
-          </div>
-
-        </div>
-      </div>
-
-      <!-- c2c 和 三方代收 左右布局 -->
-      <div class="section-row">
-        <!-- c2c 区域 -->
-        <div class="metrics-section">
-          <div class="section-header" @click="showC2c = !showC2c">
-            <h3 class="section-title">c2c</h3>
-            <span class="section-value">{{ (metrics.c2cCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.c2cAmount || 0) }} 元</span>
-            <span class="toggle-icon">{{ showC2c ? '▼' : '▶' }}</span>
-          </div>
-          <div v-show="showC2c" class="c2c-content">
-            <div class="detail-item">
-              <span class="detail-label">点确认（用户确认到账）</span>
-              <span class="detail-value">{{ (metrics.c2cConfirmCount || 0).toLocaleString() }} 笔</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">点确认（用户确认到账）-平均处理时间</span>
-              <span class="detail-value">{{ formatTimeMinutes(metrics.c2cConfirmAvgTime) }}</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">人工审核:通过</span>
-              <span class="detail-value">{{ (metrics.c2cManualAuditCount || 0).toLocaleString() }} 笔</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">审核-成功平均处理时间</span>
-              <span class="detail-value">{{ formatTimeMinutes(metrics.c2cAuditSuccessAvgTime) }}</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">超过11min补件后才成功</span>
-              <span class="detail-value">{{ (metrics.c2cOver11MinSuccessCount || 0).toLocaleString() }} 笔</span>
-            </div>
-            <div v-if="showFormula" class="section-formula">
-              <strong>c2c：</strong>银行卡代号=AUCTION_PAYMENT_CARD, 到账金额>0, 状态包含「用户确认到帐/用戶確認到帳」<br>
-              <strong>点确认：</strong>到账金额>0, 状态包含「用户确认到帐/用戶確認到帳」<br>
-              <strong>人工审核:通过：</strong>银行卡代号包含AUCTION, 到账金额>0, 状态包含「金額補單/金额补单」, 处理时间≤11分钟<br>
-              <strong>超过11min补件后成功：</strong>银行卡代号包含AUCTION, 到账金额>0, 状态包含「金額補單/金额补单」, 处理时间>11分钟 + 银行卡代号包含AUCTION_PAYMENT_CARD, 到账金额>0, 状态包含「商户确认到帐/商戶確認到帳」
-            </div>
-          </div>
-        </div>
-
-        <!-- 三方代收 区域 -->
-        <div class="metrics-section">
-          <div class="section-header" @click="showThirdParty = !showThirdParty">
-            <h3 class="section-title">三方代收（一般卡订单成功）</h3>
-            <span class="section-value">{{ (metrics.thirdPartyCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.thirdPartyAmount || 0) }} 元</span>
-            <span class="toggle-icon">{{ showThirdParty ? '▼' : '▶' }}</span>
-          </div>
-          <div v-show="showThirdParty" class="c2c-content">
-            <!-- 动态显示配置的三方代收卡 -->
-            <div v-for="card in (metrics.configuredThirdPartyCards || [])" :key="card.cardNumber" class="detail-item">
-              <span class="detail-label">{{ card.name }} ({{ card.cardNumber }})</span>
-              <span class="detail-value">{{ ((metrics.thirdPartyByCard && metrics.thirdPartyByCard[card.cardNumber]) ? metrics.thirdPartyByCard[card.cardNumber].count : 0).toLocaleString() }} 笔 / {{ formatAmount((metrics.thirdPartyByCard && metrics.thirdPartyByCard[card.cardNumber]) ? metrics.thirdPartyByCard[card.cardNumber].amount : 0) }} 元</span>
-            </div>
-            <div v-if="!metrics.configuredThirdPartyCards || metrics.configuredThirdPartyCards.length === 0" class="detail-item" style="color: #999; font-style: italic;">
-              <span>尚未配置三方代收卡代号，请至「報表三方設定」新增</span>
-            </div>
-            <div v-if="showFormula" class="section-formula">
-              <strong>数据范围：</strong>商户不含「支付宝/支付寶」、不含「微信」、不含「test」、不含「qa」、不含「線下/线下」，到账金额>0<br>
-              <strong>三方代收：</strong>银行卡代号匹配「報表三方設定」配置的卡代号前缀
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 骗分 和 商业平台 左右布局 -->
-      <div class="section-row">
-        <!-- 骗分没到账来找 区域 -->
-        <div class="metrics-section">
-          <div class="section-header" @click="showFraud = !showFraud">
-            <h3 class="section-title">骗分没到账来找</h3>
-            <span class="section-value">{{ formatAmount(fraudStats.bankCard.manualAmount + fraudStats.bankCard.creditAmount) }} 元 / {{ (fraudStats.bankCard.manualCount + fraudStats.bankCard.creditCount).toLocaleString() }} 笔</span>
-            <span class="toggle-icon">{{ showFraud ? '▼' : '▶' }}</span>
-          </div>
-          <div v-show="showFraud" class="c2c-content">
-            <div class="detail-item">
-              <span class="detail-label">人工</span>
-              <span class="detail-value">{{ formatAmount(fraudStats.bankCard.manualAmount) }} 元 / {{ fraudStats.bankCard.manualCount.toLocaleString() }} 笔</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">信评</span>
-              <span class="detail-value">{{ formatAmount(fraudStats.bankCard.creditAmount) }} 元 / {{ fraudStats.bankCard.creditCount.toLocaleString() }} 笔</span>
-            </div>
-            <div class="detail-divider"></div>
-            <div class="detail-item">
-              <span class="detail-label">骗分拉黑</span>
-              <span class="detail-value">{{ fraudStats.bankCard.fraudBlacklistCount.toLocaleString() }} 笔</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">卡验及人验</span>
-              <span class="detail-value">{{ fraudStats.bankCard.cardVerifyCount.toLocaleString() }} 笔</span>
-            </div>
-            <div v-if="showFormula" class="section-formula">
-              <strong>数据来源：</strong>骗分统计（依筛选日期范围加总）<br>
-              <strong>人工：</strong>渠道=银行卡，类型=人工<br>
-              <strong>信评：</strong>渠道=银行卡，类型=信评<br>
-              <strong>骗分拉黑：</strong>渠道=银行卡，骗分拉黑笔数<br>
-              <strong>卡验及人验：</strong>渠道=银行卡，卡验及人验笔数
-            </div>
-          </div>
-        </div>
-
-        <!-- 商业平台 区域 -->
-        <div class="metrics-section">
-          <div class="section-header" @click="showCommercial = !showCommercial">
-            <h3 class="section-title">商业平台</h3>
-            <span class="section-value">{{ (metrics.externalMerchantTotalSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.externalMerchantTotalSuccessAmount || 0) }} 元</span>
-            <span class="toggle-icon">{{ showCommercial ? '▼' : '▶' }}</span>
-          </div>
-          <div v-show="showCommercial" class="c2c-content">
-            <div class="detail-item">
-              <span class="detail-label">外部充值成功</span>
-              <span class="detail-value">{{ (metrics.externalMerchantTotalSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.externalMerchantTotalSuccessAmount || 0) }} 元</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">充值申请总计</span>
-              <span class="detail-value">{{ (metrics.externalMerchantTotalAppCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.externalMerchantTotalAppAmount || 0) }} 元</span>
-            </div>
-            <!-- 动态显示所有外部商户 -->
-            <template v-if="metrics.externalMerchants && metrics.externalMerchants.length > 0">
-              <template v-for="merchant in metrics.externalMerchants" :key="merchant.name">
-                <div class="detail-header">{{ merchant.name }}</div>
-                <div class="detail-item">
-                  <span class="detail-label">充值申请</span>
-                  <span class="detail-value">{{ merchant.applicationCount.toLocaleString() }} 笔 / {{ formatAmount(merchant.applicationAmount) }} 元</span>
-                </div>
-                <div class="detail-item">
-                  <span class="detail-label">充值成功笔数</span>
-                  <span class="detail-value">{{ merchant.successCount.toLocaleString() }} 笔 / {{ formatAmount(merchant.successAmount) }} 元</span>
-                </div>
-              </template>
-            </template>
-            <template v-else>
-              <div class="detail-header">外部商户</div>
-              <div class="detail-item">
-                <span class="detail-label">充值申请</span>
-                <span class="detail-value">0 笔 / 0 元</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">充值成功笔数</span>
-                <span class="detail-value">0 笔 / 0 元</span>
-              </div>
-            </template>
-            <div v-if="showFormula" class="section-formula">
-              <strong>数据范围：</strong>商戶名稱以「外部商戶」開頭<br>
-              <strong>充值申请：</strong>符合商户的记录笔数和充值金额<br>
-              <strong>充值成功：</strong>状态不含「未充值」且金额>0的记录
-            </div>
-          </div>
-        </div>
-      </div>
-    </template>
-
-    <!-- ========== 支付宝渠道 ========== -->
-    <template v-else-if="activeChannel === 'alipay'">
-      <!-- 极速（支付宝） -->
-      <div class="metrics-section">
-        <div class="section-header" @click="showAlipay = !showAlipay">
-          <h3 class="section-title">极速（支付宝）</h3>
-          <span class="toggle-icon">{{ showAlipay ? '▼' : '▶' }}</span>
-        </div>
-        <div v-show="showAlipay" class="jisu-content">
-          <!-- 1. 充值申请笔数 -->
-          <div class="jisu-block">
-            <div class="block-header">
-              <span class="block-title">充值申请笔数</span>
-              <span class="block-value">{{ (metrics.alipayApplicationCount || 0).toLocaleString() }}</span>
-            </div>
-            <div class="block-details">
-              <div class="detail-item">
-                <span class="detail-label">一般卡</span>
-                <span class="detail-value">{{ (metrics.alipayNormalCardAppCount || 0).toLocaleString() }}</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">一般宝</span>
-                <span class="detail-value">{{ (metrics.alipayExpressCardAppCount || 0).toLocaleString() }}</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">极速提(卡)</span>
-                <span class="detail-value">{{ (metrics.alipayJisuTikaCount || 0).toLocaleString() }}</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">极速提(宝)</span>
-                <span class="detail-value">{{ (metrics.alipayJisuTibaoCount || 0).toLocaleString() }}</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">建单成功等待无配对</span>
-                <span class="detail-value">{{ (metrics.alipayWaitingForMatchCount || 0).toLocaleString() }}</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">取无卡06提示</span>
-                <span class="detail-value">0</span>
-              </div>
-            </div>
-            <div v-if="showFormula" class="block-formula">
-              <strong>数据范围：</strong>商户含「支付宝」且不含test/qa/线下<br>
-              <strong>一般卡：</strong>银行卡代号有值且≠AUCTION_PAYMENT_CARD，银行名称≠支付宝/支付宝(企)/微信支付<br>
-              <strong>一般宝：</strong>银行卡代号有值且≠AUCTION_PAYMENT_CARD，银行名称=支付宝/支付宝(企)/微信支付<br>
-              <strong>极速提(卡)：</strong>银行卡代号=AUCTION_PAYMENT_CARD，银行名称≠支付宝/支付宝(企)/微信支付<br>
-              <strong>极速提(宝)：</strong>银行卡代号=AUCTION_PAYMENT_CARD，银行名称=支付宝/支付宝(企)/微信支付<br>
-              <strong>建单成功等待无配对：</strong>银行卡代号为空的笔数<br>
-              <strong>充值申请笔数：</strong>一般卡 + 一般宝 + 极速提(卡) + 极速提(宝)
-            </div>
-          </div>
-
-          <!-- 2. 成功配对笔数/金额 -->
-          <div class="jisu-block">
-            <div class="block-header">
-              <span class="block-title">成功配对</span>
-              <span class="block-value">{{ (metrics.alipayTotalMatchCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.alipayTotalMatchAmount || 0) }} 元</span>
-            </div>
-            <div class="block-details">
-              <div class="detail-item">
-                <span class="detail-label">一般卡</span>
-                <span class="detail-value">{{ (metrics.alipayNormalMatchCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.alipayNormalMatchAmount || 0) }} 元</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">一般宝</span>
-                <span class="detail-value">{{ (metrics.alipayExpressCardAppCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.alipayExpressBaoMatchAmount || 0) }} 元</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">极速提(卡)</span>
-                <span class="detail-value">{{ (metrics.alipayJisuTikaCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.alipayJisuTikaMatchAmount || 0) }} 元</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">极速提(宝)</span>
-                <span class="detail-value">{{ (metrics.alipayJisuTibaoCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.alipayJisuTibaoMatchAmount || 0) }} 元</span>
-              </div>
-            </div>
-            <div v-if="showFormula" class="block-formula">
-              <strong>一般卡：</strong>银行卡代号有值且≠AUCTION_PAYMENT_CARD，银行名称≠支付宝/支付宝(企)/微信支付<br>
-              <strong>一般宝：</strong>银行卡代号有值且≠AUCTION_PAYMENT_CARD，银行名称=支付宝/支付宝(企)/微信支付<br>
-              <strong>极速提(卡)：</strong>银行卡代号=AUCTION_PAYMENT_CARD，银行名称≠支付宝/支付宝(企)/微信支付<br>
-              <strong>极速提(宝)：</strong>银行卡代号=AUCTION_PAYMENT_CARD，银行名称=支付宝/支付宝(企)/微信支付<br>
-              <strong>金额：</strong>使用充值金额（申请金额）计算
-            </div>
-          </div>
-
-          <!-- 3. 订单成功笔数/金额 -->
-          <div class="jisu-block">
-            <div class="block-header">
-              <span class="block-title">订单成功</span>
-              <span class="block-value">{{ (metrics.alipayTotalOrderSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.alipayTotalOrderSuccessAmount || 0) }} 元</span>
-            </div>
-            <div class="block-details">
-              <div class="detail-item">
-                <span class="detail-label">一般卡</span>
-                <span class="detail-value">{{ (metrics.alipayNormalOrderSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.alipayNormalOrderSuccessAmount || 0) }} 元</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">一般宝</span>
-                <span class="detail-value">{{ (metrics.alipayBaoOrderSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.alipayBaoOrderSuccessAmount || 0) }} 元</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">极速提(卡)</span>
-                <span class="detail-value">{{ (metrics.alipayJisuTikaOrderSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.alipayJisuTikaOrderSuccessAmount || 0) }} 元</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">极速提(宝)</span>
-                <span class="detail-value">{{ (metrics.alipayJisuTibaoOrderSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.alipayJisuTibaoOrderSuccessAmount || 0) }} 元</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">信评上分</span>
-                <span class="detail-value">{{ (metrics.alipayCreditScoreSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.alipayCreditScoreSuccessAmount || 0) }} 元 / {{ formatTime(metrics.alipayCreditScoreAvgTime) }}</span>
-              </div>
-              <div class="detail-item sub-item">
-                <span class="detail-label">其中信评不含图文复核</span>
-                <span class="detail-value">{{ (metrics.alipayCreditNoTuwenCount || 0).toLocaleString() }} 笔 / {{ formatTime(metrics.alipayCreditNoTuwenAvgTime) }}</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">平均处理时间</span>
-                <span class="detail-value">{{ formatTime(metrics.alipayNoCreditDowngradeAvgTime) }}</span>
-              </div>
-            </div>
-            <div v-if="showFormula" class="block-formula">
-              <strong>订单成功条件：</strong>正规化状态有值且≠未充值/图文复核(已超时)/圖文複核(已超時)/审核中(已超时)/審核中(已超時)<br>
-              <strong>一般卡：</strong>银行卡代号有值且≠AUCTION_PAYMENT_CARD，银行名称≠支付宝/支付宝(企)/微信支付 + 上述条件<br>
-              <strong>一般宝：</strong>银行卡代号有值且≠AUCTION_PAYMENT_CARD，银行名称=支付宝/支付宝(企)/微信支付 + 上述条件<br>
-              <strong>极速提(卡)：</strong>银行卡代号=AUCTION_PAYMENT_CARD，银行名称≠支付宝/支付宝(企)/微信支付 + 上述条件<br>
-              <strong>极速提(宝)：</strong>银行卡代号=AUCTION_PAYMENT_CARD，银行名称=支付宝/支付宝(企)/微信支付 + 上述条件<br>
-              <strong>信评上分：</strong>状态包含「信用評分上分/信用评分上分」<br>
-              <strong>其中信评不含图文复核：</strong>银行卡代号=AUCTION_PAYMENT_CARD，到账金额>0，状态包含「信用評分上分/信用评分上分」且≠「信用評分上分(圖文覆核)/信用评分上分(图文复核)」<br>
-              <strong>平均处理时间：</strong>到账金额>0 的平均处理时间
-            </div>
-          </div>
-
-          <!-- 4. 没信评降等配卡 -->
-          <div class="jisu-block">
-            <div class="block-header">
-              <span class="block-title">没信评降等配卡</span>
-              <span class="block-value">
-                {{ (metrics.alipayNoCreditDowngradeTotal || 0).toLocaleString() }} 笔
-              </span>
-            </div>
-            <div class="block-details amount-list scrollable-list">
-              <div
-                v-for="amt in amountRanges"
-                :key="amt"
-                class="detail-item"
-              >
-                <span class="detail-label">{{ amt.toLocaleString() }} 元</span>
-                <span class="detail-value">{{ (metrics.alipayNoCreditDowngradeByAmount?.[amt] || 0).toLocaleString() }} 笔</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">其他金额</span>
-                <span class="detail-value">{{ (metrics.alipayNoCreditDowngradeByAmount?.['other'] || 0).toLocaleString() }} 笔</span>
-              </div>
-            </div>
-            <div v-if="showFormula" class="block-formula">
-              <strong>条件：</strong>银行卡代号≠AUCTION_PAYMENT_CARD，到账金额≠0，用户等级≠0且≠-1<br>
-              <strong>分组：</strong>按充值金额（申请金额）分组统计
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- c2c 和 三方代收 左右布局（支付宝） -->
-      <div class="section-row">
-        <!-- c2c 区域 -->
-        <div class="metrics-section">
-          <div class="section-header" @click="showAlipayC2c = !showAlipayC2c">
-            <h3 class="section-title">c2c</h3>
-            <span class="section-value">{{ (metrics.alipayC2cCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.alipayC2cAmount || 0) }} 元</span>
-            <span class="toggle-icon">{{ showAlipayC2c ? '▼' : '▶' }}</span>
-          </div>
-          <div v-show="showAlipayC2c" class="c2c-content">
-            <div class="detail-item">
-              <span class="detail-label">点确认（用户确认到账）</span>
-              <span class="detail-value">{{ (metrics.alipayC2cConfirmCount || 0).toLocaleString() }} 笔</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">点确认（用户确认到账）-平均处理时间</span>
-              <span class="detail-value">{{ formatTimeMinutes(metrics.alipayC2cConfirmAvgTime) }}</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">人工审核:通过</span>
-              <span class="detail-value">{{ (metrics.alipayC2cManualAuditCount || 0).toLocaleString() }} 笔</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">审核-成功平均处理时间</span>
-              <span class="detail-value">{{ formatTimeMinutes(metrics.alipayC2cAuditSuccessAvgTime) }}</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">超过11min补件后才成功</span>
-              <span class="detail-value">{{ (metrics.alipayC2cOver11MinSuccessCount || 0).toLocaleString() }} 笔</span>
-            </div>
-            <div v-if="showFormula" class="section-formula">
-              <strong>c2c：</strong>银行卡代号=AUCTION_PAYMENT_CARD，到账金额>0，状态包含「用户确认到帐/用戶確認到帳」<br>
-              <strong>点确认：</strong>到账金额>0，状态包含「用户确认到帐/用戶確認到帳」<br>
-              <strong>人工审核:通过：</strong>银行卡代号包含AUCTION，到账金额>0，状态包含「金額補單/金额补单」，处理时间≤11分钟<br>
-              <strong>超过11min补件后成功：</strong>银行卡代号包含AUCTION，到账金额>0，状态包含「金額補單/金额补单」，处理时间>11分钟 + 银行卡代号包含AUCTION_PAYMENT_CARD，到账金额>0，状态包含「商户确认到帐/商戶確認到帳」
-            </div>
-          </div>
-        </div>
-
-        <!-- 三方代收 区域（支付宝） -->
-        <div class="metrics-section">
-          <div class="section-header" @click="showAlipayThirdParty = !showAlipayThirdParty">
-            <h3 class="section-title">三方代收（一般卡订单成功）</h3>
-            <span class="section-value">{{ (metrics.alipayThirdPartyCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.alipayThirdPartyAmount || 0) }} 元</span>
-            <span class="toggle-icon">{{ showAlipayThirdParty ? '▼' : '▶' }}</span>
-          </div>
-          <div v-show="showAlipayThirdParty" class="c2c-content">
-            <!-- 动态显示配置的三方代收卡 -->
-            <div v-for="card in (metrics.configuredThirdPartyCards || [])" :key="card.cardNumber" class="detail-item">
-              <span class="detail-label">{{ card.name }} ({{ card.cardNumber }})</span>
-              <span class="detail-value">{{ ((metrics.alipayThirdPartyByCard && metrics.alipayThirdPartyByCard[card.cardNumber]) ? metrics.alipayThirdPartyByCard[card.cardNumber].count : 0).toLocaleString() }} 笔 / {{ formatAmount((metrics.alipayThirdPartyByCard && metrics.alipayThirdPartyByCard[card.cardNumber]) ? metrics.alipayThirdPartyByCard[card.cardNumber].amount : 0) }} 元</span>
-            </div>
-            <div v-if="!metrics.configuredThirdPartyCards || metrics.configuredThirdPartyCards.length === 0" class="detail-item" style="color: #999; font-style: italic;">
-              <span>尚未配置三方代收卡代号，请至「報表三方設定」新增</span>
-            </div>
-            <div v-if="showFormula" class="section-formula">
-              <strong>数据范围：</strong>商户含「支付宝/支付寶」、不含「test」、不含「qa」、不含「線下/线下」，到账金额>0<br>
-              <strong>三方代收：</strong>银行卡代号匹配「報表三方設定」配置的卡代号前缀
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 骗分 和 宝转卡渠道 左右布局（支付宝） -->
-      <div class="section-row">
-        <!-- 骗分没到账来找 区域 -->
-        <div class="metrics-section">
-          <div class="section-header" @click="showAlipayFraud = !showAlipayFraud">
-            <h3 class="section-title">骗分没到账来找</h3>
-            <span class="section-value">{{ formatAmount(fraudStats.alipay.manualAmount + fraudStats.alipay.creditAmount) }} 元 / {{ (fraudStats.alipay.manualCount + fraudStats.alipay.creditCount).toLocaleString() }} 笔</span>
-            <span class="toggle-icon">{{ showAlipayFraud ? '▼' : '▶' }}</span>
-          </div>
-          <div v-show="showAlipayFraud" class="c2c-content">
-            <div class="detail-item">
-              <span class="detail-label">人工</span>
-              <span class="detail-value">{{ formatAmount(fraudStats.alipay.manualAmount) }} 元 / {{ fraudStats.alipay.manualCount.toLocaleString() }} 笔</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">信评</span>
-              <span class="detail-value">{{ formatAmount(fraudStats.alipay.creditAmount) }} 元 / {{ fraudStats.alipay.creditCount.toLocaleString() }} 笔</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">没上传回单重复出款充值上分</span>
-              <span class="detail-value">{{ fraudStats.alipay.noReceiptCount.toLocaleString() }} 笔</span>
-            </div>
-            <div class="detail-divider"></div>
-            <div class="detail-item">
-              <span class="detail-label">骗分拉黑</span>
-              <span class="detail-value">{{ fraudStats.alipay.fraudBlacklistCount.toLocaleString() }} 笔</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">卡验及人验</span>
-              <span class="detail-value">{{ fraudStats.alipay.cardVerifyCount.toLocaleString() }} 笔</span>
-            </div>
-            <div v-if="showFormula" class="section-formula">
-              <strong>数据来源：</strong>骗分统计（依筛选日期范围加总）<br>
-              <strong>人工：</strong>渠道=支付宝，类型=人工<br>
-              <strong>信评：</strong>渠道=支付宝，类型=信评<br>
-              <strong>没上传回单重复出款充值上分：</strong>渠道=支付宝，没上传回单笔数<br>
-              <strong>骗分拉黑：</strong>渠道=支付宝，骗分拉黑笔数<br>
-              <strong>卡验及人验：</strong>渠道=支付宝，卡验及人验笔数
-            </div>
-          </div>
-        </div>
-
-        <!-- 宝转卡渠道及宝转宝渠道 提现申请笔数统计 -->
-      <div class="metrics-section">
-        <div class="section-header">
-          <h3 class="section-title">宝转卡渠道及宝转宝渠道 提现申请笔数统计</h3>
-        </div>
-        <div class="c2c-content">
-          <div class="detail-header">宝转卡渠道，配支付宝提现</div>
-          <div class="detail-item">
-            <span class="detail-label">申请</span>
-            <span class="detail-value">{{ (metrics.alipayBaoZhuanKaCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.alipayBaoZhuanKaAmount || 0) }} 元</span>
-          </div>
-          <div class="detail-item">
-            <span class="detail-label">成功</span>
-            <span class="detail-value">{{ (metrics.alipayBaoZhuanKaSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.alipayBaoZhuanKaSuccessAmount || 0) }} 元</span>
-          </div>
-
-          <div class="detail-header">宝转宝渠道，配银行卡提现</div>
-          <div class="detail-item">
-            <span class="detail-label">申请</span>
-            <span class="detail-value">{{ (metrics.alipayBaoZhuanBaoCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.alipayBaoZhuanBaoAmount || 0) }} 元</span>
-          </div>
-          <div class="detail-item">
-            <span class="detail-label">成功</span>
-            <span class="detail-value">{{ (metrics.alipayBaoZhuanBaoSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.alipayBaoZhuanBaoSuccessAmount || 0) }} 元</span>
-          </div>
-
-          <div class="detail-item summary-item">
-            <span class="detail-label">整体 配对成功/提现申请</span>
-            <span class="detail-value highlight">{{ (metrics.alipayOverallMatchRate || 0).toFixed(2) }}%</span>
-          </div>
-          <div v-if="showFormula" class="section-formula">
-            <strong>宝转卡渠道 申请：</strong>商户包含「转卡」，银行卡代号=AUCTION_PAYMENT_CARD，银行名称=支付宝<br>
-            <strong>宝转卡渠道 成功：</strong>上述条件 + 到账金额≠0<br>
-            <strong>宝转宝渠道 申请：</strong>商户包含「宝)」，银行卡代号=AUCTION_PAYMENT_CARD，银行名称≠支付宝<br>
-            <strong>宝转宝渠道 成功：</strong>上述条件 + 到账金额≠0<br>
-            <strong>整体 配对成功/提现申请：</strong><br>
-            　分子 = 银行卡订单成功极速提金额 + 支付宝订单成功极速提(卡)金额 + 支付宝订单成功极速提(宝)金额<br>
-            　分母 = 支付宝提现申请金额 + 银行卡提现申请金额（来自提现分析）
-          </div>
-        </div>
-      </div>
-      </div>
-    </template>
-
-    <!-- ========== 微信渠道 ========== -->
-    <template v-else-if="activeChannel === 'wechat'">
-      <!-- 极速（微信） -->
-      <div class="metrics-section">
-        <div class="section-header" @click="showWechat = !showWechat">
-          <h3 class="section-title">极速（微信）</h3>
-          <span class="toggle-icon">{{ showWechat ? '▼' : '▶' }}</span>
-        </div>
-        <div v-show="showWechat" class="jisu-content">
-          <!-- 1. 充值申请笔数 -->
-          <div class="jisu-block">
-            <div class="block-header">
-              <span class="block-title">充值申请笔数</span>
-              <span class="block-value">{{ (metrics.wechatApplicationCount || 0).toLocaleString() }}</span>
-            </div>
-            <div class="block-details">
-              <div class="detail-item">
-                <span class="detail-label">一般卡</span>
-                <span class="detail-value">{{ (metrics.wechatNormalCardAppCount || 0).toLocaleString() }}</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">一般微</span>
-                <span class="detail-value">{{ (metrics.wechatExpressBaoAppCount || 0).toLocaleString() }}</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">极速提(卡)</span>
-                <span class="detail-value">{{ (metrics.wechatJisuTikaCount || 0).toLocaleString() }}</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">极速提(微)</span>
-                <span class="detail-value">{{ (metrics.wechatJisuTibaoCount || 0).toLocaleString() }}</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">建单成功等待无配对</span>
-                <span class="detail-value">{{ (metrics.wechatWaitingForMatchCount || 0).toLocaleString() }}</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">取无卡06提示</span>
-                <span class="detail-value">0</span>
-              </div>
-            </div>
-            <div v-if="showFormula" class="block-formula">
-              <strong>数据范围：</strong>商户含「微信」且不含test/qa/线下<br>
-              <strong>一般卡：</strong>银行卡代号有值且≠AUCTION_PAYMENT_CARD，银行名称≠支付宝/支付宝(企)/微信支付<br>
-              <strong>一般微：</strong>银行卡代号有值且≠AUCTION_PAYMENT_CARD，银行名称=微信支付<br>
-              <strong>极速提(卡)：</strong>银行卡代号=AUCTION_PAYMENT_CARD，银行名称≠支付宝/支付宝(企)/微信支付<br>
-              <strong>极速提(微)：</strong>银行卡代号=AUCTION_PAYMENT_CARD，银行名称=微信支付<br>
-              <strong>建单成功等待无配对：</strong>银行卡代号为空的笔数<br>
-              <strong>充值申请笔数：</strong>一般卡 + 一般微 + 极速提(卡) + 极速提(微)
-            </div>
-          </div>
-
-          <!-- 2. 成功配对笔数/金额 -->
-          <div class="jisu-block">
-            <div class="block-header">
-              <span class="block-title">成功配对</span>
-              <span class="block-value">{{ (metrics.wechatTotalMatchCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.wechatTotalMatchAmount || 0) }} 元</span>
-            </div>
-            <div class="block-details">
-              <div class="detail-item">
-                <span class="detail-label">一般卡</span>
-                <span class="detail-value">{{ (metrics.wechatNormalMatchCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.wechatNormalMatchAmount || 0) }} 元</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">一般微</span>
-                <span class="detail-value">{{ (metrics.wechatExpressBaoMatchCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.wechatExpressBaoMatchAmount || 0) }} 元</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">极速提(卡)</span>
-                <span class="detail-value">{{ (metrics.wechatJisuTikaMatchCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.wechatJisuTikaMatchAmount || 0) }} 元</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">极速提(微)</span>
-                <span class="detail-value">{{ (metrics.wechatJisuTibaoMatchCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.wechatJisuTibaoMatchAmount || 0) }} 元</span>
-              </div>
-            </div>
-            <div v-if="showFormula" class="block-formula">
-              <strong>一般卡：</strong>银行卡代号有值且≠AUCTION_PAYMENT_CARD，银行名称≠支付宝/支付宝(企)/微信支付<br>
-              <strong>一般微：</strong>银行卡代号有值且≠AUCTION_PAYMENT_CARD，银行名称=微信支付<br>
-              <strong>极速提(卡)：</strong>银行卡代号=AUCTION_PAYMENT_CARD，银行名称≠支付宝/支付宝(企)/微信支付<br>
-              <strong>极速提(微)：</strong>银行卡代号=AUCTION_PAYMENT_CARD，银行名称=微信支付<br>
-              <strong>金额：</strong>使用充值金额（申请金额）计算
-            </div>
-          </div>
-
-          <!-- 3. 订单成功笔数/金额 -->
-          <div class="jisu-block">
-            <div class="block-header">
-              <span class="block-title">订单成功</span>
-              <span class="block-value">{{ (metrics.wechatTotalOrderSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.wechatTotalOrderSuccessAmount || 0) }} 元</span>
-            </div>
-            <div class="block-details">
-              <div class="detail-item">
-                <span class="detail-label">一般卡</span>
-                <span class="detail-value">{{ (metrics.wechatNormalOrderSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.wechatNormalOrderSuccessAmount || 0) }} 元</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">一般微</span>
-                <span class="detail-value">{{ (metrics.wechatBaoOrderSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.wechatBaoOrderSuccessAmount || 0) }} 元</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">极速提(卡)</span>
-                <span class="detail-value">{{ (metrics.wechatJisuTikaOrderSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.wechatJisuTikaOrderSuccessAmount || 0) }} 元</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">极速提(微)</span>
-                <span class="detail-value">{{ (metrics.wechatJisuTibaoOrderSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.wechatJisuTibaoOrderSuccessAmount || 0) }} 元</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">信评上分</span>
-                <span class="detail-value">{{ (metrics.wechatCreditScoreSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.wechatCreditScoreSuccessAmount || 0) }} 元 / {{ formatTime(metrics.wechatCreditScoreAvgTime) }}</span>
-              </div>
-              <div class="detail-item sub-item">
-                <span class="detail-label">其中信评不含图文复核</span>
-                <span class="detail-value">0 笔 / 00:00:00</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">平均处理时间</span>
-                <span class="detail-value">{{ formatTime(metrics.wechatNoCreditDowngradeAvgTime) }}</span>
-              </div>
-            </div>
-            <div v-if="showFormula" class="block-formula">
-              <strong>订单成功条件：</strong>正规化状态有值且≠未充值/图文复核(已超时)/圖文複核(已超時)/审核中(已超时)/審核中(已超時)<br>
-              <strong>一般卡：</strong>银行卡代号有值且≠AUCTION_PAYMENT_CARD，银行名称≠支付宝/支付宝(企)/微信支付 + 上述条件<br>
-              <strong>一般微：</strong>银行卡代号有值且≠AUCTION_PAYMENT_CARD，银行名称=微信支付 + 上述条件<br>
-              <strong>极速提(卡)：</strong>银行卡代号=AUCTION_PAYMENT_CARD，银行名称≠支付宝/支付宝(企)/微信支付 + 上述条件<br>
-              <strong>极速提(微)：</strong>银行卡代号=AUCTION_PAYMENT_CARD，银行名称=微信支付 + 上述条件<br>
-              <strong>信评上分：</strong>到账金额>0 且状态包含「信用」<br>
-              <strong>平均处理时间：</strong>到账金额>0，用户等级≠0且≠-1 的平均处理时间
-            </div>
-          </div>
-
-          <!-- 4. 没信评降等配卡 -->
-          <div class="jisu-block">
-            <div class="block-header">
-              <span class="block-title">没信评降等配卡</span>
-              <span class="block-value">
-                {{ (metrics.wechatNoCreditDowngradeTotal || 0).toLocaleString() }} 笔
-              </span>
-            </div>
-            <div class="block-details amount-list scrollable-list">
-              <div
-                v-for="amt in amountRanges"
-                :key="amt"
-                class="detail-item"
-              >
-                <span class="detail-label">{{ amt.toLocaleString() }} 元</span>
-                <span class="detail-value">{{ (metrics.wechatNoCreditDowngradeByAmount?.[amt] || 0).toLocaleString() }} 笔</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">其他金额</span>
-                <span class="detail-value">{{ (metrics.wechatNoCreditDowngradeByAmount?.['other'] || 0).toLocaleString() }} 笔</span>
-              </div>
-            </div>
-            <div v-if="showFormula" class="block-formula">
-              <strong>条件：</strong>银行卡代号≠AUCTION_PAYMENT_CARD，到账金额≠0，用户等级≠0且≠-1<br>
-              <strong>分组：</strong>按充值金额（申请金额）分组统计
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- c2c 和 三方代收 左右布局（微信） -->
-      <div class="section-row">
-        <!-- c2c 区域（微信） -->
-        <div class="metrics-section">
-          <div class="section-header" @click="showWechatC2c = !showWechatC2c">
-            <h3 class="section-title">c2c</h3>
-            <span class="section-value">0 笔 / 0 元</span>
-            <span class="toggle-icon">{{ showWechatC2c ? '▼' : '▶' }}</span>
-          </div>
-          <div v-show="showWechatC2c" class="c2c-content">
-            <div class="detail-item">
-              <span class="detail-label">点确认（用户确认到账）</span>
-              <span class="detail-value">0 笔</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">点确认（用户确认到账）-平均处理时间</span>
-              <span class="detail-value">00:00:00</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">人工审核:通过</span>
-              <span class="detail-value">0 笔</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">审核-成功平均处理时间</span>
-              <span class="detail-value">00:00:00</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">超过11min补件后才成功</span>
-              <span class="detail-value">0 笔</span>
-            </div>
-            <div v-if="showFormula" class="section-formula">
-              <strong>c2c：</strong>银行卡代号=AUCTION_PAYMENT_CARD，到账金额>0，状态包含「用户确认到帐/用戶確認到帳」<br>
-              <strong>点确认：</strong>到账金额>0，状态包含「用户确认到帐/用戶確認到帳」<br>
-              <strong>人工审核:通过：</strong>银行卡代号包含AUCTION，到账金额>0，状态包含「金額補單/金额补单」，处理时间≤11分钟<br>
-              <strong>超过11min补件后成功：</strong>银行卡代号包含AUCTION，到账金额>0，状态包含「金額補單/金额补单」，处理时间>11分钟 + 银行卡代号包含AUCTION_PAYMENT_CARD，到账金额>0，状态包含「商户确认到帐/商戶確認到帳」
-            </div>
-          </div>
-        </div>
-
-        <!-- 三方代收 区域（微信） -->
-        <div class="metrics-section">
-          <div class="section-header" @click="showWechatThirdParty = !showWechatThirdParty">
-            <h3 class="section-title">三方代收（一般卡订单成功）</h3>
-            <span class="section-value">{{ (metrics.wechatThirdPartyCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.wechatThirdPartyAmount || 0) }} 元</span>
-            <span class="toggle-icon">{{ showWechatThirdParty ? '▼' : '▶' }}</span>
-          </div>
-          <div v-show="showWechatThirdParty" class="c2c-content">
-            <!-- 动态显示配置的三方代收卡 -->
-            <div v-for="card in (metrics.configuredThirdPartyCards || [])" :key="card.cardNumber" class="detail-item">
-              <span class="detail-label">{{ card.name }} ({{ card.cardNumber }})</span>
-              <span class="detail-value">{{ ((metrics.wechatThirdPartyByCard && metrics.wechatThirdPartyByCard[card.cardNumber]) ? metrics.wechatThirdPartyByCard[card.cardNumber].count : 0).toLocaleString() }} 笔 / {{ formatAmount((metrics.wechatThirdPartyByCard && metrics.wechatThirdPartyByCard[card.cardNumber]) ? metrics.wechatThirdPartyByCard[card.cardNumber].amount : 0) }} 元</span>
-            </div>
-            <div v-if="!metrics.configuredThirdPartyCards || metrics.configuredThirdPartyCards.length === 0" class="detail-item" style="color: #999; font-style: italic;">
-              <span>尚未配置三方代收卡代号，请至「報表三方設定」新增</span>
-            </div>
-            <div v-if="showFormula" class="section-formula">
-              <strong>数据范围：</strong>商户含「微信」、不含「test」、不含「qa」、不含「線下/线下」，到账金额>0<br>
-              <strong>三方代收：</strong>银行卡代号匹配「報表三方設定」配置的卡代号前缀
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 骗分 左右布局（微信） -->
-      <div class="section-row">
-        <!-- 骗分没到账来找 区域（微信） -->
-        <div class="metrics-section">
-          <div class="section-header" @click="showWechatFraud = !showWechatFraud">
-            <h3 class="section-title">骗分没到账来找</h3>
-            <span class="section-value">{{ formatAmount(fraudStats.wechat.manualAmount + fraudStats.wechat.creditAmount) }} 元 / {{ (fraudStats.wechat.manualCount + fraudStats.wechat.creditCount).toLocaleString() }} 笔</span>
-            <span class="toggle-icon">{{ showWechatFraud ? '▼' : '▶' }}</span>
-          </div>
-          <div v-show="showWechatFraud" class="c2c-content">
-            <div class="detail-item">
-              <span class="detail-label">人工</span>
-              <span class="detail-value">{{ formatAmount(fraudStats.wechat.manualAmount) }} 元 / {{ fraudStats.wechat.manualCount.toLocaleString() }} 笔</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">信评</span>
-              <span class="detail-value">{{ formatAmount(fraudStats.wechat.creditAmount) }} 元 / {{ fraudStats.wechat.creditCount.toLocaleString() }} 笔</span>
-            </div>
-            <div class="detail-divider"></div>
-            <div class="detail-item">
-              <span class="detail-label">骗分拉黑</span>
-              <span class="detail-value">0 笔</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">卡验及人验</span>
-              <span class="detail-value">0 笔</span>
-            </div>
-            <div v-if="showFormula" class="section-formula">
-              <strong>数据来源：</strong>骗分统计（依筛选日期范围加总）<br>
-              <strong>人工：</strong>渠道=微信，类型=人工<br>
-              <strong>信评：</strong>渠道=微信，类型=信评<br>
-              <strong>骗分拉黑：</strong>渠道=微信，骗分拉黑笔数<br>
-              <strong>卡验及人验：</strong>渠道=微信，卡验及人验笔数
-            </div>
-          </div>
-        </div>
-        <!-- 占位区域 -->
-        <div class="metrics-section-placeholder"></div>
-      </div>
-    </template>
+    <MetricsAllTab
+      v-if="activeChannel === 'all'"
+      :metrics="metrics"
+      :show-formula="showFormula"
+      :general-cards="generalCards"
+      :is-multi-day="isMultiDay"
+      :x-axis-rule-text="xAxisRuleText"
+      :chart-data="chartData"
+      :max-amount="maxAmount"
+      :max-count="maxCount"
+      :amount-line-points="amountLinePoints"
+      :amount-line-polyline-points="amountLinePolylinePoints"
+    />
+    <MetricsBankCardTab
+      v-else-if="activeChannel === 'bankCard'"
+      :metrics="metrics"
+      :show-formula="showFormula"
+      :fraud-stats="fraudStats"
+      :amount-ranges="amountRanges"
+    />
+    <MetricsAlipayTab
+      v-else-if="activeChannel === 'alipay'"
+      :metrics="metrics"
+      :show-formula="showFormula"
+      :fraud-stats="fraudStats"
+      :amount-ranges="amountRanges"
+    />
+    <MetricsWechatTab
+      v-else-if="activeChannel === 'wechat'"
+      :metrics="metrics"
+      :show-formula="showFormula"
+      :fraud-stats="fraudStats"
+      :amount-ranges="amountRanges"
+    />
   </div>
 </template>
 
-<style scoped>
+<style>
 .metrics-container {
   margin-bottom: 20px;
 }
@@ -1376,7 +409,7 @@ const amountLinePolylinePoints = computed(() => {
   margin: 0;
 }
 
-.toggle-icon {
+.metrics-container .toggle-icon {
   color: #999;
   font-size: 12px;
 }
@@ -1416,7 +449,21 @@ const amountLinePolylinePoints = computed(() => {
   grid-template-columns: repeat(6, 1fr);
 }
 
-/* 24小时交易分布样式 */
+.chart-axis-rule {
+  font-size: 11px;
+  color: #aaa;
+  margin: 2px 0 0;
+  font-weight: normal;
+}
+
+.tooltip-label {
+  color: #fff;
+  font-weight: 600;
+  margin-bottom: 4px;
+  font-size: 10px;
+}
+
+/* 日交易分析樣式 */
 .hourly-distribution {
   padding: 16px;
 }
@@ -1793,6 +840,22 @@ const amountLinePolylinePoints = computed(() => {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.block-divider {
+  border-top: 1px dashed #d9d9d9;
+  margin: 12px 0;
+}
+
+.detail-sub {
+  padding-left: 16px;
+  font-size: 0.9em;
+  color: #666;
+}
+
+.detail-sub-header {
+  font-weight: 600;
+  margin-top: 4px;
 }
 
 .detail-item {

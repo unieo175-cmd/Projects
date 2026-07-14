@@ -144,14 +144,9 @@ const showWechatSection = ref(true);
             </thead>
             <tbody>
               <tr class="highlight-row">
-                <td>总提现申請笔数</td>
+                <td>提现申请笔数</td>
                 <td>{{ (metrics.withdrawSuccessTotalCount || 0).toLocaleString() }}</td>
                 <td>--</td>
-              </tr>
-              <tr>
-                <td>提现成功笔数</td>
-                <td>{{ (metrics.totalWithdrawCount || 0).toLocaleString() }}</td>
-                <td>{{ formatAmount(metrics.totalWithdrawAmount || 0) }} 元</td>
               </tr>
               <tr>
                 <td>2分钟内出款</td>
@@ -192,28 +187,13 @@ const showWechatSection = ref(true);
                 <td colspan="3"></td>
               </tr>
               <tr>
-                <td>提现成功率</td>
-                <td>{{ (metrics.withdrawSuccessRate || 0).toFixed(2) }}%</td>
+                <td>提现成功笔数</td>
+                <td>{{ (metrics.totalWithdrawCount || 0).toLocaleString() }} ({{ (metrics.withdrawSuccessRate || 0).toFixed(2) }}%)</td>
                 <td>--</td>
               </tr>
               <tr>
                 <td>提现失败笔数</td>
                 <td>{{ (metrics.withdrawFailedCount || 0).toLocaleString() }}</td>
-                <td>--</td>
-              </tr>
-              <tr class="highlight-row">
-                <td>无卡空单率</td>
-                <td>{{ (metrics.withdrawEmptyOrderRate || 0).toFixed(2) }}%</td>
-                <td>--</td>
-              </tr>
-              <tr class="highlight-row">
-                <td>订单成功（筆數/金額）</td>
-                <td>{{ (metrics.withdrawOrderSuccessCount || 0).toLocaleString() }} 笔 / {{ formatAmount(metrics.withdrawOrderSuccessAmount || 0) }} 元</td>
-                <td>--</td>
-              </tr>
-              <tr class="highlight-row">
-                <td>订单成功占比</td>
-                <td>{{ (metrics.withdrawOrderSuccessRate || 0).toFixed(2) }}%</td>
                 <td>--</td>
               </tr>
               <tr class="highlight-row">
@@ -226,9 +206,7 @@ const showWechatSection = ref(true);
         </div>
         <div v-if="showFormula && showTimeSection" class="section-formula">
           <strong>时间区段：</strong>根据提现申请时间到转账完成时间的间隔进行分类统计<br>
-          <strong>无卡空单率：</strong>无卡空单笔数 / 充值申请笔数 × 100%（来自充值数据）<br>
-          <strong>订单成功：</strong>状态为「转账完成」且订单状态为成功的提现记录<br>
-          <strong>订单成功占比：</strong>订单成功笔数 / 总提现申请笔数 × 100%
+          <strong>平均处理时间：</strong>转账完成且实际转出金额≠0 的处理时间平均（按订单号去重）
         </div>
       </div>
     </template>
@@ -260,29 +238,9 @@ const showWechatSection = ref(true);
                 <td>{{ ((metrics.bankCardMatchRate || 0) * 100).toFixed(2) }}%</td>
                 <td>--</td>
               </tr>
-              <tr class="sub-row">
-                <td class="indent">充值申请</td>
-                <td>{{ (metrics.bankCardDepositAppCount || 0).toLocaleString() }}</td>
-                <td>--</td>
-              </tr>
-              <tr class="sub-row">
-                <td class="indent">成功配对</td>
-                <td>{{ (metrics.bankCardDepositMatchCount || 0).toLocaleString() }}</td>
-                <td>--</td>
-              </tr>
               <tr>
                 <td>配对后成功率</td>
                 <td>{{ ((metrics.bankCardSuccessAfterMatchRate || 0) * 100).toFixed(2) }}%</td>
-                <td>--</td>
-              </tr>
-              <tr class="sub-row">
-                <td class="indent">充值成功笔数</td>
-                <td>{{ (metrics.bankCardDepositSuccessCount || 0).toLocaleString() }}</td>
-                <td>--</td>
-              </tr>
-              <tr class="sub-row">
-                <td class="indent">成功配对笔数</td>
-                <td>{{ (metrics.bankCardDepositMatchCount || 0).toLocaleString() }}</td>
                 <td>--</td>
               </tr>
               <tr class="highlight-row">
@@ -295,8 +253,8 @@ const showWechatSection = ref(true);
         </div>
         <div v-if="showFormula && showBankCardSection" class="section-formula">
           <strong>提现申请：</strong>银行卡渠道的提现申请笔数和金额<br>
-          <strong>充值配对率：</strong>成功配对笔数 / 充值申请笔数 × 100%<br>
-          <strong>配对后成功率：</strong>充值成功笔数 / 成功配对笔数 × 100%<br>
+          <strong>充值配对率：</strong>充值成功配對的總筆數 / 充值申請的總筆數 × 100%<br>
+          <strong>配对后成功率：</strong>充值成功總筆數 / 充值成功配對的總筆數 × 100%<br>
           <strong>平均处理时间：</strong>银行卡渠道成功提现的平均处理时间
         </div>
       </div>
@@ -329,29 +287,9 @@ const showWechatSection = ref(true);
                 <td>{{ ((metrics.alipayMatchRate || 0) * 100).toFixed(2) }}%</td>
                 <td>--</td>
               </tr>
-              <tr class="sub-row">
-                <td class="indent">充值申请</td>
-                <td>{{ (metrics.alipayDepositAppCount || 0).toLocaleString() }}</td>
-                <td>--</td>
-              </tr>
-              <tr class="sub-row">
-                <td class="indent">成功配对</td>
-                <td>{{ (metrics.alipayDepositMatchCount || 0).toLocaleString() }}</td>
-                <td>--</td>
-              </tr>
               <tr>
                 <td>配对后成功率</td>
                 <td>{{ ((metrics.alipaySuccessAfterMatchRate || 0) * 100).toFixed(2) }}%</td>
-                <td>--</td>
-              </tr>
-              <tr class="sub-row">
-                <td class="indent">充值成功笔数</td>
-                <td>{{ (metrics.alipayDepositSuccessCount || 0).toLocaleString() }}</td>
-                <td>--</td>
-              </tr>
-              <tr class="sub-row">
-                <td class="indent">成功配对笔数</td>
-                <td>{{ (metrics.alipayDepositMatchCount || 0).toLocaleString() }}</td>
                 <td>--</td>
               </tr>
               <tr class="highlight-row">
@@ -364,8 +302,8 @@ const showWechatSection = ref(true);
         </div>
         <div v-if="showFormula && showAlipaySection" class="section-formula">
           <strong>提现申请：</strong>支付宝渠道的提现申请笔数和金额<br>
-          <strong>充值配对率：</strong>成功配对笔数 / 充值申请笔数 × 100%<br>
-          <strong>配对后成功率：</strong>充值成功笔数 / 成功配对笔数 × 100%<br>
+          <strong>充值配对率：</strong>充值成功配對的總筆數 / 充值申請的總筆數 × 100%<br>
+          <strong>配对后成功率：</strong>充值成功總筆數 / 充值成功配對的總筆數 × 100%<br>
           <strong>平均处理时间：</strong>支付宝渠道成功提现的平均处理时间
         </div>
       </div>
@@ -398,29 +336,9 @@ const showWechatSection = ref(true);
                 <td>{{ ((metrics.wechatMatchRate || 0) * 100).toFixed(2) }}%</td>
                 <td>--</td>
               </tr>
-              <tr class="sub-row">
-                <td class="indent">充值申请</td>
-                <td>{{ (metrics.wechatDepositAppCount || 0).toLocaleString() }}</td>
-                <td>--</td>
-              </tr>
-              <tr class="sub-row">
-                <td class="indent">成功配对</td>
-                <td>{{ (metrics.wechatDepositMatchCount || 0).toLocaleString() }}</td>
-                <td>--</td>
-              </tr>
               <tr>
                 <td>配对后成功率</td>
                 <td>{{ ((metrics.wechatSuccessAfterMatchRate || 0) * 100).toFixed(2) }}%</td>
-                <td>--</td>
-              </tr>
-              <tr class="sub-row">
-                <td class="indent">充值成功笔数</td>
-                <td>{{ (metrics.wechatDepositSuccessCount || 0).toLocaleString() }}</td>
-                <td>--</td>
-              </tr>
-              <tr class="sub-row">
-                <td class="indent">成功配对笔数</td>
-                <td>{{ (metrics.wechatDepositMatchCount || 0).toLocaleString() }}</td>
                 <td>--</td>
               </tr>
               <tr class="highlight-row">
@@ -433,8 +351,8 @@ const showWechatSection = ref(true);
         </div>
         <div v-if="showFormula && showWechatSection" class="section-formula">
           <strong>提现申请：</strong>微信渠道的提现申请笔数和金额<br>
-          <strong>充值配对率：</strong>成功配对笔数 / 充值申请笔数 × 100%<br>
-          <strong>配对后成功率：</strong>充值成功笔数 / 成功配对笔数 × 100%<br>
+          <strong>充值配对率：</strong>充值成功配對的總筆數 / 充值申請的總筆數 × 100%<br>
+          <strong>配对后成功率：</strong>充值成功總筆數 / 充值成功配對的總筆數 × 100%<br>
           <strong>平均处理时间：</strong>微信渠道成功提现的平均处理时间
         </div>
       </div>
@@ -768,7 +686,7 @@ const showWechatSection = ref(true);
   }
 }
 
-/* 高亮行 - 订单成功占比用不同颜色区分 */
+/* 高亮行 - 平均处理时间等关键指标用不同颜色区分 */
 .highlight-row {
   background-color: #f0f7ff !important;
 }

@@ -8,7 +8,15 @@ import Charts from './components/Charts.vue';
 import FraudStats from './components/FraudStats.vue';
 import PrdPage from './components/PrdPage.vue';
 import ReportParams from './components/ReportParams.vue';
+import RemainPool from './components/RemainPool.vue';
+import QrcodeVerify from './components/QrcodeVerify.vue';
 import { parseCSV, calculateMetrics, parseWithdrawCSV, calculateWithdrawMetrics, exportDepositToExcel, exportWithdrawToExcel } from './utils/csvParser';
+// embeddedData 使用 dynamic import，避免 10MB 資料打包進初始 bundle
+let _embeddedData = null;
+const getEmbeddedData = async () => {
+  if (!_embeddedData) _embeddedData = await import('./utils/embeddedData');
+  return _embeddedData;
+};
 
 const allRecords = ref([]);
 const filteredRecords = ref([]);
@@ -17,7 +25,7 @@ const withdrawRecords = ref([]); // 提现数据
 const isLoading = ref(true);
 const loadingProgress = ref(0);
 const loadingStatus = ref('准备加载...');
-const dataDate = ref('2026-01-01');
+const dataDate = ref('2026-03-24');
 const dateRange = ref({ dateFrom: '', dateTo: '' }); // 日期筛选范围
 
 // 分页切换
@@ -49,27 +57,31 @@ const depositMetrics = computed(() => {
   return calculateMetrics(depositRecords.value, withdrawMetrics.value, dataDate.value);
 });
 
+// 依日期筛选 records 的工具
+const filterByDateRange = (records) => {
+  const startDate = dateRange.value.dateFrom || '';
+  const endDate = dateRange.value.dateTo || startDate;
+  if (!startDate) return records;
+  return records.filter(r => {
+    const recordDate = r.requestTime ? r.requestTime.split(' ')[0] : '';
+    if (startDate && recordDate < startDate) return false;
+    if (endDate && recordDate > endDate) return false;
+    return true;
+  });
+};
+
+// 按日期筛选的提现指标（用于充值分析的整体配对率分母）
+const filteredWithdrawMetrics = computed(() => {
+  if (withdrawRecords.value.length === 0) return null;
+  return calculateWithdrawMetrics(filterByDateRange(withdrawRecords.value), null);
+});
+
 // 按日期筛选的充值指标（用于提现分析的无卡空单率计算）
 const filteredDepositMetrics = computed(() => {
   const effectiveDate = dateRange.value.dateFrom || dataDate.value;
-  // 如果只有开始日期，视为单日筛选
-  const startDate = dateRange.value.dateFrom || '';
-  const endDate = dateRange.value.dateTo || startDate;
-
-  // 筛选充值记录
-  let filtered = depositRecords.value;
-  if (startDate) {
-    filtered = depositRecords.value.filter(r => {
-      const recordDate = r.requestTime ? r.requestTime.split(' ')[0] : '';
-      if (startDate && recordDate < startDate) return false;
-      if (endDate && recordDate > endDate) return false;
-      return true;
-    });
-  }
-
-  console.log('filteredDepositMetrics:', { startDate, endDate, totalRecords: depositRecords.value.length, filteredRecords: filtered.length });
-
-  return calculateMetrics(filtered, withdrawMetrics.value, effectiveDate);
+  const filtered = filterByDateRange(depositRecords.value);
+  console.log('filteredDepositMetrics:', { totalRecords: depositRecords.value.length, filteredRecords: filtered.length });
+  return calculateMetrics(filtered, filteredWithdrawMetrics.value, effectiveDate);
 });
 
 const metrics = computed(() => {
@@ -78,7 +90,7 @@ const metrics = computed(() => {
   if (activeTab.value === 'withdraw') {
     return calculateWithdrawMetrics(filteredRecords.value, filteredDepositMetrics.value);
   }
-  return calculateMetrics(filteredRecords.value, withdrawMetrics.value, effectiveDate);
+  return calculateMetrics(filteredRecords.value, filteredWithdrawMetrics.value, effectiveDate);
 });
 
 // 自动加载数据（含进度显示）
@@ -92,16 +104,19 @@ const loadData = async (type = 'deposit') => {
 
   try {
     loadingProgress.value = 10;
-    const response = await fetch(import.meta.env.BASE_URL + csvFile + cacheBuster);
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    let content = '';
+    try {
+      const response = await fetch(import.meta.env.BASE_URL + csvFile + cacheBuster);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      content = await response.text();
+    } catch (fetchErr) {
+      console.log('Fetch 失败，使用内嵌数据:', fetchErr.message);
+      const ed = await getEmbeddedData();
+      content = type === 'deposit' ? ed.embeddedDepositCSV : ed.embeddedWithdrawCSV;
     }
 
     loadingProgress.value = 30;
     loadingStatus.value = '正在读取数据...';
-
-    const content = await response.text();
     console.log('CSV 内容长度:', content.length);
 
     loadingProgress.value = 50;
@@ -124,9 +139,10 @@ const loadData = async (type = 'deposit') => {
             const withdrawContent = await withdrawResponse.text();
             withdrawRecords.value = parseWithdrawCSV(withdrawContent);
             console.log('提现数据加载完成:', withdrawRecords.value.length, '笔');
-          }
+          } else throw new Error('fetch failed');
         } catch (e) {
-          console.log('提现数据加载失败，部分指标可能无法计算');
+          console.log('提现 fetch 失败，使用内嵌数据');
+          withdrawRecords.value = parseWithdrawCSV((await getEmbeddedData()).embeddedWithdrawCSV);
         }
       }
     } else {
@@ -134,11 +150,16 @@ const loadData = async (type = 'deposit') => {
       // 如果还没加载充值数据，先加载
       if (depositRecords.value.length === 0) {
         loadingStatus.value = '正在加载充值数据...';
-        const depositResponse = await fetch(import.meta.env.BASE_URL + 'data.csv' + cacheBuster);
-        if (depositResponse.ok) {
-          const depositContent = await depositResponse.text();
-          depositRecords.value = parseCSV(depositContent);
-          console.log('充值数据加载完成:', depositRecords.value.length, '笔');
+        try {
+          const depositResponse = await fetch(import.meta.env.BASE_URL + 'data.csv' + cacheBuster);
+          if (depositResponse.ok) {
+            const depositContent = await depositResponse.text();
+            depositRecords.value = parseCSV(depositContent);
+            console.log('充值数据加载完成:', depositRecords.value.length, '笔');
+          } else throw new Error('fetch failed');
+        } catch (e) {
+          console.log('充值 fetch 失败，使用内嵌数据');
+          depositRecords.value = parseCSV((await getEmbeddedData()).embeddedDepositCSV);
         }
       }
     }
@@ -172,20 +193,30 @@ const loadWeeklyData = async () => {
     // 加载充值数据
     loadingProgress.value = 20;
     loadingStatus.value = '正在加载充值数据...';
-    const depositResponse = await fetch(import.meta.env.BASE_URL + 'data.csv' + weeklyBuster);
-    if (depositResponse.ok) {
-      const depositContent = await depositResponse.text();
-      depositRecords.value = parseCSV(depositContent);
+    let depositContent = '';
+    try {
+      const depositResponse = await fetch(import.meta.env.BASE_URL + 'data.csv' + weeklyBuster);
+      if (depositResponse.ok) depositContent = await depositResponse.text();
+      else throw new Error('fetch failed');
+    } catch (e) {
+      console.log('充值 fetch 失败，使用内嵌数据');
+      depositContent = (await getEmbeddedData()).embeddedDepositCSV;
     }
+    if (depositContent) depositRecords.value = parseCSV(depositContent);
 
     // 加载提现数据
     loadingProgress.value = 60;
     loadingStatus.value = '正在加载提现数据...';
-    const withdrawResponse = await fetch(import.meta.env.BASE_URL + 'withdraw.csv' + weeklyBuster);
-    if (withdrawResponse.ok) {
-      const withdrawContent = await withdrawResponse.text();
-      withdrawRecords.value = parseWithdrawCSV(withdrawContent);
+    let withdrawContent = '';
+    try {
+      const withdrawResponse = await fetch(import.meta.env.BASE_URL + 'withdraw.csv' + weeklyBuster);
+      if (withdrawResponse.ok) withdrawContent = await withdrawResponse.text();
+      else throw new Error('fetch failed');
+    } catch (e) {
+      console.log('提现 fetch 失败，使用内嵌数据');
+      withdrawContent = (await getEmbeddedData()).embeddedWithdrawCSV;
     }
+    if (withdrawContent) withdrawRecords.value = parseWithdrawCSV(withdrawContent);
 
     loadingProgress.value = 100;
     loadingStatus.value = '周报数据加载完成！';
@@ -236,6 +267,10 @@ const handleExport = () => {
 
 const handleDateChange = ({ dateFrom, dateTo }) => {
   dateRange.value = { dateFrom, dateTo };
+};
+
+const handleTrialCalc = () => {
+  // 当日资料试算已在 SearchFilter 内处理，此处可扩展后端逻辑
 };
 </script>
 
@@ -295,6 +330,24 @@ const handleDateChange = ({ dateFrom, dateTo }) => {
           <span class="nav-icon">⚙️</span>
           <span class="nav-text" v-show="!sidebarCollapsed">報表三方設定</span>
         </button>
+        <button
+          class="nav-item"
+          :class="{ active: activeTab === 'remainPool' }"
+          @click="activeTab = 'remainPool'"
+          :title="sidebarCollapsed ? '极速提现剩余池' : ''"
+        >
+          <span class="nav-icon">🏦</span>
+          <span class="nav-text" v-show="!sidebarCollapsed">极速提现剩余池</span>
+        </button>
+        <button
+          class="nav-item"
+          :class="{ active: activeTab === 'qrcodeVerify' }"
+          @click="activeTab = 'qrcodeVerify'"
+          :title="sidebarCollapsed ? '提現QRCode驗證' : ''"
+        >
+          <span class="nav-icon">📱</span>
+          <span class="nav-text" v-show="!sidebarCollapsed">提現QRCode驗證</span>
+        </button>
         <div class="nav-divider"></div>
         <button
           class="nav-item"
@@ -313,7 +366,7 @@ const handleDateChange = ({ dateFrom, dateTo }) => {
       <header class="header">
         <div class="header-content">
           <h2 class="page-title">
-            {{ activeTab === 'deposit' ? '充值分析报表' : activeTab === 'withdraw' ? '提现分析报表' : activeTab === 'weekly' ? '日/周报数据汇总' : activeTab === 'fraud' ? '骗分统计' : activeTab === 'params' ? '報表三方設定' : 'PRD文件' }}
+            {{ activeTab === 'deposit' ? '充值分析报表' : activeTab === 'withdraw' ? '提现分析报表' : activeTab === 'weekly' ? '日/周报数据汇总' : activeTab === 'fraud' ? '骗分统计' : activeTab === 'params' ? '報表三方設定' : activeTab === 'remainPool' ? '极速提现剩余池' : activeTab === 'qrcodeVerify' ? '提現QRCode驗證' : 'PRD文件' }}
           </h2>
         </div>
       </header>
@@ -329,7 +382,7 @@ const handleDateChange = ({ dateFrom, dateTo }) => {
           <p class="loading-status">{{ loadingStatus }}</p>
         </div>
 
-        <div v-else-if="allRecords.length === 0 && activeTab !== 'prd' && activeTab !== 'params'" class="empty-state">
+        <div v-else-if="allRecords.length === 0 && activeTab !== 'prd' && activeTab !== 'params' && activeTab !== 'remainPool' && activeTab !== 'qrcodeVerify'" class="empty-state">
           <div class="empty-icon">📊</div>
           <h2>无法加载数据</h2>
           <p>请确认数据来源是否正确</p>
@@ -348,8 +401,14 @@ const handleDateChange = ({ dateFrom, dateTo }) => {
           <template v-else-if="activeTab === 'params'">
             <ReportParams />
           </template>
+          <template v-else-if="activeTab === 'remainPool'">
+            <RemainPool />
+          </template>
+          <template v-else-if="activeTab === 'qrcodeVerify'">
+            <QrcodeVerify />
+          </template>
           <template v-else>
-            <SearchFilter :records="allRecords" @filter="handleFilter" @export="handleExport" @dateChange="handleDateChange" />
+            <SearchFilter :records="allRecords" :hideMerchant="activeTab === 'withdraw'" @filter="handleFilter" @export="handleExport" @dateChange="handleDateChange" @trialCalc="handleTrialCalc" />
             <MetricsCards v-if="activeTab === 'deposit'" :metrics="metrics" :dateRange="dateRange" :dataDate="dataDate" @channelChange="handleChannelChange" />
             <WithdrawMetricsCards v-else :metrics="metrics" />
             <Charts v-if="activeTab === 'deposit' && activeChannel === 'all'" :records="filteredRecords" />
@@ -470,7 +529,7 @@ body {
 }
 
 .nav-item.active {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.1);
   color: #fff;
   border-left-color: #fff;
 }
@@ -500,42 +559,6 @@ body {
   margin: 8px 16px;
 }
 
-.nav-group {
-  display: flex;
-  flex-direction: column;
-}
-
-.nav-submenu {
-  display: flex;
-  flex-direction: column;
-  background: rgba(0, 0, 0, 0.1);
-}
-
-.nav-subitem {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 20px 12px 44px;
-  border: none;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 13px;
-  text-align: left;
-  cursor: pointer;
-  transition: all 0.2s;
-  border-left: 3px solid transparent;
-}
-
-.nav-subitem:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-}
-
-.nav-subitem.active {
-  background: rgba(255, 255, 255, 0.15);
-  color: #fff;
-  border-left-color: #fff;
-}
 
 /* 主内容区 */
 .main-wrapper {

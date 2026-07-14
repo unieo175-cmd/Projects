@@ -9,17 +9,28 @@ const props = defineProps({
   hideDate: {
     type: Boolean,
     default: false
+  },
+  hideMerchant: {
+    type: Boolean,
+    default: false
   }
 });
 
-const emit = defineEmits(['filter', 'export', 'dateChange']);
+const emit = defineEmits(['filter', 'export', 'dateChange', 'trialCalc']);
 
 const merchantFilter = ref('all');
+const trialCalcDone = ref(false);
+const trialCalcLoading = ref(false);
 const merchantSearch = ref('');
 const showMerchantDropdown = ref(false);
 
 // 日期默认为 2026-01-01
 const today = new Date().toISOString().split('T')[0];
+const yesterday = (() => {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return d.toISOString().split('T')[0];
+})();
 const defaultDate = '2026-01-01';
 const dateFrom = ref(defaultDate);
 const dateTo = ref(defaultDate);
@@ -176,6 +187,17 @@ const handleExport = () => {
   emit('export');
 };
 
+const handleTrialCalc = () => {
+  if (trialCalcLoading.value || trialCalcDone.value) return;
+  trialCalcLoading.value = true;
+  setTimeout(() => {
+    trialCalcLoading.value = false;
+    trialCalcDone.value = true;
+    emit('trialCalc');
+    applyFilters();
+  }, 1500);
+};
+
 const selectMerchant = (merchant) => {
   merchantFilter.value = merchant;
   merchantSearch.value = merchant === 'all' ? '' : merchant;
@@ -198,7 +220,7 @@ const handleMerchantBlur = () => {
   <div class="search-filter">
     <div class="filter-row">
       <!-- Merchant Filter with Searchable Dropdown -->
-      <div class="filter-group merchant-filter">
+      <div v-if="!hideMerchant" class="filter-group merchant-filter">
         <label class="filter-label">商户名称</label>
         <div class="dropdown-container">
           <input
@@ -239,7 +261,7 @@ const handleMerchantBlur = () => {
           v-model="dateFrom"
           type="date"
           class="date-input"
-          :max="today"
+          :max="trialCalcDone ? today : yesterday"
           @change="onDateFromChange"
         />
         <label>到</label>
@@ -247,10 +269,24 @@ const handleMerchantBlur = () => {
           v-model="dateTo"
           type="date"
           class="date-input"
-          :max="today"
+          :max="trialCalcDone ? today : yesterday"
           @change="onDateToChange"
         />
       </div>
+
+      <div class="filter-spacer"></div>
+
+      <button
+        type="button"
+        class="trial-calc-btn"
+        :class="{ done: trialCalcDone, loading: trialCalcLoading }"
+        :disabled="trialCalcLoading || trialCalcDone"
+        @click="handleTrialCalc"
+      >
+        <span v-if="trialCalcLoading">试算中...</span>
+        <span v-else-if="trialCalcDone">✓ 已完成</span>
+        <span v-else>当日资料试算</span>
+      </button>
 
       <button v-if="!hideDate" @click="handleSearch" class="search-btn">查询</button>
       <button @click="handleExport" class="export-btn">导出 Excel</button>
@@ -277,6 +313,7 @@ const handleMerchantBlur = () => {
   gap: 16px;
   flex-wrap: wrap;
   align-items: flex-end;
+  align-content: flex-end;
 }
 
 .filter-group {
@@ -400,8 +437,8 @@ const handleMerchantBlur = () => {
   font-weight: 500;
   cursor: pointer;
   transition: background 0.2s;
-  margin-left: auto;
 }
+
 
 .search-btn:hover {
   background: #3a3a8e;
@@ -421,6 +458,56 @@ const handleMerchantBlur = () => {
 
 .export-btn:hover {
   background: #4cae4c;
+}
+
+.filter-spacer {
+  flex: 1;
+}
+
+.trial-calc-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border: 1px solid #4a4a9e;
+  border-radius: 6px;
+  background: #fff;
+  color: #4a4a9e;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s, color 0.2s;
+}
+
+.trial-calc-btn:hover:not(:disabled) {
+  background: #4a4a9e;
+  color: #fff;
+}
+
+.trial-calc-btn.loading {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.trial-calc-btn.done {
+  border-color: #5cb85c;
+  color: #5cb85c;
+  cursor: default;
+}
+
+.trial-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: trial-btn-spin 0.7s linear infinite;
+}
+
+@keyframes trial-btn-spin {
+  to { transform: rotate(360deg); }
 }
 
 .date-error {
@@ -444,6 +531,10 @@ const handleMerchantBlur = () => {
   }
 
   .date-range {
+    width: 100%;
+  }
+
+  .realtime-checkbox {
     width: 100%;
   }
 

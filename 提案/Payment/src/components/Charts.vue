@@ -14,16 +14,14 @@ const props = defineProps({
 // 微信成功配对：包含微信，有 bankCardCode
 const matchedRecords = computed(() => {
   return props.records.filter(r => {
-    const hasJiSu = r.merchant && r.merchant.includes('极速充提3');
-    const hasAlipay = r.merchant && (r.merchant.includes('支付宝') || r.merchant.includes('支付宝'));
-    const hasWechat = r.merchant && r.merchant.includes('微信');
+    const m = r.merchant || '';
+    const hasAlipay  = m.includes('支付宝') || m.includes('支付寶');
+    const hasWechat  = m.includes('微信');
+    const hasOffline = m.includes('線下') || m.includes('线下');
 
-    // 银行卡成功配对
-    const isBankCardMatched = hasJiSu && !hasAlipay && !hasWechat && r.bankCardCode;
-    // 支付宝成功配对
-    const isAlipayMatched = hasAlipay && r.bankCardCode;
-    // 微信成功配对
-    const isWechatMatched = hasWechat && r.bankCardCode;
+    const isBankCardMatched = !hasAlipay && !hasWechat && !hasOffline && r.bankCardCode;
+    const isAlipayMatched   = hasAlipay && !hasOffline && r.bankCardCode;
+    const isWechatMatched   = hasWechat && !hasOffline && r.bankCardCode;
 
     return isBankCardMatched || isAlipayMatched || isWechatMatched;
   });
@@ -38,67 +36,51 @@ const allSuccessRecords = computed(() => props.records.filter(r => r.receivedAmo
 // 充值成功总笔数
 const successTotalCount = computed(() => successRecords.value.length);
 
-// Calculate channel distribution (充值渠道占比)
-// 极速银行卡/支付宝/微信/三方 的充值成功占比
+// Calculate channel distribution (充值渠道占比) - 3.4.2
+// 分類依商戶名稱：銀行卡/支付寶/微信/商業平台/線下
 const channelDistribution = computed(() => {
   const dist = {
-    bankCard: { count: 0, amount: 0 },
-    alipay: { count: 0, amount: 0 },
-    wechat: { count: 0, amount: 0 },
-    thirdParty: { count: 0, amount: 0 }
+    bankCard:   { count: 0, amount: 0 },
+    alipay:     { count: 0, amount: 0 },
+    wechat:     { count: 0, amount: 0 },
+    commercial: { count: 0, amount: 0 },
+    offline:    { count: 0, amount: 0 }
   };
 
-  // 判断是否为三方代收
-  const isThirdParty = (bankCardCode) => {
-    if (!bankCardCode) return false;
-    const code = bankCardCode.toLowerCase();
-    // 特定三方代收代码
-    if (bankCardCode === 'GB-DahaomenJFB' || bankCardCode === 'HTc2cdeposit' ||
-        bankCardCode === 'DDFdeposit' || bankCardCode === 'UC1020') {
-      return true;
-    }
-    // 非 gb/auction 开头的也是三方
-    if (!code.startsWith('gb') && !code.startsWith('auction')) {
-      return true;
-    }
-    return false;
-  };
-
-  // 遍历所有充值成功记录 (receivedAmount > 0)
   props.records.filter(r => r.receivedAmount > 0).forEach(r => {
-    const hasJiSu = r.merchant && r.merchant.includes('极速充提3');
-    const hasAlipay = r.merchant && (r.merchant.includes('支付宝') || r.merchant.includes('支付宝'));
-    const hasWechat = r.merchant && r.merchant.includes('微信');
+    const m = r.merchant || '';
+    const hasAlipay  = m.includes('支付宝') || m.includes('支付寶');
+    const hasWechat  = m.includes('微信');
+    const hasOffline = m.includes('線下') || m.includes('线下');
+    const isCommercial = m.startsWith('外部商户') || m.startsWith('外部商戶');
 
-    if (hasAlipay) {
+    if (hasOffline) {
+      dist.offline.count++;
+      dist.offline.amount += r.receivedAmount;
+    } else if (isCommercial) {
+      dist.commercial.count++;
+      dist.commercial.amount += r.receivedAmount;
+    } else if (hasAlipay) {
       dist.alipay.count++;
       dist.alipay.amount += r.receivedAmount;
     } else if (hasWechat) {
       dist.wechat.count++;
       dist.wechat.amount += r.receivedAmount;
-    } else if (hasJiSu) {
-      // 极速银行卡需要进一步判断是否为三方
-      if (isThirdParty(r.bankCardCode)) {
-        dist.thirdParty.count++;
-        dist.thirdParty.amount += r.receivedAmount;
-      } else {
-        dist.bankCard.count++;
-        dist.bankCard.amount += r.receivedAmount;
-      }
     } else {
-      // 非极速充提3的其他商户归类为三方
-      dist.thirdParty.count++;
-      dist.thirdParty.amount += r.receivedAmount;
+      dist.bankCard.count++;
+      dist.bankCard.amount += r.receivedAmount;
     }
   });
 
-  const total = dist.bankCard.count + dist.alipay.count + dist.wechat.count + dist.thirdParty.count || 1;
+  const total = dist.bankCard.count + dist.alipay.count + dist.wechat.count +
+                dist.commercial.count + dist.offline.count || 1;
 
   return [
-    { label: '极速银行卡', value: dist.bankCard.count, amount: dist.bankCard.amount, percent: (dist.bankCard.count / total * 100).toFixed(1), color: '#0a84ff' },
-    { label: '支付宝', value: dist.alipay.count, amount: dist.alipay.amount, percent: (dist.alipay.count / total * 100).toFixed(1), color: '#30d158' },
-    { label: '微信', value: dist.wechat.count, amount: dist.wechat.amount, percent: (dist.wechat.count / total * 100).toFixed(1), color: '#34c759' },
-    { label: '三方', value: dist.thirdParty.count, amount: dist.thirdParty.amount, percent: (dist.thirdParty.count / total * 100).toFixed(1), color: '#ff9f0a' }
+    { label: '極速銀行卡', value: dist.bankCard.count,   amount: dist.bankCard.amount,   percent: (dist.bankCard.count   / total * 100).toFixed(1), color: '#0a84ff' },
+    { label: '支付寶',     value: dist.alipay.count,     amount: dist.alipay.amount,     percent: (dist.alipay.count     / total * 100).toFixed(1), color: '#30d158' },
+    { label: '微信',       value: dist.wechat.count,     amount: dist.wechat.amount,     percent: (dist.wechat.count     / total * 100).toFixed(1), color: '#34c759' },
+    { label: '商業平台',   value: dist.commercial.count, amount: dist.commercial.amount, percent: (dist.commercial.count / total * 100).toFixed(1), color: '#7b5ea7' },
+    { label: '線下',       value: dist.offline.count,    amount: dist.offline.amount,    percent: (dist.offline.count    / total * 100).toFixed(1), color: '#ff9f0a' }
   ].filter(d => d.value > 0);
 });
 
@@ -171,40 +153,34 @@ const statusDistribution = computed(() => {
     const receivedAmount = r.receivedAmount || 0;
     if (receivedAmount <= 0) return;
 
-    const hasJiSu = merchant.includes('极速充提3');
     const hasOffline = merchant.includes('線下') || merchant.includes('线下');
-    const hasAlipay = merchant.includes('支付宝') || merchant.includes('支付寶');
-    const hasWechat = merchant.includes('微信');
+    const hasAlipay  = merchant.includes('支付宝') || merchant.includes('支付寶');
+    const hasWechat  = merchant.includes('微信');
 
     // 1. 外部商戶（以「外部商戶」開頭）
     if (isExternalMerchant(merchant)) {
       dist.external.count++;
       dist.external.amount += receivedAmount;
     }
-    // 2. 线下商戶
+    // 2. 線下商戶
     else if (hasOffline) {
       dist.offline.count++;
       dist.offline.amount += receivedAmount;
     }
-    // 3. 极速支付宝
-    else if (hasJiSu && hasAlipay) {
+    // 3. 支付寶
+    else if (hasAlipay) {
       dist.alipay.count++;
       dist.alipay.amount += receivedAmount;
     }
-    // 4. 极速微信
-    else if (hasJiSu && hasWechat) {
+    // 4. 微信
+    else if (hasWechat) {
       dist.wechat.count++;
       dist.wechat.amount += receivedAmount;
     }
-    // 5. 极速银行卡
-    else if (hasJiSu && !hasAlipay && !hasWechat) {
+    // 5. 銀行卡
+    else {
       dist.bankCard.count++;
       dist.bankCard.amount += receivedAmount;
-    }
-    // 6. 其他商戶（非以上分類但到帳金額>0）
-    else {
-      dist.external.count++;
-      dist.external.amount += receivedAmount;
     }
   });
 

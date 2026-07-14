@@ -1,10 +1,10 @@
 <template>
   <div class="prd-page">
     <div class="prd-header">
-      <h1>Payment 驗證版 數據分析 PRD</h1>
+      <h1>Payment 正式版 數據分析 PRD</h1>
       <div class="prd-meta">
-        <span class="version">v1.9.9</span>
-        <span class="date">2026-02-11</span>
+        <span class="version">v2.4.0</span>
+        <span class="date">2026-04-16</span>
       </div>
     </div>
 
@@ -57,11 +57,11 @@ const verifyOnlySection = `
 
 const prdHtmlBase = ref(`
 <h2>一、系統概述</h2>
-<p>Payment 驗證版數據分析系統用於分析充值與提現數據，提供多維度的數據統計與報表功能。系統支援 CSV/XLSX 檔案導入，自動計算各項指標。</p>
+<p>Payment 正式版數據分析系統用於分析充值與提現數據，提供多維度的數據統計與報表功能。系統支援 CSV/XLSX 檔案導入，自動計算各項指標。</p>
 
 <h3>1.1 系統架構</h3>
 <pre>
-Payment 驗證版數據分析
+Payment 正式版數據分析
 ├── 充值分析報表
 │   ├── 總覽指標
 │   ├── 極速（銀行卡）
@@ -180,6 +180,20 @@ Payment 驗證版數據分析
 <h3>3.1 功能概述</h3>
 <p>充值分析報表提供充值數據的總覽與各渠道分析，支援商戶篩選、日期範圍篩選、查詢與匯出 Excel 功能。</p>
 
+<h3>3.1.1 篩選功能</h3>
+<table>
+  <thead>
+    <tr><th>功能</th><th>說明</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>商戶名稱</strong></td><td>下拉選擇或搜索商戶</td></tr>
+    <tr><td><strong>日期範圍</strong></td><td>起訖日期選擇，最大範圍一個月</td></tr>
+    <tr><td><strong>當日資料試算</strong></td><td>點擊後解鎖當日日期選擇，並以當日資料重新計算指標</td></tr>
+    <tr><td><strong>查詢</strong></td><td>執行篩選條件</td></tr>
+    <tr><td><strong>匯出 Excel</strong></td><td>匯出當前篩選結果</td></tr>
+  </tbody>
+</table>
+
 <h3>3.2 渠道切換</h3>
 <table>
   <thead>
@@ -252,20 +266,35 @@ Payment 驗證版數據分析
 
 <h3>3.5 充值成功時間區段</h3>
 <p><strong>資料範圍：</strong>商戶只排除 test/qa，且到帳金額 > 0</p>
+<p><strong>處理時間計算：</strong>通知時間 - 建立時間</p>
+<p><strong>充值成功定義：</strong>到帳金額 > 0</p>
 <table>
   <thead>
-    <tr><th>時間區段</th><th>條件</th></tr>
+    <tr><th>時間區段</th><th>條件</th><th>筆數</th><th>百分比</th><th>金額</th></tr>
   </thead>
   <tbody>
-    <tr><td>2分鐘內</td><td>處理時間 ≤ 120秒</td></tr>
-    <tr><td>2-3分鐘</td><td>121秒 ≤ 處理時間 ≤ 180秒</td></tr>
-    <tr><td>3-5分鐘</td><td>181秒 ≤ 處理時間 ≤ 300秒</td></tr>
-    <tr><td>5-15分鐘</td><td>301秒 ≤ 處理時間 ≤ 900秒</td></tr>
-    <tr><td>15-30分鐘</td><td>901秒 ≤ 處理時間 ≤ 1800秒</td></tr>
-    <tr><td>30分鐘以上</td><td>處理時間 ≥ 1801秒</td></tr>
+    <tr><td>2分鐘內</td><td>處理時間 ≤ 120秒</td><td>2分鐘內充值成功的筆數</td><td>2分鐘內充值成功的筆數 / 總充值成功筆數</td><td>2分鐘內充值成功的金額加總</td></tr>
+    <tr><td>2-3分鐘</td><td>121秒 ≤ 處理時間 ≤ 180秒</td><td>2-3分鐘內充值成功的筆數</td><td>2-3分鐘內充值成功的筆數 / 總充值成功筆數</td><td>2-3分鐘內充值成功的金額加總</td></tr>
+    <tr><td>3-5分鐘</td><td>181秒 ≤ 處理時間 ≤ 300秒</td><td>3-5分鐘內充值成功的筆數</td><td>3-5分鐘內充值成功的筆數 / 總充值成功筆數</td><td>3-5分鐘內充值成功的金額加總</td></tr>
+    <tr><td>5-15分鐘</td><td>301秒 ≤ 處理時間 ≤ 900秒</td><td>5-15分鐘內充值成功的筆數</td><td>5-15分鐘內充值成功的筆數 / 總充值成功筆數</td><td>5-15分鐘內充值成功的金額加總</td></tr>
+    <tr><td>15-30分鐘</td><td>901秒 ≤ 處理時間 ≤ 1800秒</td><td>15-30分鐘內充值成功的筆數</td><td>15-30分鐘內充值成功的筆數 / 總充值成功筆數</td><td>15-30分鐘內充值成功的金額加總</td></tr>
+    <tr><td>30分鐘以上</td><td>處理時間 ≥ 1801秒</td><td>30分鐘以上充值成功的筆數</td><td>30分鐘以上充值成功的筆數 / 總充值成功筆數</td><td>30分鐘以上充值成功的金額加總</td></tr>
   </tbody>
 </table>
-<p><strong>處理時間計算：</strong>通知時間 - 建立時間</p>
+<p><strong>其他指標：</strong></p>
+<table>
+  <thead>
+    <tr><th>項目</th><th>條件 / 計算公式</th><th>筆數</th><th>百分比</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>未成功申請</td><td>狀態含「取消」 或 到帳金額 = 0</td><td>未成功申請的筆數</td><td>未成功申請的筆數 / (總充值成功筆數 + 未成功申請筆數)</td></tr>
+    <tr><td>掉單</td><td>充值成功（到帳金額 > 0）且狀態含「補 / 补」</td><td>掉單的筆數</td><td>掉單的筆數 / 總充值成功筆數</td></tr>
+    <tr><td>無卡空單率</td><td>日/週報數據彙總-充值申請-極速充值等待最終無配對 / 銀行卡和支付寶充值申請 × 100%</td><td>--</td><td>--</td></tr>
+    <tr><td>訂單成功（筆數/金額）</td><td>銀行卡訂單成功 + 支付寶訂單成功的筆數和金額（來自日/週報數據彙總，不含微信）</td><td>--</td><td>--</td></tr>
+    <tr><td>訂單成功佔比</td><td>[銀行卡] + [支付寶] 訂單成功的筆數 / 總充值成功筆數 × 100%</td><td>--</td><td>--</td></tr>
+    <tr><td>平均處理時間</td><td>所有充值成功（到帳金額 > 0）且有效處理時間紀錄的處理時間平均</td><td>--</td><td>--</td></tr>
+  </tbody>
+</table>
 
 <h3>3.6 銀行卡區塊計算準則</h3>
 
@@ -277,7 +306,11 @@ Payment 驗證版數據分析
   <tbody>
     <tr>
       <td><strong>數據範圍</strong></td>
-      <td>商戶包含「极速充提3」且不含支付寶/微信/test/qa/線下</td>
+      <td>充值紀錄，商戶包含「极速充提3」且不含支付寶/微信/test/qa/線下</td>
+    </tr>
+    <tr>
+      <td><strong>成功配對</strong></td>
+      <td>一般卡 + 極速提（筆數與充值申請相同，金額使用充值金額計算）</td>
     </tr>
     <tr>
       <td><strong>一般卡</strong></td>
@@ -289,41 +322,39 @@ Payment 驗證版數據分析
     </tr>
     <tr>
       <td><strong>建單成功等待無配對</strong></td>
-      <td>銀行卡代號為空的筆數</td>
+      <td>未充值且銀行卡為空的筆數（配不到銀行卡）</td>
     </tr>
     <tr>
       <td><strong>取無卡06提示</strong></td>
-      <td>依據商戶名稱判斷渠道：銀行卡=商戶不含支付寶/支付宝/微信的筆數加總</td>
+      <td>payment-極速06統計記錄中，商戶號的極速模式：為銀行卡，錯誤類型：取卡失敗 的筆數（計算更新日期為拉取的時間區間或單日）</td>
+    </tr>
+    <tr>
+      <td><strong>無效申請</strong></td>
+      <td>payment 充值紀錄中未充值且商戶號為空，但銀行卡欄位有值</td>
     </tr>
     <tr>
       <td><strong>充值申請筆數（總）</strong></td>
-      <td>一般卡 + 極速提 + 建單成功等待無配對 + 取無卡06提示</td>
+      <td>一般卡 + 極速提 + 建單成功等待無配對 + 取無卡06提示 + 無效申請</td>
     </tr>
   </tbody>
 </table>
 
-<h4>3.6.2 成功配對</h4>
-<table>
-  <thead>
-    <tr><th>項目</th><th>計算公式</th></tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td><strong>一般卡</strong></td>
-      <td>銀行卡代號有值且 ≠ AUCTION_PAYMENT_CARD</td>
-    </tr>
-    <tr>
-      <td><strong>極速提</strong></td>
-      <td>銀行卡代號 = AUCTION_PAYMENT_CARD</td>
-    </tr>
-    <tr>
-      <td><strong>金額計算</strong></td>
-      <td>使用充值金額（申請金額）計算</td>
-    </tr>
-  </tbody>
-</table>
+<blockquote>
+<p><strong>建單成功等待無配對 範例（充值紀錄：未充值且銀行卡為空）：</strong></p>
+<img src="https://hackmd.io/_uploads/Hk2k1xl9We.png" alt="建單成功等待無配對" style="max-width:100%;" />
+</blockquote>
 
-<h4>3.6.3 訂單成功</h4>
+<blockquote>
+<p><strong>取無卡06提示 範例（極速06統計表）：</strong></p>
+<img src="https://hackmd.io/_uploads/H1ncZlx9Zx.png" alt="取無卡06提示" style="max-width:100%;" />
+</blockquote>
+
+<blockquote>
+<p><strong>無效申請 範例（payment 充值紀錄中未充值且商戶號為空，但銀行卡欄位有值）：</strong></p>
+<img src="https://hackmd.io/_uploads/S11Krkx9bg.png" alt="無效申請" style="max-width:100%;" />
+</blockquote>
+
+<h4>3.6.2 訂單成功</h4>
 <table>
   <thead>
     <tr><th>項目</th><th>計算公式</th></tr>
@@ -348,7 +379,7 @@ Payment 驗證版數據分析
   </tbody>
 </table>
 
-<h4>3.6.4 沒信評降等配卡</h4>
+<h4>3.6.3 沒信評降等配卡</h4>
 <table>
   <thead>
     <tr><th>項目</th><th>計算公式</th></tr>
@@ -365,52 +396,72 @@ Payment 驗證版數據分析
   </tbody>
 </table>
 
-<h4>3.6.5 c2c 區塊</h4>
+<h4>3.6.4 c2c 區塊</h4>
 <table>
   <thead>
     <tr><th>項目</th><th>計算公式</th></tr>
   </thead>
   <tbody>
     <tr>
+      <td><strong>數據範圍</strong></td>
+      <td>充值紀錄，商戶不含「支付寶/微信/test/qa/線下」</td>
+    </tr>
+    <tr>
+      <td><strong>標題</strong></td>
+      <td>c2c 右邊顯示 c2c 的筆數和到帳金額加總</td>
+    </tr>
+    <tr>
       <td><strong>c2c</strong></td>
-      <td>銀行卡代號 = AUCTION_PAYMENT_CARD，到帳金額 > 0，狀態包含「用戶確認到帳」</td>
+      <td>銀行卡代號 = AUCTION_PAYMENT_CARD，到帳金額 > 0，狀態包含「用戶確認到帳」的筆數，金額使用到帳金額加總</td>
     </tr>
     <tr>
       <td><strong>點確認（用戶確認到帳）</strong></td>
-      <td>到帳金額 > 0，狀態包含「用戶確認到帳」</td>
+      <td>到帳金額 > 0，狀態包含「用戶確認到帳」的筆數（不限定銀行卡代號）</td>
     </tr>
     <tr>
       <td><strong>人工審核:通過</strong></td>
-      <td>銀行卡代號包含 AUCTION，到帳金額 > 0，狀態包含「金額補單」，處理時間 ≤ 11分鐘</td>
+      <td>銀行卡代號包含 AUCTION，到帳金額 > 0，狀態包含「金額補單」，處理時間 ≤ 11分鐘（660秒）的筆數</td>
     </tr>
     <tr>
-      <td><strong>超過11min補件後成功</strong></td>
+      <td><strong>用戶較久補材料後成功</strong></td>
       <td>
-        條件一：銀行卡代號包含 AUCTION，到帳金額 > 0，狀態包含「金額補單」，處理時間 > 11分鐘<br>
+        條件一：銀行卡代號包含 AUCTION，到帳金額 > 0，狀態包含「金額補單」，處理時間 > 11分鐘（660秒）<br>
         <strong>+</strong><br>
-        條件二：銀行卡代號 = AUCTION_PAYMENT_CARD，到帳金額 > 0，狀態包含「商戶確認到帳」
+        條件二：銀行卡代號 = AUCTION_PAYMENT_CARD，到帳金額 > 0，狀態包含「商戶確認到帳」的筆數
       </td>
     </tr>
   </tbody>
 </table>
 
-<h4>3.6.6 三方代收區塊</h4>
+<h4>3.6.5 三方代收區塊</h4>
 <table>
   <thead>
     <tr><th>項目</th><th>說明</th></tr>
   </thead>
   <tbody>
     <tr>
+      <td><strong>標題</strong></td>
+      <td>三方代收（一般卡訂單成功） 右側計算公式：下方數據筆數和金額加總</td>
+    </tr>
+    <tr>
       <td><strong>數據範圍</strong></td>
       <td>商戶不含「支付寶/微信/test/qa/線下」，到帳金額 > 0</td>
     </tr>
     <tr>
       <td><strong>資料來源</strong></td>
-      <td>報表三方設定（資料庫）</td>
+      <td>payment 此次新增的報表三方設定（詳見七、報表三方設定說明）</td>
     </tr>
     <tr>
       <td><strong>識別方式</strong></td>
       <td>銀行卡代號以設定的卡代號開頭（不區分大小寫）</td>
+    </tr>
+    <tr>
+      <td><strong>計算公式</strong></td>
+      <td>依據報表三方設定的卡號，撈取充值紀錄中到帳金額 > 0 的筆數，並依照各卡號顯示筆數和金額加總</td>
+    </tr>
+    <tr>
+      <td><strong>標題顯示</strong></td>
+      <td>三方代收標題右側顯示各三方的筆數和金額加總</td>
     </tr>
     <tr>
       <td><strong>預設卡代號</strong></td>
@@ -419,7 +470,7 @@ Payment 驗證版數據分析
   </tbody>
 </table>
 
-<h4>3.6.7 騙分沒到帳來找</h4>
+<h4>3.6.6 騙分沒到帳來找</h4>
 <table>
   <thead>
     <tr><th>項目</th><th>計算公式</th></tr>
@@ -427,7 +478,11 @@ Payment 驗證版數據分析
   <tbody>
     <tr>
       <td><strong>數據來源</strong></td>
-      <td>騙分統計（依篩選日期範圍加總）</td>
+      <td>依據payment騙分統計表人工輸入（依篩選日期範圍加總）（詳見六、騙分統計）</td>
+    </tr>
+    <tr>
+      <td><strong>標題</strong></td>
+      <td>騙分沒到帳來找右邊顯示人工+信評的金額和筆數加總</td>
     </tr>
     <tr>
       <td><strong>人工</strong></td>
@@ -437,10 +492,18 @@ Payment 驗證版數據分析
       <td><strong>信評</strong></td>
       <td>渠道 = 銀行卡，類型 = 信評</td>
     </tr>
+    <tr>
+      <td><strong>騙分拉黑</strong></td>
+      <td>渠道 = 銀行卡，騙分拉黑筆數</td>
+    </tr>
+    <tr>
+      <td><strong>卡驗及人驗</strong></td>
+      <td>渠道 = 銀行卡，卡驗及人驗筆數</td>
+    </tr>
   </tbody>
 </table>
 
-<h4>3.6.8 商業平台</h4>
+<h4>3.6.7 商業平台</h4>
 <table>
   <thead>
     <tr><th>項目</th><th>計算公式</th></tr>
@@ -451,12 +514,24 @@ Payment 驗證版數據分析
       <td>商戶以「外部商戶」開頭</td>
     </tr>
     <tr>
-      <td><strong>充值申請</strong></td>
-      <td>符合商戶的記錄筆數和充值金額</td>
+      <td><strong>標題</strong></td>
+      <td>商業平台右邊顯示充值成功總筆數和到帳金額加總</td>
+    </tr>
+    <tr>
+      <td><strong>外部充值成功</strong></td>
+      <td>各商戶充值成功的筆數和到帳金額加總（與標題相同）</td>
+    </tr>
+    <tr>
+      <td><strong>外部充值總申請</strong></td>
+      <td>符合商戶條件的所有記錄筆數和充值金額加總</td>
     </tr>
     <tr>
       <td><strong>充值成功</strong></td>
-      <td>狀態不含「未充值」且金額 > 0 的記錄</td>
+      <td>狀態不含「未充值」且到帳金額 > 0 的記錄，金額使用到帳金額</td>
+    </tr>
+    <tr>
+      <td><strong>各商戶明細</strong></td>
+      <td>依各「外部商戶」名稱分別顯示充值申請（筆數/充值金額）和充值成功（筆數/到帳金額）</td>
     </tr>
   </tbody>
 </table>
@@ -473,7 +548,15 @@ Payment 驗證版數據分析
   <tbody>
     <tr>
       <td><strong>數據範圍</strong></td>
-      <td>商戶包含「支付寶」且不含 test/qa/線下</td>
+      <td>充值紀錄，商戶包含「支付寶」且不含 test/qa/線下</td>
+    </tr>
+    <tr>
+      <td>標題</td>
+      <td>充值申請下方的數據筆數和金額加總</td>
+    </tr>
+    <tr>
+      <td><strong>成功配對</strong></td>
+      <td>一般卡 + 一般寶 + 極速提(卡) + 極速提(寶)（筆數與充值申請相同，金額使用充值金額計算）</td>
     </tr>
     <tr>
       <td><strong>一般卡</strong></td>
@@ -491,8 +574,26 @@ Payment 驗證版數據分析
       <td><strong>極速提(寶)</strong></td>
       <td>銀行卡代號 = AUCTION_PAYMENT_CARD，銀行名稱 = 支付寶/支付寶(企)/微信支付</td>
     </tr>
+    <tr>
+      <td><strong>建單成功等待無配對</strong></td>
+      <td>未充值且銀行卡為空的筆數（配不到銀行卡）</td>
+    </tr>
+    <tr>
+      <td><strong>取無卡06提示</strong></td>
+      <td>payment-極速06統計記錄中，商戶號的極速模式：為支付寶，錯誤類型：取卡失敗 的筆數（計算更新日期為拉取的時間區間或單日）</td>
+    </tr>
+    <tr>
+      <td><strong>無效申請</strong></td>
+      <td>payment 充值紀錄中未充值且商戶號為空，但銀行卡欄位有值</td>
+    </tr>
+    <tr>
+      <td><strong>充值申請筆數（總）</strong></td>
+      <td>一般卡 + 一般寶 + 極速提(卡) + 極速提(寶) + 建單成功等待無配對 + 取無卡06提示 + 無效申請</td>
+    </tr>
   </tbody>
 </table>
+
+<p>＊圖在銀行卡範圍已說明</p>
 
 <h4>3.7.2 訂單成功</h4>
 <table>
@@ -532,7 +633,37 @@ Payment 驗證版數據分析
 </table>
 
 <h4>3.7.3 c2c 區塊</h4>
-<p>（與銀行卡區塊相同公式）</p>
+<table>
+  <thead>
+    <tr><th>項目</th><th>計算公式</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>數據範圍</strong></td>
+      <td>充值紀錄，商戶包含「支付寶」且不含 test/qa/線下</td>
+    </tr>
+    <tr>
+      <td><strong>標題</strong></td>
+      <td>c2c 右邊顯示 c2c 的筆數和到帳金額加總</td>
+    </tr>
+    <tr>
+      <td><strong>c2c</strong></td>
+      <td>銀行卡代號 = AUCTION_PAYMENT_CARD，到帳金額 > 0，狀態包含「用戶確認到帳」的筆數，金額使用到帳金額加總</td>
+    </tr>
+    <tr>
+      <td><strong>點確認（用戶確認到帳）</strong></td>
+      <td>到帳金額 > 0，狀態包含「用戶確認到帳」的筆數（不限定銀行卡代號）</td>
+    </tr>
+    <tr>
+      <td><strong>人工審核:通過</strong></td>
+      <td>銀行卡代號包含 AUCTION，到帳金額 > 0，狀態包含「金額補單」，處理時間 ≤ 11分鐘（660秒）的筆數</td>
+    </tr>
+    <tr>
+      <td><strong>用戶較久補材料後成功</strong></td>
+      <td>條件一：銀行卡代號包含 AUCTION，到帳金額 > 0，狀態包含「金額補單」，處理時間 > 11分鐘（660秒）<strong>+</strong> 條件二：銀行卡代號 = AUCTION_PAYMENT_CARD，到帳金額 > 0，狀態包含「商戶確認到帳」的筆數</td>
+    </tr>
+  </tbody>
+</table>
 
 <h4>3.7.4 三方代收區塊</h4>
 <table>
@@ -546,7 +677,7 @@ Payment 驗證版數據分析
     </tr>
     <tr>
       <td><strong>資料來源</strong></td>
-      <td>報表三方設定（參見第七章）</td>
+      <td>報表三方設定 （詳見七、報表三方設定說明）</td>
     </tr>
     <tr>
       <td><strong>識別方式</strong></td>
@@ -563,7 +694,7 @@ Payment 驗證版數據分析
   <tbody>
     <tr>
       <td><strong>寶轉卡渠道 申請</strong></td>
-      <td>商戶包含「轉卡」，銀行卡代號 = AUCTION_PAYMENT_CARD，銀行名稱 = 支付寶</td>
+      <td>充值紀錄中商戶包含「轉卡」，銀行卡代號 = AUCTION_PAYMENT_CARD，銀行名稱 = 支付寶</td>
     </tr>
     <tr>
       <td><strong>寶轉卡渠道 成功</strong></td>
@@ -571,7 +702,7 @@ Payment 驗證版數據分析
     </tr>
     <tr>
       <td><strong>寶轉寶渠道 申請</strong></td>
-      <td>商戶包含「寶)」，銀行卡代號 = AUCTION_PAYMENT_CARD，銀行名稱 ≠ 支付寶</td>
+      <td>充值紀錄中商戶包含「寶)」，銀行卡代號 = AUCTION_PAYMENT_CARD，銀行名稱 ≠ 支付寶</td>
     </tr>
     <tr>
       <td><strong>寶轉寶渠道 成功</strong></td>
@@ -593,9 +724,12 @@ Payment 驗證版數據分析
     <tr><th>項目</th><th>計算公式</th></tr>
   </thead>
   <tbody>
-    <tr><td><strong>數據來源</strong></td><td>騙分統計（依篩選日期範圍加總）</td></tr>
+    <tr><td><strong>數據來源</strong></td><td>依據payment騙分統計表人工輸入（依篩選日期範圍加總）（詳見六、騙分統計）</td></tr>
+    <tr><td><strong>標題</strong></td><td>騙分沒到帳來找右邊顯示人工+信評的金額和筆數加總</td></tr>
     <tr><td><strong>人工</strong></td><td>渠道 = 支付寶，類型 = 人工</td></tr>
     <tr><td><strong>信評</strong></td><td>渠道 = 支付寶，類型 = 信評</td></tr>
+    <tr><td><strong>騙分拉黑</strong></td><td>渠道 = 支付寶，騙分拉黑筆數</td></tr>
+    <tr><td><strong>卡驗及人驗</strong></td><td>渠道 = 支付寶，卡驗及人驗筆數</td></tr>
   </tbody>
 </table>
 
@@ -612,6 +746,14 @@ Payment 驗證版數據分析
     <tr>
       <td><strong>數據範圍</strong></td>
       <td>商戶包含「微信」且不含 test/qa/線下</td>
+    </tr>
+    <tr>
+      <td>標題</td>
+      <td>充值申請下方的數據筆數和金額加總</td>
+    </tr>
+    <tr>
+      <td><strong>成功配對</strong></td>
+      <td>顯示一般卡+一般微+極速提(卡)+極速提(微)的筆數和金額加總</td>
     </tr>
     <tr>
       <td><strong>一般卡</strong></td>
@@ -631,45 +773,24 @@ Payment 驗證版數據分析
     </tr>
     <tr>
       <td><strong>建單成功等待無配對</strong></td>
-      <td>銀行卡代號為空的筆數</td>
+      <td>未充值且銀行卡為空的筆數（配不到銀行卡）</td>
     </tr>
     <tr>
-      <td><strong>總筆數</strong></td>
-      <td>一般卡 + 一般微 + 極速提(卡) + 極速提(微)</td>
+      <td><strong>取無卡06提示</strong></td>
+      <td>payment-極速06統計記錄中，商戶號的極速模式：為微信，錯誤類型：取卡失敗 的筆數（計算更新日期為拉取的時間區間或單日）</td>
+    </tr>
+    <tr>
+      <td><strong>無效申請</strong></td>
+      <td>payment 充值紀錄中未充值且商戶號為空，但銀行卡欄位有值</td>
+    </tr>
+    <tr>
+      <td><strong>充值申請筆數（總）</strong></td>
+      <td>一般卡 + 一般微 + 極速提(卡) + 極速提(微) + 建單成功等待無配對 + 取無卡06提示 + 無效申請</td>
     </tr>
   </tbody>
 </table>
 
-<h4>3.8.2 成功配對</h4>
-<table>
-  <thead>
-    <tr><th>項目</th><th>計算公式</th></tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td><strong>一般卡</strong></td>
-      <td>銀行卡代號有值 且 ≠ AUCTION_PAYMENT_CARD，銀行名稱 ≠ 支付寶/支付寶(企)/微信支付</td>
-    </tr>
-    <tr>
-      <td><strong>一般微</strong></td>
-      <td>銀行卡代號有值 且 ≠ AUCTION_PAYMENT_CARD，銀行名稱 = 微信支付</td>
-    </tr>
-    <tr>
-      <td><strong>極速提(卡)</strong></td>
-      <td>銀行卡代號 = AUCTION_PAYMENT_CARD，銀行名稱 ≠ 支付寶/支付寶(企)/微信支付</td>
-    </tr>
-    <tr>
-      <td><strong>極速提(微)</strong></td>
-      <td>銀行卡代號 = AUCTION_PAYMENT_CARD，銀行名稱 = 微信支付</td>
-    </tr>
-    <tr>
-      <td><strong>金額</strong></td>
-      <td>使用充值金額（申請金額）計算</td>
-    </tr>
-  </tbody>
-</table>
-
-<h4>3.8.3 訂單成功</h4>
+<h4>3.8.2 訂單成功</h4>
 <p><strong>共通條件：</strong>正規化狀態有值 且 ≠「未充值」且 ≠「圖文複核(已超時)」且 ≠「審核中(已超時)」</p>
 <table>
   <thead>
@@ -703,7 +824,7 @@ Payment 驗證版數據分析
   </tbody>
 </table>
 
-<h4>3.8.4 沒信評降等配卡</h4>
+<h4>3.8.3 沒信評降等配卡</h4>
 <table>
   <thead>
     <tr><th>項目</th><th>計算公式</th></tr>
@@ -720,7 +841,7 @@ Payment 驗證版數據分析
   </tbody>
 </table>
 
-<h4>3.8.5 c2c 區塊</h4>
+<h4>3.8.4 c2c 區塊</h4>
 <table>
   <thead>
     <tr><th>項目</th><th>計算公式</th></tr>
@@ -739,13 +860,13 @@ Payment 驗證版數據分析
       <td>銀行卡代號包含 AUCTION 且 到帳金額 > 0 且 狀態包含「金額補單/金额补单」且 處理時間 ≤ 660秒（11分鐘）</td>
     </tr>
     <tr>
-      <td><strong>超過11min補件後成功</strong></td>
+      <td><strong>用戶較久補材料後成功</strong></td>
       <td>(銀行卡代號包含 AUCTION 且 到帳金額 > 0 且 狀態包含「金額補單/金额补单」且 處理時間 > 660秒) + (銀行卡代號 = AUCTION_PAYMENT_CARD 且 到帳金額 > 0 且 狀態包含「商戶確認到帳/商户确认到帐」)</td>
     </tr>
   </tbody>
 </table>
 
-<h4>3.8.6 三方代收區塊</h4>
+<h4>3.8.5 三方代收區塊</h4>
 <table>
   <thead>
     <tr><th>項目</th><th>說明</th></tr>
@@ -757,7 +878,7 @@ Payment 驗證版數據分析
     </tr>
     <tr>
       <td><strong>資料來源</strong></td>
-      <td>報表三方設定（參見第七章）</td>
+      <td>報表三方設定 （詳見七、報表三方設定說明）</td>
     </tr>
     <tr>
       <td><strong>識別方式</strong></td>
@@ -766,7 +887,7 @@ Payment 驗證版數據分析
   </tbody>
 </table>
 
-<h4>3.8.7 騙分沒到帳來找</h4>
+<h4>3.8.6 騙分沒到帳來找</h4>
 <table>
   <thead>
     <tr><th>項目</th><th>計算公式</th></tr>
@@ -774,7 +895,7 @@ Payment 驗證版數據分析
   <tbody>
     <tr>
       <td><strong>數據來源</strong></td>
-      <td>騙分統計（依篩選日期範圍加總）</td>
+      <td>依據payment騙分統計表人工輸入（依篩選日期範圍加總）（詳見六、騙分統計）</td>
     </tr>
     <tr>
       <td><strong>人工</strong></td>
@@ -808,7 +929,7 @@ Payment 驗證版數據分析
 <p>提現分析報表提供提現數據的總覽與各渠道分析，支援商戶篩選、日期範圍篩選、查詢與匯出 Excel 功能。</p>
 
 <h3>4.2 篩選功能</h3>
-<p>與充值分析相同：商戶名稱、日期範圍、查詢、匯出 Excel</p>
+<p>與充值分析相同：商戶名稱、日期範圍、當日資料試算、查詢、匯出 Excel</p>
 
 <h3>4.3 渠道切換</h3>
 <p>渠道判斷優先使用「收款銀行」，若為空則使用「出款商戶」：</p>
@@ -876,7 +997,7 @@ AND 提現狀態 ≠ "提現完成/提现完成"（按訂單號去重）
 </pre>
 <table>
   <thead>
-    <tr><th>CSV 欄位</th><th>說明</th></tr>
+    <tr><th>充值紀錄欄位</th><th>說明</th></tr>
   </thead>
   <tbody>
     <tr><td>通知商戶時間 / 通知商户时间</td><td>系統通知商戶的時間點</td></tr>
@@ -903,63 +1024,70 @@ AND 提現狀態 ≠ "提現完成/提现完成"（按訂單號去重）
     <tr><td><strong>平均处理时间-宝(R)</strong></td><td>支付寶/支付宝渠道轉帳完成/转账完成的平均時間</td><td>支付寶渠道專用</td></tr>
     <tr><td><strong>提现成功率</strong></td><td>提現成功筆數 / 總記錄數 × 100%</td><td>基於原始記錄數</td></tr>
     <tr><td><strong>提现失败笔数</strong></td><td>說明≠轉帳完成/转账完成/提現完成/提现完成 且 實際轉出=空白或0 且 提現狀態≠提現完成/提现完成（按訂單號去重）</td><td>符合失敗條件</td></tr>
-    <tr><td><strong>无卡空单率</strong></td><td>JS充值等待最終無配對 / 充值申請 × 100%</td><td>來自充值數據</td></tr>
-    <tr><td><strong>订单成功（筆數/金額）</strong></td><td>銀行卡訂單成功 + 支付寶訂單成功（來自充值）</td><td>不含微信</td></tr>
-    <tr><td><strong>订单成功占比</strong></td><td>訂單成功筆數 / 總充值成功筆數 × 100%</td><td>來自充值數據</td></tr>
+    <tr><td><strong>平均处理时间</strong></td><td>轉帳完成/转账完成 且 實際轉出金額≠0 的處理時間平均（按訂單號去重）</td><td>全部渠道</td></tr>
   </tbody>
 </table>
 
 <h3>4.10 銀行卡渠道</h3>
 <h4>數據範圍</h4>
-<pre>商戶不含「支付寶/支付宝/微信」，申請金額 > 0</pre>
+<pre>商戶的極速模式為「銀行卡」，申請金額 > 0，排除測試 test、qa 商戶號。</pre>
+
+<blockquote>
+<p>📌 註：下表「充值側」欄位（配對後成功率、成功配對充值單筆數、配對後成功筆數）的數值直接引用 3.6 銀行卡區塊計算準則的計算結果，4.10 不重新計算；只有「提現申請」與「平均處理時間」是從提現紀錄獨立計算。</p>
+</blockquote>
+
 <table>
   <thead>
-    <tr><th>項目</th><th>計算公式</th><th>說明</th></tr>
+    <tr><th>項目</th><th>業務含義</th><th>計算方式</th><th>數據來源</th></tr>
   </thead>
   <tbody>
-    <tr><td><strong>提现申请</strong></td><td>商戶排除支付寶/支付宝/微信，申請金額 > 0 的筆數/出款金額</td><td>筆數和金額分開統計</td></tr>
-    <tr><td><strong>充值配对率</strong></td><td>成功配對 / 充值申請 × 100%</td><td>來自充值數據</td></tr>
-    <tr><td><strong>充值申请</strong></td><td>來自充值數據：极速银行卡申請筆數</td><td>銀行卡區塊的充值申請總筆數</td></tr>
-    <tr><td><strong>成功配对</strong></td><td>來自充值數據：銀行卡代號有值的筆數</td><td>一般卡 + 極速提配對筆數</td></tr>
-    <tr><td><strong>配对后成功率</strong></td><td>充值成功 / 成功配對 × 100%</td><td>訂單成功筆數 / 成功配對筆數</td></tr>
-    <tr><td><strong>充值成功笔数</strong></td><td>來自充值數據：訂單成功筆數</td><td>一般卡 + 極速提訂單成功筆數</td></tr>
-    <tr><td><strong>平均处理时间</strong></td><td>商戶排除支付寶/支付宝/微信 且 轉帳完成/转账完成 且 實際轉出金額≠0 的處理時間平均（按訂單號去重）</td><td>銀行卡渠道專用</td></tr>
+    <tr><td><strong>提現申請</strong></td><td>銀行卡渠道有多少筆提現需求</td><td>符合渠道條件的訂單筆數與金額（同訂單號去重）</td><td>提現紀錄</td></tr>
+    <tr><td><strong>配對後成功率</strong></td><td>對到的充值裡面，有多少真正完成入帳</td><td>充值成功 / 成功配對 × 100%</td><td>充值紀錄</td></tr>
+    <tr><td>　└ 成功配對充值單筆數</td><td>實際已到帳的銀行卡充值筆數</td><td>一般卡訂單成功 + 極速提訂單成功</td><td>充值紀錄</td></tr>
+    <tr><td>　└ 配對後成功筆數</td><td>真的對到一張卡的充值筆數</td><td>一般卡 + 極速提（引用 3.6 銀行卡區塊「成功配對」）</td><td>充值紀錄</td></tr>
+    <tr><td><strong>平均處理時間</strong></td><td>用戶從提交申請到看到錢轉出，平均要等多久</td><td>銀行卡渠道、轉帳完成、實際轉出金額 ≠ 0 的訂單，處理時間平均（同訂單號去重）</td><td>提現紀錄</td></tr>
   </tbody>
 </table>
 
 <h3>4.11 支付寶渠道</h3>
 <h4>數據範圍</h4>
-<pre>商戶含「支付寶」或「支付宝」，申請金額 > 0</pre>
+<pre>商戶的極速模式為「支付寶」，申請金額 > 0，排除測試 test、qa 商戶號。</pre>
+
+<blockquote>
+<p>📌 註：下表「充值側」欄位（配對後成功率、成功配對充值單筆數、配對後成功筆數）的數值直接引用 3.7 支付寶區塊計算準則的計算結果，4.11 不重新計算；只有「提現申請」與「平均處理時間」是從提現紀錄獨立計算。</p>
+</blockquote>
+
 <table>
   <thead>
-    <tr><th>項目</th><th>計算公式</th><th>說明</th></tr>
+    <tr><th>項目</th><th>業務含義</th><th>計算方式</th><th>數據來源</th></tr>
   </thead>
   <tbody>
-    <tr><td><strong>提现申请</strong></td><td>商戶含「支付寶/支付宝」，申請金額 > 0 的筆數/出款金額</td><td>筆數和金額分開統計</td></tr>
-    <tr><td><strong>充值配对率</strong></td><td>成功配對 / 充值申請 × 100%</td><td>來自充值數據</td></tr>
-    <tr><td><strong>充值申请</strong></td><td>來自充值數據：极速支付寶申請筆數</td><td>支付寶區塊的充值申請總筆數</td></tr>
-    <tr><td><strong>成功配对</strong></td><td>來自充值數據：銀行卡代號有值的筆數</td><td>一般卡 + 一般寶 + 極速提配對筆數</td></tr>
-    <tr><td><strong>配对后成功率</strong></td><td>充值成功 / 成功配對 × 100%</td><td>訂單成功筆數 / 成功配對筆數</td></tr>
-    <tr><td><strong>充值成功笔数</strong></td><td>來自充值數據：訂單成功筆數</td><td>一般卡 + 一般寶 + 極速提訂單成功筆數</td></tr>
-    <tr><td><strong>平均处理时间</strong></td><td>商戶含支付寶/支付宝 且 轉帳完成/转账完成 且 實際轉出金額≠0 的處理時間平均（按訂單號去重）</td><td>支付寶渠道專用</td></tr>
+    <tr><td><strong>提現申請</strong></td><td>支付寶渠道有多少筆提現需求</td><td>符合渠道條件的訂單筆數與金額（同訂單號去重）</td><td>提現紀錄</td></tr>
+    <tr><td><strong>配對後成功率</strong></td><td>對到的充值裡面，有多少真正完成入帳</td><td>充值成功 / 成功配對 × 100%</td><td>充值紀錄</td></tr>
+    <tr><td>　└ 成功配對充值單筆數</td><td>實際已到帳的支付寶充值筆數</td><td>一般卡訂單成功 + 一般寶訂單成功 + 極速提(卡)訂單成功 + 極速提(寶)訂單成功</td><td>充值紀錄</td></tr>
+    <tr><td>　└ 配對後成功筆數</td><td>真的對到一張卡的充值筆數</td><td>一般卡 + 一般寶 + 極速提(卡) + 極速提(寶)（引用 3.7 支付寶區塊「成功配對」）</td><td>充值紀錄</td></tr>
+    <tr><td><strong>平均處理時間</strong></td><td>用戶從提交申請到看到錢轉出，平均要等多久</td><td>支付寶渠道、轉帳完成、實際轉出金額 ≠ 0 的訂單，處理時間平均（同訂單號去重）</td><td>提現紀錄</td></tr>
   </tbody>
 </table>
 
 <h3>4.12 微信渠道</h3>
 <h4>數據範圍</h4>
-<pre>商戶含「微信」，申請金額 > 0</pre>
+<pre>商戶的極速模式為「微信」，申請金額 > 0，排除測試 test、qa 商戶號。</pre>
+
+<blockquote>
+<p>📌 註：下表「充值側」欄位（配對後成功率、成功配對充值單筆數、配對後成功筆數）的數值直接引用 3.8 微信區塊計算準則的計算結果，4.12 不重新計算；只有「提現申請」與「平均處理時間」是從提現紀錄獨立計算。</p>
+</blockquote>
+
 <table>
   <thead>
-    <tr><th>項目</th><th>計算公式</th><th>說明</th></tr>
+    <tr><th>項目</th><th>業務含義</th><th>計算方式</th><th>數據來源</th></tr>
   </thead>
   <tbody>
-    <tr><td><strong>提现申请</strong></td><td>商戶含「微信」，申請金額 > 0 的筆數/出款金額</td><td>筆數和金額分開統計</td></tr>
-    <tr><td><strong>充值配对率</strong></td><td>成功配對 / 充值申請 × 100%</td><td>來自充值數據</td></tr>
-    <tr><td><strong>充值申请</strong></td><td>來自充值數據：极速微信申請筆數</td><td>微信區塊的充值申請總筆數</td></tr>
-    <tr><td><strong>成功配对</strong></td><td>來自充值數據：銀行卡代號有值的筆數</td><td>一般卡 + 一般微 + 極速提配對筆數</td></tr>
-    <tr><td><strong>配对后成功率</strong></td><td>充值成功 / 成功配對 × 100%</td><td>訂單成功筆數 / 成功配對筆數</td></tr>
-    <tr><td><strong>充值成功笔数</strong></td><td>來自充值數據：訂單成功筆數</td><td>一般卡 + 一般微 + 極速提訂單成功筆數</td></tr>
-    <tr><td><strong>平均处理时间</strong></td><td>商戶含微信 且 轉帳完成/转账完成 且 實際轉出金額≠0 的處理時間平均（按訂單號去重）</td><td>微信渠道專用</td></tr>
+    <tr><td><strong>提現申請</strong></td><td>微信渠道有多少筆提現需求</td><td>符合渠道條件的訂單筆數與金額（同訂單號去重）</td><td>提現紀錄</td></tr>
+    <tr><td><strong>配對後成功率</strong></td><td>對到的充值裡面，有多少真正完成入帳</td><td>充值成功 / 成功配對 × 100%</td><td>充值紀錄</td></tr>
+    <tr><td>　└ 成功配對充值單筆數</td><td>實際已到帳的微信充值筆數</td><td>一般卡訂單成功 + 一般微訂單成功 + 極速提(卡)訂單成功 + 極速提(微)訂單成功</td><td>充值紀錄</td></tr>
+    <tr><td>　└ 配對後成功筆數</td><td>真的對到一張卡的充值筆數</td><td>一般卡 + 一般微 + 極速提(卡) + 極速提(微)（引用 3.8 微信區塊「成功配對」）</td><td>充值紀錄</td></tr>
+    <tr><td><strong>平均處理時間</strong></td><td>用戶從提交申請到看到錢轉出，平均要等多久</td><td>微信渠道、轉帳完成、實際轉出金額 ≠ 0 的訂單，處理時間平均（同訂單號去重）</td><td>提現紀錄</td></tr>
   </tbody>
 </table>
 
@@ -1008,6 +1136,34 @@ AND 提現狀態 ≠ "提現完成/提现完成"（按訂單號去重）
    - 充值申請、成功配對、訂單成功等來自 depositMetrics
 </pre>
 
+<h3>4.15 汇出功能</h3>
+
+<h4>4.15.1 汇出 Excel</h4>
+<table>
+  <thead>
+    <tr><th>项目</th><th>说明</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>档案名称</strong></td><td><code>提现分析报表_${日期范围}.xlsx</code></td></tr>
+    <tr><td><strong>触发方式</strong></td><td>点击「汇出 Excel」按钮</td></tr>
+    <tr><td><strong>excel 排版说明</strong></td><td>汇出当页面统计结果，请参考 excel 排版用来让运营贴上报告所以与页面不一样（仅有总览页签有差异，其他和页面统计一样）</td></tr>
+  </tbody>
+</table>
+
+<p><strong>工作表结构：</strong></p>
+<table>
+  <thead>
+    <tr><th>工作表</th><th>内容</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>提现总览</td><td>总提现笔数、总提现金额、平均处理时间、总记录数</td></tr>
+    <tr><td>银行卡提现</td><td>提现申请（笔数/金额）、配对后成功率（含成功配對充值單筆數、配對後成功筆數）、平均处理时间</td></tr>
+    <tr><td>支付宝提现</td><td>同银行卡结构的支付宝统计</td></tr>
+    <tr><td>微信提现</td><td>同银行卡结构的微信统计</td></tr>
+    <tr><td>状态分布</td><td>各提现状态的笔数统计</td></tr>
+  </tbody>
+</table>
+
 <hr>
 
 <h2>五、日/周報數據匯總</h2>
@@ -1041,8 +1197,8 @@ AND 提現狀態 ≠ "提現完成/提现完成"（按訂單號去重）
   </thead>
   <tbody>
     <tr><td><strong>充值申請筆數</strong></td><td>銀行卡申請筆數 + 支付寶申請筆數</td></tr>
-    <tr><td><strong>JS充值等待最終無配對</strong></td><td>銀行卡小計 + 支付寶小計</td></tr>
-    <tr><td><strong>無卡空單率</strong></td><td>JS充值等待最終無配對 / 充值申請筆數 × 100%</td></tr>
+    <tr><td><strong>极速充值等待最终无配对</strong></td><td>銀行卡小計 + 支付寶小計</td></tr>
+    <tr><td><strong>無卡空單率</strong></td><td>极速充值等待最终无配对 / 充值申請筆數 × 100%</td></tr>
   </tbody>
 </table>
 
@@ -1053,8 +1209,8 @@ AND 提現狀態 ≠ "提現完成/提现完成"（按訂單號去重）
   </thead>
   <tbody>
     <tr><td><strong>充值配對(配一般卡)</strong></td><td>銀行卡一般卡 + 支付寶一般卡 + 一般寶</td></tr>
-    <tr><td><strong>充值配對(配JS)</strong></td><td>銀行卡極速提 + 支付寶極速提(卡) + 極速提(寶)</td></tr>
-    <tr><td><strong>充值配對總數</strong></td><td>配一般卡 + 配JS</td></tr>
+    <tr><td><strong>充值配对(配极速)</strong></td><td>銀行卡極速提 + 支付寶極速提(卡) + 極速提(寶)</td></tr>
+    <tr><td><strong>充值配對總數</strong></td><td>配一般卡 + 配极速</td></tr>
     <tr><td><strong>充值配對率</strong></td><td>充值配對總數 / 充值申請筆數 × 100%</td></tr>
   </tbody>
 </table>
@@ -1066,8 +1222,8 @@ AND 提現狀態 ≠ "提現完成/提现完成"（按訂單號去重）
   </thead>
   <tbody>
     <tr><td><strong>訂單成功(一般卡)</strong></td><td>銀行卡訂單成功一般卡 + 支付寶訂單成功一般卡 + 一般寶</td></tr>
-    <tr><td><strong>訂單成功(Js+一般提)</strong></td><td>銀行卡極速提 + 支付寶極速提(卡) + 極速提(寶)</td></tr>
-    <tr><td><strong>訂單成功(加總筆數)</strong></td><td>一般卡 + Js+一般提</td></tr>
+    <tr><td><strong>订单成功(极速+一般提)</strong></td><td>銀行卡極速提 + 支付寶極速提(卡) + 極速提(寶)</td></tr>
+    <tr><td><strong>訂單成功(加總筆數)</strong></td><td>一般卡 + 极速+一般提</td></tr>
     <tr><td><strong>配對後成功率</strong></td><td>訂單成功加總 / 充值配對總數 × 100%</td></tr>
   </tbody>
 </table>
@@ -1092,7 +1248,7 @@ AND 提現狀態 ≠ "提現完成/提现完成"（按訂單號去重）
   <tbody>
     <tr><td><strong>騙分金額</strong></td><td>銀行卡人工金額 + 銀行卡信評金額 + 支付寶人工金額 + 支付寶信評金額</td></tr>
     <tr><td><strong>騙分成本占比</strong></td><td>騙分金額 / 配極速充值訂單成功(金額) × 100%</td></tr>
-    <tr><td><strong>JS提現返利</strong></td><td>提現記錄中的 merchantRebate（提現CSV第8欄H欄「商戶返利」）加總金額</td></tr>
+    <tr><td><strong>极速提现返利</strong></td><td>提現記錄中的 商戶返利（提現CSV第8欄H欄「商戶返利」）加總金額</td></tr>
   </tbody>
 </table>
 
@@ -1133,10 +1289,11 @@ AND 提現狀態 ≠ "提現完成/提现完成"（按訂單號去重）
     <tr><td><strong>微信</strong></td><td>商戶含「微信」且不含 test/qa/線下</td></tr>
     <tr><td><strong>金寶</strong></td><td>銀行卡代號 GB 開頭（排除 GB-Dahaomen），排除線下商戶</td></tr>
     <tr><td><strong>極速</strong></td><td>銀行卡代號 AUCTION 開頭，排除線下商戶</td></tr>
-    <tr><td><strong>第三方</strong></td><td>銀行卡代號非 AUCTION/GB 開頭，或 GB-Dahaomen 開頭，排除線下商戶</td></tr>
+    <tr><td><strong>第三方</strong></td><td>銀行卡代號非 AUCTION/GB 開頭，但把銀行卡代碼GB-Dahaomen 算入三方並排除線下商戶</td></tr>
     <tr><td><strong>非正向信評</strong></td><td>狀態以「信用」或「信评」或「信評」開頭</td></tr>
   </tbody>
 </table>
+<p>＊說明：金寶-（大豪門）Dahaomen為支付寶代付三方，銀行卡代號：GB-Dahaomen，因應充值單的換卡作業所使用的銀卡代號</p>
 
 <h4>5.4.3 提現指標計算公式</h4>
 <table>
@@ -1159,21 +1316,21 @@ AND 提現狀態 ≠ "提現完成/提现完成"（按訂單號去重）
   </thead>
   <tbody>
     <tr><td><strong>整體</strong></td><td>(銀行卡 + 支付寶 + 微信) + 線下，按訂單號去重</td></tr>
-    <tr><td><strong>支付寶</strong></td><td>merchant 含「支付寶/支付宝」，按訂單號去重</td></tr>
-    <tr><td><strong>微信</strong></td><td>merchant 含「微信」，按訂單號去重</td></tr>
-    <tr><td><strong>金寶</strong></td><td>payoutCardCode 以 GB 開頭（非 GB-Dahaomen），按訂單號去重</td></tr>
-    <tr><td><strong>極速</strong></td><td>payoutCardCode 包含 AUCTION，按訂單號去重</td></tr>
-    <tr><td><strong>第三方</strong></td><td>payoutCardCode 不為空且不包含 AUCTION，按訂單號去重</td></tr>
+    <tr><td><strong>支付寶</strong></td><td>出款商戶含「支付寶/支付宝」，按訂單號去重</td></tr>
+    <tr><td><strong>微信</strong></td><td>出款商戶含「微信」，按訂單號去重</td></tr>
+    <tr><td><strong>金寶</strong></td><td>轉出帳號以 GB 開頭（非 GB-Dahaomen），按訂單號去重</td></tr>
+    <tr><td><strong>極速</strong></td><td>轉出帳號包含 AUCTION，按訂單號去重</td></tr>
+    <tr><td><strong>第三方</strong></td><td>轉出帳號不為空且不包含 AUCTION，按訂單號去重</td></tr>
   </tbody>
 </table>
 
 <h4>5.4.5 提現欄位說明</h4>
 <table>
   <thead>
-    <tr><th>欄位代號</th><th>CSV位置</th><th>說明</th></tr>
+    <tr><th>欄位名稱</th><th>充值紀錄csv位置</th><th>說明</th></tr>
   </thead>
   <tbody>
-    <tr><td><strong>merchantRebate</strong></td><td>第8欄（H欄）</td><td>商戶返利金額，用於計算 JS提現返利</td></tr>
+    <tr><td><strong>商戶返利</strong></td><td>第8欄（H欄）</td><td>商戶返利金額，用於計算 极速提现返利</td></tr>
   </tbody>
 </table>
 
@@ -1480,7 +1637,7 @@ AND 提現狀態 ≠ "提現完成/提现完成"（按訂單號去重）
   </thead>
   <tbody>
     <tr><td><code>用户确认到帐</code> / <code>用戶確認到帳</code></td><td>c2c 點確認判斷</td></tr>
-    <tr><td><code>商户确认到帐</code> / <code>商戶確認到帳</code></td><td>超過11min補件後成功判斷</td></tr>
+    <tr><td><code>商户确认到帐</code> / <code>商戶確認到帳</code></td><td>用戶較久補材料後成功判斷</td></tr>
     <tr><td><code>银商确认到账</code> / <code>銀商確認到帳</code></td><td>微信平均時間計算</td></tr>
     <tr><td><code>金額補單</code> / <code>金额补单</code></td><td>人工審核判斷</td></tr>
     <tr><td><code>明细补单</code> / <code>明細補單</code></td><td>微信平均時間計算</td></tr>
@@ -1595,12 +1752,18 @@ AND 提現狀態 ≠ "提現完成/提现完成"（按訂單號去重）
     <tr><th>版本</th><th>日期</th><th>說明</th></tr>
   </thead>
   <tbody>
+    <tr><td>v2.5.0</td><td>2026-04-29</td><td>提現分析報表移除「充值配對率／充值申請／成功配對」三個欄位（4.10 銀行卡、4.11 支付寶、4.12 微信），UI、Excel 匯出與 PRD 同步調整；4.10–4.12 表格改為「項目／業務含義／計算方式／數據來源」四欄結構，數據範圍改以「商戶的極速模式」描述，新增 📌 註說明充值側欄位引用 3.6/3.7/3.8；配對後成功率底下子欄位重新命名（充值成功筆數→成功配對充值單筆數、成功配對筆數→配對後成功筆數）；新增 4.15.1 匯出 Excel 章節並更新工作表結構說明；充值區塊及日週報維持原樣</td></tr>
+    <tr><td>v2.4.0</td><td>2026-04-22</td><td>移除「處理時間分布」區塊（頁面與PRD），保留「充值成功時間區段」（3.5節）作為唯一時間分布呈現</td></tr>
+    <tr><td>v2.3.0</td><td>2026-04-16</td><td>移除「即時統計(2小時內)」，替換為「當日資料試算」（3.1.1、4.2節）：點擊後解鎖當日日期選擇並重新計算指標</td></tr>
+    <tr><td>v2.2.0</td><td>2026-03-12</td><td>新增數據來源說明（3.1、4.1、5.1節）；日期範圍補充「數據可往回一個月」（3.1.1節）；充值申請筆數重構：更新建單成功等待無配對/取無卡06提示計算說明、新增無效申請、成功配對合併至3.6.1（3.6節）；章節重新編號（3.6.2~3.6.7）；附加操作範例截圖</td></tr>
+    <tr><td>v2.1.0</td><td>2026-03-11</td><td>補充匯出功能文檔：充值分析匯出 Excel（3.10節）、提現分析匯出 Excel（4.15節）、騙分統計匯出 Excel（6.3節）、指標數據分析模板匯出（5.6節）、數據比較匯出（5.7節）</td></tr>
+    <tr><td>v2.0.0</td><td>2026-03-06</td><td>新增「即時統計(2小時內)」篩選功能（3.1.1、4.2節）：勾選後可即時運算最近2小時內的數據</td></tr>
     <tr><td>v1.9.9</td><td>2026-02-11</td><td>提現渠道切換新增判斷順序說明（4.3節）；同步 CRITERIA.md 內容</td></tr>
     <tr><td>v1.9.8</td><td>2026-02-11</td><td>新增術語定義（2.7節）；平均時間公式改用 CSV 欄位名稱（4.8節）；移除渠道統計的程式變數名稱（4.10-4.12節）</td></tr>
     <tr><td>v1.9.7</td><td>2026-02-11</td><td>提現渠道切換說明改用實際條件（收款銀行/出款商戶）取代 remark 變數</td></tr>
     <tr><td>v1.9.6</td><td>2026-02-11</td><td>修正 csvParser.js 商業平台邏輯：改為「外部商戶開頭」匹配（符合準則 3.9 節）</td></tr>
     <tr><td>v1.9.5</td><td>2026-02-11</td><td>騙分統計資料儲存位置改為資料庫（6.1、6.3節）</td></tr>
-    <tr><td>v1.9.4</td><td>2026-02-11</td><td>補充 merchantRebate 欄位說明（5.3.5、5.4.5）：提現CSV第8欄H欄「商戶返利」，用於計算 JS提現返利</td></tr>
+    <tr><td>v1.9.4</td><td>2026-02-11</td><td>補充 merchantRebate 欄位說明（5.3.5、5.4.5）：提現CSV第8欄H欄「商戶返利」，用於計算 极速提现返利</td></tr>
     <tr><td>v1.9.3</td><td>2026-02-11</td><td>補充提現分析報表完整內容（4.3-4.13）：數據範圍、提現成功/失敗條件、提现总览、平均時間、时间区段、渠道詳細公式、欄位對照表、計算流程；更新提現失敗條件含「說明≠提現完成/提现完成」</td></tr>
     <tr><td>v1.9.2</td><td>2026-02-11</td><td>商業平台數據範圍修正為「外部商戶開頭」（3.6.8節），與 CRITERIA 同步</td></tr>
     <tr><td>v1.9.1</td><td>2026-02-11</td><td>補充微信區塊完整公式（3.8.2-3.8.7：成功配對、訂單成功、沒信評降等配卡、c2c區塊、三方代收區塊、騙分沒到帳來找）；補充欄位對照表（8.2提現數據CSV欄位、8.4狀態關鍵字）</td></tr>

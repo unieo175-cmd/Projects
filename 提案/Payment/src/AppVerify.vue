@@ -8,59 +8,13 @@ import Charts from './components/Charts.vue';
 import FraudStats from './components/FraudStats.vue';
 // import PrdPage from './components/PrdPage.vue';  // 暫時隱藏
 import PmMetrics from './components/PmMetrics.vue';
-import { parseCSV, calculateMetrics, parseWithdrawCSV, calculateWithdrawMetrics, exportDepositToExcel, exportWithdrawToExcel, exportCompareToExcel } from './utils/csvParser';
+import ReportParams from './components/ReportParams.vue';
+import { calculateMetrics, calculateWithdrawMetrics, exportDepositToExcel, exportWithdrawToExcel } from './utils/csvParser';
 import HistoryView from './components/HistoryView.vue';
-import * as XLSX from 'xlsx';
+import { useAppStorage } from './composables/useAppStorage';
+import { useFileUpload } from './composables/useFileUpload';
 
-// 解析 XLSX 文件转换为 CSV 格式内容
-const parseXLSXToCSV = async (file) => {
-  const data = await file.arrayBuffer();
-  const workbook = XLSX.read(data, { type: 'array' });
-  const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-  return XLSX.utils.sheet_to_csv(firstSheet);
-};
-
-// 获取文件扩展名
-const getFileExtension = (filename) => {
-  return filename.split('.').pop().toLowerCase();
-};
-
-// 检测 CSV 文件类型（充值 or 提现）
-const detectFileType = (content) => {
-  const lines = content.split('\n');
-  if (lines.length < 1) return 'unknown';
-
-  const header = lines[0].toLowerCase();
-
-  // 充值文件特征关键字（检查表头）
-  const depositKeywords = ['到帳金額', '到账金额', '銀行名稱', '银行名称', '銀行卡編碼', '银行卡编码', '收款商戶', '收款商户'];
-  // 提现文件特征关键字（检查表头）
-  const withdrawKeywords = ['收款銀行', '收款银行', '收款卡號', '收款卡号', '收款姓名', '收款地址', '出款商戶', '出款商户', '出款卡編碼', '出款卡编码'];
-
-  const hasDepositKeyword = depositKeywords.some(k => header.includes(k.toLowerCase()));
-  const hasWithdrawKeyword = withdrawKeywords.some(k => header.includes(k.toLowerCase()));
-
-  // 如果表头不够明确，检查数据行的特征
-  if (!hasDepositKeyword && !hasWithdrawKeyword && lines.length > 1) {
-    const dataLine = lines[1].toLowerCase();
-    // 充值数据通常有 "已充值", "未充值", "信用評分" 等状态
-    const depositStatusKeywords = ['已充值', '未充值', '信用評分', '信用评分', '回單驗證', '回单验证'];
-    // 提现数据通常有 "转账完成", "转账失败", "通知完成" 等状态
-    const withdrawStatusKeywords = ['转账完成', '轉帳完成', '转账失败', '轉帳失敗', '通知完成'];
-
-    const hasDepositStatus = depositStatusKeywords.some(k => dataLine.includes(k.toLowerCase()));
-    const hasWithdrawStatus = withdrawStatusKeywords.some(k => dataLine.includes(k.toLowerCase()));
-
-    if (hasDepositStatus && !hasWithdrawStatus) return 'deposit';
-    if (hasWithdrawStatus && !hasDepositStatus) return 'withdraw';
-  }
-
-  if (hasDepositKeyword && !hasWithdrawKeyword) return 'deposit';
-  if (hasWithdrawKeyword && !hasDepositKeyword) return 'withdraw';
-
-  return 'unknown';
-};
-
+// ===== Reactive state =====
 const allRecords = ref([]);
 const filteredRecords = ref([]);
 const depositRecords = ref([]);
@@ -70,781 +24,53 @@ const loadingProgress = ref(0);
 const loadingStatus = ref('等待导入数据...');
 const dataDate = ref('2026-01-01');
 const dateRange = ref({ dateFrom: '', dateTo: '' });
-
-// 数据导入状态
 const hasDepositData = ref(false);
 const hasWithdrawData = ref(false);
 const depositFileName = ref('');
 const withdrawFileName = ref('');
-
-// 文件输入 refs
-const depositFileInput = ref(null);
-const withdrawFileInput = ref(null);
-
-// 分页切换
 const activeTab = ref('deposit');
-
-// 侧边栏伸缩
 const sidebarCollapsed = ref(false);
-const toggleSidebar = () => {
-  sidebarCollapsed.value = !sidebarCollapsed.value;
-};
-
-// 渠道切换
 const activeChannel = ref('all');
 
-const handleChannelChange = (channel) => {
-  activeChannel.value = channel;
-};
+const toggleSidebar = () => { sidebarCollapsed.value = !sidebarCollapsed.value; };
+const handleChannelChange = (channel) => { activeChannel.value = channel; };
 
-// 文件上传限制 500MB
-const MAX_FILE_SIZE = 500 * 1024 * 1024;
+// ===== Composables =====
+const {
+  historyList,
+  loadFromStorage,
+  saveDepositToStorage,
+  saveWithdrawToStorage,
+  saveToHistory,
+  loadHistoryList,
+  loadFromHistory,
+  deleteHistory,
+  clearAllData,
+} = useAppStorage({
+  depositRecords, withdrawRecords, depositFileName, withdrawFileName,
+  dataDate, hasDepositData, hasWithdrawData, allRecords, filteredRecords, activeTab,
+  depositMetrics: null, withdrawMetrics: null,
+});
 
-// IndexedDB 数据库名称和版本
-const DB_NAME = 'VerifyDataDB';
-const DB_VERSION = 2;
-const STORE_NAME = 'verifyData';
-const HISTORY_STORE_NAME = 'uploadHistory';
+const {
+  depositFileInput,
+  withdrawFileInput,
+  handleDepositUpload,
+  handleWithdrawUpload,
+  loadTestData,
+} = useFileUpload({
+  depositRecords, withdrawRecords, hasDepositData, hasWithdrawData,
+  depositFileName, withdrawFileName, dataDate, activeTab,
+  allRecords, filteredRecords, isLoading, loadingProgress, loadingStatus,
+  saveDepositToStorage, saveWithdrawToStorage,
+});
 
-// 打开 IndexedDB 数据库
-const openDB = () => {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve(request.result);
-
-    request.onupgradeneeded = (event) => {
-      const db = event.target.result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
-      }
-      // 新增 uploadHistory store
-      if (!db.objectStoreNames.contains(HISTORY_STORE_NAME)) {
-        const historyStore = db.createObjectStore(HISTORY_STORE_NAME, { keyPath: 'id' });
-        historyStore.createIndex('uploadTime', 'uploadTime', { unique: false });
-      }
-    };
-  });
-};
-
-// 保存数据到 IndexedDB (使用 JSON 序列化)
-const saveToIndexedDB = async (key, data) => {
-  try {
-    const db = await openDB();
-    const transaction = db.transaction([STORE_NAME], 'readwrite');
-    const store = transaction.objectStore(STORE_NAME);
-    // 使用 JSON 序列化确保数据可以被存储
-    const serialized = JSON.stringify(data);
-    store.put({ id: key, data: serialized });
-
-    return new Promise((resolve, reject) => {
-      transaction.oncomplete = () => {
-        db.close();
-        resolve();
-      };
-      transaction.onerror = () => {
-        db.close();
-        reject(transaction.error);
-      };
-    });
-  } catch (e) {
-    console.error('IndexedDB 保存失败:', e);
-  }
-};
-
-// 从 IndexedDB 读取数据
-const loadFromIndexedDB = async (key) => {
-  try {
-    const db = await openDB();
-    const transaction = db.transaction([STORE_NAME], 'readonly');
-    const store = transaction.objectStore(STORE_NAME);
-    const request = store.get(key);
-
-    return new Promise((resolve, reject) => {
-      request.onsuccess = () => {
-        db.close();
-        const result = request.result?.data;
-        // 解析 JSON 数据
-        if (result) {
-          try {
-            resolve(JSON.parse(result));
-          } catch {
-            resolve(result);
-          }
-        } else {
-          resolve(null);
-        }
-      };
-      request.onerror = () => {
-        db.close();
-        reject(request.error);
-      };
-    });
-  } catch (e) {
-    console.error('IndexedDB 读取失败:', e);
-    return null;
-  }
-};
-
-// 保存充值数据
-const saveDepositToStorage = async () => {
-  try {
-    await saveToIndexedDB('depositRecords', depositRecords.value);
-    await saveToIndexedDB('depositFileName', depositFileName.value);
-    await saveToIndexedDB('dataDate', dataDate.value);
-    console.log('充值数据已保存到 IndexedDB，记录数:', depositRecords.value.length);
-  } catch (e) {
-    console.error('保存充值数据失败:', e);
-  }
-};
-
-// 保存提现数据
-const saveWithdrawToStorage = async () => {
-  try {
-    await saveToIndexedDB('withdrawRecords', withdrawRecords.value);
-    await saveToIndexedDB('withdrawFileName', withdrawFileName.value);
-    console.log('提现数据已保存到 IndexedDB，记录数:', withdrawRecords.value.length);
-  } catch (e) {
-    console.error('保存提现数据失败:', e);
-  }
-};
-
-// 从 IndexedDB 加载数据
-const loadFromStorage = async () => {
-  try {
-    // 加载充值数据
-    const savedDeposit = await loadFromIndexedDB('depositRecords');
-    if (savedDeposit && savedDeposit.length > 0) {
-      depositRecords.value = savedDeposit;
-      hasDepositData.value = true;
-      depositFileName.value = await loadFromIndexedDB('depositFileName') || '';
-      dataDate.value = await loadFromIndexedDB('dataDate') || '';
-      allRecords.value = savedDeposit;
-      filteredRecords.value = [...savedDeposit];
-      console.log('充值数据已从 IndexedDB 恢复，记录数:', savedDeposit.length);
-    }
-
-    // 加载提现数据
-    const savedWithdraw = await loadFromIndexedDB('withdrawRecords');
-    if (savedWithdraw && savedWithdraw.length > 0) {
-      withdrawRecords.value = savedWithdraw;
-      hasWithdrawData.value = true;
-      withdrawFileName.value = await loadFromIndexedDB('withdrawFileName') || '';
-      console.log('提现数据已从 IndexedDB 恢复，记录数:', savedWithdraw.length);
-    }
-  } catch (e) {
-    console.error('加载数据失败:', e);
-  }
-};
-
-// ===== 上传历史记录管理 =====
-const historyList = ref([]);
-const showHistoryModal = ref(false);
-
-// 获取数据日期范围
-const getDataDateRange = () => {
-  let minDate = null;
-  let maxDate = null;
-
-  const allRecords = [...depositRecords.value, ...withdrawRecords.value];
-  allRecords.forEach(r => {
-    const dateStr = r.requestTime ? r.requestTime.split(' ')[0] : null;
-    if (dateStr) {
-      if (!minDate || dateStr < minDate) minDate = dateStr;
-      if (!maxDate || dateStr > maxDate) maxDate = dateStr;
-    }
-  });
-
-  return { start: minDate || '', end: maxDate || '' };
-};
-
-// 生成历史记录 ID
-const generateHistoryId = (dateRange) => {
-  if (dateRange.start === dateRange.end) {
-    return dateRange.start;
-  }
-  return `${dateRange.start}_${dateRange.end}`;
-};
-
-// 保存到历史记录
-const saveToHistory = async () => {
-  if (!hasDepositData.value && !hasWithdrawData.value) {
-    alert('请先导入数据');
-    return;
-  }
-
-  const dateRange = getDataDateRange();
-  const historyId = generateHistoryId(dateRange);
-
-  // 检查是否已存在
-  const existing = await loadHistoryById(historyId);
-  if (existing) {
-    if (!confirm(`日期范围 ${historyId} 的记录已存在，是否覆盖？`)) {
-      return;
-    }
-  }
-
-  // 计算指标摘要
-  const depositMet = depositMetrics.value || {};
-  const withdrawMet = withdrawMetrics.value || {};
-
-  const historyRecord = {
-    id: historyId,
-    uploadTime: new Date().toISOString(),
-    dataDateRange: dateRange,
-    depositFileName: depositFileName.value,
-    withdrawFileName: withdrawFileName.value,
-    depositRecords: depositRecords.value,
-    withdrawRecords: withdrawRecords.value,
-    depositCount: depositRecords.value.length,
-    withdrawCount: withdrawRecords.value.length,
-    metrics: {
-      deposit: {
-        totalApplicationCount: depositMet.totalApplicationCount || 0,
-        successfulCount: depositMet.successfulCount || 0,
-        overallSuccessRate: depositMet.overallSuccessRate || 0,
-        totalApplicationAmount: depositMet.totalApplicationAmount || 0,
-        overallAvgTime: depositMet.overallAvgTime || 0,
-      },
-      withdraw: {
-        totalWithdrawCount: withdrawMet.totalWithdrawCount || 0,
-        totalWithdrawAmount: withdrawMet.totalWithdrawAmount || 0,
-        avgProcessingTime: withdrawMet.avgProcessingTime || 0,
-      },
-    }
-  };
-
-  try {
-    const db = await openDB();
-    const transaction = db.transaction([HISTORY_STORE_NAME], 'readwrite');
-    const store = transaction.objectStore(HISTORY_STORE_NAME);
-    // 存储完整数据
-    const serialized = JSON.stringify(historyRecord);
-    store.put({ id: historyId, data: serialized });
-
-    await new Promise((resolve, reject) => {
-      transaction.oncomplete = () => {
-        db.close();
-        resolve();
-      };
-      transaction.onerror = () => {
-        db.close();
-        reject(transaction.error);
-      };
-    });
-
-    alert(`已保存到历史记录：${historyId}`);
-    await loadHistoryList();
-  } catch (e) {
-    console.error('保存历史记录失败:', e);
-    alert('保存失败: ' + e.message);
-  }
-};
-
-// 加载历史记录列表
-const loadHistoryList = async () => {
-  try {
-    const db = await openDB();
-    const transaction = db.transaction([HISTORY_STORE_NAME], 'readonly');
-    const store = transaction.objectStore(HISTORY_STORE_NAME);
-    const request = store.getAll();
-
-    return new Promise((resolve, reject) => {
-      request.onsuccess = () => {
-        db.close();
-        const results = request.result || [];
-        historyList.value = results.map(item => {
-          try {
-            const parsed = JSON.parse(item.data);
-            return {
-              id: item.id,
-              uploadTime: parsed.uploadTime,
-              dataDateRange: parsed.dataDateRange,
-              depositFileName: parsed.depositFileName,
-              withdrawFileName: parsed.withdrawFileName,
-              depositCount: parsed.depositCount,
-              withdrawCount: parsed.withdrawCount,
-              metrics: parsed.metrics,
-            };
-          } catch {
-            return null;
-          }
-        }).filter(Boolean).sort((a, b) => new Date(b.uploadTime) - new Date(a.uploadTime));
-        resolve(historyList.value);
-      };
-      request.onerror = () => {
-        db.close();
-        reject(request.error);
-      };
-    });
-  } catch (e) {
-    console.error('加载历史列表失败:', e);
-    return [];
-  }
-};
-
-// 通过 ID 加载历史记录
-const loadHistoryById = async (id) => {
-  try {
-    const db = await openDB();
-    const transaction = db.transaction([HISTORY_STORE_NAME], 'readonly');
-    const store = transaction.objectStore(HISTORY_STORE_NAME);
-    const request = store.get(id);
-
-    return new Promise((resolve, reject) => {
-      request.onsuccess = () => {
-        db.close();
-        const result = request.result?.data;
-        if (result) {
-          try {
-            resolve(JSON.parse(result));
-          } catch {
-            resolve(null);
-          }
-        } else {
-          resolve(null);
-        }
-      };
-      request.onerror = () => {
-        db.close();
-        reject(request.error);
-      };
-    });
-  } catch (e) {
-    console.error('加载历史记录失败:', e);
-    return null;
-  }
-};
-
-// 从历史记录恢复数据
-const loadFromHistory = async (id) => {
-  const record = await loadHistoryById(id);
-  if (!record) {
-    alert('未找到该历史记录');
-    return;
-  }
-
-  // 恢复数据
-  depositRecords.value = record.depositRecords || [];
-  withdrawRecords.value = record.withdrawRecords || [];
-  depositFileName.value = record.depositFileName || '';
-  withdrawFileName.value = record.withdrawFileName || '';
-  hasDepositData.value = depositRecords.value.length > 0;
-  hasWithdrawData.value = withdrawRecords.value.length > 0;
-
-  if (depositRecords.value.length > 0 && depositRecords.value[0].requestTime) {
-    dataDate.value = depositRecords.value[0].requestTime.split(' ')[0];
-  }
-
-  allRecords.value = depositRecords.value;
-  filteredRecords.value = [...depositRecords.value];
-  activeTab.value = 'deposit';
-
-  // 保存到当前 session
-  await saveDepositToStorage();
-  await saveWithdrawToStorage();
-
-  alert(`已加载历史记录：${id}`);
-};
-
-// 删除历史记录
-const deleteHistory = async (id) => {
-  if (!confirm(`确定要删除历史记录 ${id} 吗？`)) return;
-
-  try {
-    const db = await openDB();
-    const transaction = db.transaction([HISTORY_STORE_NAME], 'readwrite');
-    const store = transaction.objectStore(HISTORY_STORE_NAME);
-    store.delete(id);
-
-    await new Promise((resolve, reject) => {
-      transaction.oncomplete = () => {
-        db.close();
-        resolve();
-      };
-      transaction.onerror = () => {
-        db.close();
-        reject(transaction.error);
-      };
-    });
-
-    await loadHistoryList();
-    alert('已删除历史记录');
-  } catch (e) {
-    console.error('删除历史记录失败:', e);
-    alert('删除失败: ' + e.message);
-  }
-};
-
-// 页面加载时从 IndexedDB 恢复数据
 onMounted(() => {
   loadFromStorage();
   loadHistoryList();
 });
 
-// 测试点击
-const testClick = () => {
-  console.log('=== TEST CLICK ===');
-  window.alert('測試成功！');
-};
-
-// 打开文件选择器
-const openDepositFile = () => {
-  console.log('=== openDepositFile 被點擊 ===');
-  const input = depositFileInput.value;
-  if (input) {
-    console.log('觸發 depositFileInput.click()');
-    input.value = ''; // 重置以便重新选择同一文件
-    input.click();
-  } else {
-    console.error('depositFileInput ref 不存在');
-  }
-};
-
-const openWithdrawFile = () => {
-  console.log('=== openWithdrawFile 被點擊 ===');
-  const input = withdrawFileInput.value;
-  if (input) {
-    console.log('觸發 withdrawFileInput.click()');
-    input.value = '';
-    input.click();
-  } else {
-    console.error('withdrawFileInput ref 不存在');
-  }
-};
-
-// 拖放处理
-const handleDepositDrop = (e) => {
-  console.log('=== handleDepositDrop ===');
-  const files = e.dataTransfer.files;
-  if (files.length > 0) {
-    handleDepositUpload({ target: { files } });
-  }
-};
-
-const handleWithdrawDrop = (e) => {
-  console.log('=== handleWithdrawDrop ===');
-  const files = e.dataTransfer.files;
-  if (files.length > 0) {
-    handleWithdrawUpload({ target: { files } });
-  }
-};
-
-// 清除所有数据
-const clearAllData = async () => {
-  console.log('=== clearAllData 被點擊 ===');
-  if (!confirm('确定要清除所有已导入的数据吗？')) return;
-
-  try {
-    await indexedDB.deleteDatabase(DB_NAME);
-    console.log('IndexedDB 已清除');
-
-    // 重置所有状态
-    depositRecords.value = [];
-    withdrawRecords.value = [];
-    allRecords.value = [];
-    filteredRecords.value = [];
-    hasDepositData.value = false;
-    hasWithdrawData.value = false;
-    depositFileName.value = '';
-    withdrawFileName.value = '';
-    dataDate.value = '2026-01-01';
-
-    alert('数据已清除，请重新上传 CSV 文件');
-  } catch (e) {
-    console.error('清除数据失败:', e);
-    alert('清除失败: ' + e.message);
-  }
-};
-
-// 载入测试数据 (从 public/testdata 目录)
-const loadTestData = async () => {
-  console.log('=== 开始载入测试数据 ===');
-  isLoading.value = true;
-  loadingProgress.value = 0;
-  loadingStatus.value = '正在载入测试数据...';
-
-  try {
-    // 载入充值数据
-    loadingStatus.value = '正在载入充值数据...';
-    loadingProgress.value = 10;
-    console.log('正在 fetch /testdata/deposit.csv ...');
-    const depositResponse = await fetch('/testdata/deposit.csv');
-    console.log('deposit.csv response status:', depositResponse.status);
-    if (!depositResponse.ok) {
-      throw new Error('无法载入充值数据: ' + depositResponse.status);
-    }
-    const depositContent = await depositResponse.text();
-    console.log('充值 CSV 内容长度:', depositContent.length, '字符');
-    console.log('充值 CSV 行数:', depositContent.split('\n').length);
-    loadingProgress.value = 30;
-
-    console.log('开始解析充值数据...');
-    const depositParsed = parseCSV(depositContent);
-    console.log('充值解析结果:', depositParsed.length, '笔');
-    if (depositParsed.length > 0) {
-      console.log('第一笔充值记录:', JSON.stringify(depositParsed[0], null, 2));
-    } else {
-      console.warn('警告: 充值数据解析结果为空!');
-    }
-
-    depositRecords.value = depositParsed;
-    hasDepositData.value = depositParsed.length > 0;
-    depositFileName.value = '24437_充值紀錄_20260126_20260201.csv';
-
-    if (depositParsed.length > 0 && depositParsed[0].requestTime) {
-      dataDate.value = depositParsed[0].requestTime.split(' ')[0];
-    }
-    console.log('充值数据载入完成，记录数:', depositParsed.length);
-
-    // 载入提现数据
-    loadingStatus.value = '正在载入提现数据...';
-    loadingProgress.value = 50;
-    console.log('正在 fetch /testdata/withdraw.csv ...');
-    const withdrawResponse = await fetch('/testdata/withdraw.csv');
-    console.log('withdraw.csv response status:', withdrawResponse.status);
-    if (!withdrawResponse.ok) {
-      throw new Error('无法载入提现数据: ' + withdrawResponse.status);
-    }
-    const withdrawContent = await withdrawResponse.text();
-    console.log('提现 CSV 内容长度:', withdrawContent.length, '字符');
-    console.log('提现 CSV 行数:', withdrawContent.split('\n').length);
-    loadingProgress.value = 70;
-
-    console.log('开始解析提现数据...');
-    const withdrawParsed = parseWithdrawCSV(withdrawContent);
-    console.log('提现解析结果:', withdrawParsed.length, '笔');
-    if (withdrawParsed.length > 0) {
-      console.log('第一笔提现记录:', JSON.stringify(withdrawParsed[0], null, 2));
-    } else {
-      console.warn('警告: 提现数据解析结果为空!');
-    }
-
-    withdrawRecords.value = withdrawParsed;
-    hasWithdrawData.value = withdrawParsed.length > 0;
-    withdrawFileName.value = '24455_提現紀錄_20260126_20260201.csv';
-    console.log('提现数据载入完成，记录数:', withdrawParsed.length);
-
-    // 更新显示
-    allRecords.value = depositParsed;
-    filteredRecords.value = [...depositParsed];
-    activeTab.value = 'deposit';
-    console.log('已更新显示数据, allRecords:', allRecords.value.length, 'filteredRecords:', filteredRecords.value.length);
-
-    loadingProgress.value = 90;
-    loadingStatus.value = '正在保存数据...';
-
-    // 保存到 IndexedDB
-    await saveDepositToStorage();
-    await saveWithdrawToStorage();
-    console.log('数据已保存到 IndexedDB');
-
-    loadingProgress.value = 100;
-    loadingStatus.value = `测试数据载入完成！充值 ${depositParsed.length} 笔，提现 ${withdrawParsed.length} 笔`;
-    console.log('=== 测试数据载入完成 ===');
-
-  } catch (error) {
-    console.error('载入测试数据失败:', error);
-    console.error('错误堆栈:', error.stack);
-    loadingStatus.value = '载入失败: ' + error.message;
-    alert('载入测试数据失败: ' + error.message);
-  } finally {
-    setTimeout(() => {
-      isLoading.value = false;
-    }, 1000);
-  }
-};
-
-// 处理充值数据上传
-const handleDepositUpload = async (event) => {
-  console.log('handleDepositUpload 被调用', event.target.files);
-  const file = event.target.files[0];
-  if (!file) {
-    console.log('没有选择文件');
-    return;
-  }
-  console.log('开始上传文件:', file.name, '大小:', file.size);
-
-  if (file.size > MAX_FILE_SIZE) {
-    alert('文件大小超过 500MB 限制，请选择较小的文件');
-    event.target.value = '';
-    return;
-  }
-
-  isLoading.value = true;
-  loadingProgress.value = 0;
-  loadingStatus.value = '正在读取充值数据...';
-
-  try {
-    loadingProgress.value = 30;
-    const ext = getFileExtension(file.name);
-    let content;
-
-    if (ext === 'xlsx' || ext === 'xls') {
-      loadingStatus.value = '正在解析 Excel 文件...';
-      content = await parseXLSXToCSV(file);
-    } else {
-      content = await file.text();
-    }
-
-    // 检测文件类型
-    const detectedType = detectFileType(content);
-    console.log('检测到文件类型:', detectedType);
-
-    if (detectedType === 'withdraw') {
-      isLoading.value = false;
-      const confirmSwitch = confirm('检测到这可能是「提现」数据文件，而非「充值」数据文件。\n\n是否要改为导入到「提现数据」？\n\n点击「确定」导入为提现数据\n点击「取消」仍然按充值数据处理');
-      if (confirmSwitch) {
-        // 切换到提现数据处理
-        isLoading.value = true;
-        loadingStatus.value = '正在解析提现数据...';
-        const parsed = parseWithdrawCSV(content);
-        withdrawRecords.value = parsed;
-        hasWithdrawData.value = true;
-        withdrawFileName.value = file.name;
-        allRecords.value = parsed;
-        filteredRecords.value = [...parsed];
-        activeTab.value = 'withdraw';
-        loadingProgress.value = 100;
-        loadingStatus.value = `提现数据导入完成！共 ${parsed.length} 笔记录`;
-        saveWithdrawToStorage();
-        setTimeout(() => { isLoading.value = false; }, 500);
-        event.target.value = '';
-        return;
-      }
-      isLoading.value = true;
-    }
-
-    loadingProgress.value = 60;
-    loadingStatus.value = '正在解析充值数据...';
-
-    const parsed = parseCSV(content);
-    depositRecords.value = parsed;
-    hasDepositData.value = true;
-    depositFileName.value = file.name;
-
-    // 提取数据日期
-    if (parsed.length > 0 && parsed[0].requestTime) {
-      dataDate.value = parsed[0].requestTime.split(' ')[0];
-    }
-
-    // 更新显示并切换到充值页面
-    allRecords.value = parsed;
-    filteredRecords.value = [...parsed];
-    activeTab.value = 'deposit';
-
-    loadingProgress.value = 100;
-    loadingStatus.value = `充值数据导入完成！共 ${parsed.length} 笔记录`;
-
-    // 保存到 IndexedDB
-    saveDepositToStorage();
-
-  } catch (error) {
-    console.error('Error loading deposit data:', error);
-    loadingStatus.value = '导入失败: ' + error.message;
-  } finally {
-    setTimeout(() => {
-      isLoading.value = false;
-    }, 500);
-    event.target.value = '';
-  }
-};
-
-// 处理提现数据上传
-const handleWithdrawUpload = async (event) => {
-  console.log('handleWithdrawUpload 被调用', event.target.files);
-  const file = event.target.files[0];
-  if (!file) {
-    console.log('没有选择文件');
-    return;
-  }
-  console.log('开始上传提现文件:', file.name, '大小:', file.size);
-
-  if (file.size > MAX_FILE_SIZE) {
-    alert('文件大小超过 500MB 限制，请选择较小的文件');
-    event.target.value = '';
-    return;
-  }
-
-  isLoading.value = true;
-  loadingProgress.value = 0;
-  loadingStatus.value = '正在读取提现数据...';
-
-  try {
-    loadingProgress.value = 30;
-    const ext = getFileExtension(file.name);
-    let content;
-
-    if (ext === 'xlsx' || ext === 'xls') {
-      loadingStatus.value = '正在解析 Excel 文件...';
-      content = await parseXLSXToCSV(file);
-    } else {
-      content = await file.text();
-    }
-
-    // 检测文件类型
-    const detectedType = detectFileType(content);
-    console.log('检测到文件类型:', detectedType);
-
-    if (detectedType === 'deposit') {
-      isLoading.value = false;
-      const confirmSwitch = confirm('检测到这可能是「充值」数据文件，而非「提现」数据文件。\n\n是否要改为导入到「充值数据」？\n\n点击「确定」导入为充值数据\n点击「取消」仍然按提现数据处理');
-      if (confirmSwitch) {
-        // 切换到充值数据处理
-        isLoading.value = true;
-        loadingStatus.value = '正在解析充值数据...';
-        const parsed = parseCSV(content);
-        depositRecords.value = parsed;
-        hasDepositData.value = true;
-        depositFileName.value = file.name;
-        if (parsed.length > 0 && parsed[0].requestTime) {
-          dataDate.value = parsed[0].requestTime.split(' ')[0];
-        }
-        allRecords.value = parsed;
-        filteredRecords.value = [...parsed];
-        activeTab.value = 'deposit';
-        loadingProgress.value = 100;
-        loadingStatus.value = `充值数据导入完成！共 ${parsed.length} 笔记录`;
-        saveDepositToStorage();
-        setTimeout(() => { isLoading.value = false; }, 500);
-        event.target.value = '';
-        return;
-      }
-      isLoading.value = true;
-    }
-
-    loadingProgress.value = 60;
-    loadingStatus.value = '正在解析提现数据...';
-
-    const parsed = parseWithdrawCSV(content);
-    withdrawRecords.value = parsed;
-    hasWithdrawData.value = true;
-    withdrawFileName.value = file.name;
-
-    // 更新显示并切换到提现页面
-    allRecords.value = parsed;
-    filteredRecords.value = [...parsed];
-    activeTab.value = 'withdraw';
-
-    loadingProgress.value = 100;
-    loadingStatus.value = `提现数据导入完成！共 ${parsed.length} 笔记录`;
-
-    // 保存到 IndexedDB
-    saveWithdrawToStorage();
-
-  } catch (error) {
-    console.error('Error loading withdraw data:', error);
-    loadingStatus.value = '导入失败: ' + error.message;
-  } finally {
-    setTimeout(() => {
-      isLoading.value = false;
-    }, 500);
-    event.target.value = '';
-  }
-};
-
-// 提现指标
+// ===== Computed metrics =====
 const withdrawMetrics = computed(() => {
   if (withdrawRecords.value.length > 0) {
     return calculateWithdrawMetrics(withdrawRecords.value, null);
@@ -852,19 +78,14 @@ const withdrawMetrics = computed(() => {
   return null;
 });
 
-// 充值指标
 const depositMetrics = computed(() => {
   return calculateMetrics(depositRecords.value, withdrawMetrics.value, dataDate.value);
 });
 
-// 按日期筛选的充值指标
 const filteredDepositMetrics = computed(() => {
   const effectiveDate = dateRange.value.dateFrom || dataDate.value;
-  // 如果只有开始日期，视为单日筛选
   const startDate = dateRange.value.dateFrom || '';
   const endDate = dateRange.value.dateTo || startDate;
-
-  // 筛选充值记录
   let filtered = depositRecords.value;
   if (startDate) {
     filtered = depositRecords.value.filter(r => {
@@ -874,9 +95,6 @@ const filteredDepositMetrics = computed(() => {
       return true;
     });
   }
-
-  console.log('filteredDepositMetrics:', { startDate, endDate, totalRecords: depositRecords.value.length, filteredRecords: filtered.length });
-
   return calculateMetrics(filtered, withdrawMetrics.value, effectiveDate);
 });
 
@@ -888,7 +106,18 @@ const metrics = computed(() => {
   return calculateMetrics(filteredRecords.value, withdrawMetrics.value, effectiveDate);
 });
 
-// 监听分页切换
+const hasCurrentData = computed(() => {
+  if (activeTab.value === 'deposit') return hasDepositData.value;
+  if (activeTab.value === 'withdraw') return hasWithdrawData.value;
+  if (activeTab.value === 'weekly') return hasDepositData.value || hasWithdrawData.value;
+  if (activeTab.value === 'fraud') return true;
+  if (activeTab.value === 'params') return true;
+  if (activeTab.value === 'history') return true;
+  if (activeTab.value === 'pm') return true;
+  return false;
+});
+
+// ===== Watchers & handlers =====
 watch(activeTab, (newTab) => {
   if (newTab === 'deposit' && hasDepositData.value) {
     allRecords.value = depositRecords.value;
@@ -896,21 +125,16 @@ watch(activeTab, (newTab) => {
   } else if (newTab === 'withdraw' && hasWithdrawData.value) {
     allRecords.value = withdrawRecords.value;
     filteredRecords.value = [...withdrawRecords.value];
-  } else if (newTab === 'weekly' || newTab === 'fraud') {
-    // 周报和骗分统计不需要切换数据
   }
 });
 
-const handleFilter = (filtered) => {
-  filteredRecords.value = filtered;
-};
+const handleFilter = (filtered) => { filteredRecords.value = filtered; };
 
 const handleExport = () => {
   const weekRange = dateRange.value.dateFrom ? {
     start: dateRange.value.dateFrom,
-    end: dateRange.value.dateTo || dateRange.value.dateFrom
+    end: dateRange.value.dateTo || dateRange.value.dateFrom,
   } : null;
-
   if (activeTab.value === 'deposit') {
     exportDepositToExcel(metrics.value, filteredRecords.value, weekRange);
   } else if (activeTab.value === 'withdraw') {
@@ -921,18 +145,6 @@ const handleExport = () => {
 const handleDateChange = ({ dateFrom, dateTo }) => {
   dateRange.value = { dateFrom, dateTo };
 };
-
-// 判断当前页面是否有数据
-const hasCurrentData = computed(() => {
-  if (activeTab.value === 'deposit') return hasDepositData.value;
-  if (activeTab.value === 'withdraw') return hasWithdrawData.value;
-  if (activeTab.value === 'weekly') return hasDepositData.value || hasWithdrawData.value;
-  if (activeTab.value === 'fraud') return true;
-  if (activeTab.value === 'history') return true;  // 历史记录页面总是显示
-  // if (activeTab.value === 'prd') return true;  // PRD页面總是顯示（暫時隱藏）
-  if (activeTab.value === 'pm') return true;  // PM专用页面总是显示
-  return false;
-});
 </script>
 
 <template>
@@ -981,6 +193,15 @@ const hasCurrentData = computed(() => {
         >
           <span class="nav-icon">🚫</span>
           <span class="nav-text" v-show="!sidebarCollapsed">骗分统计</span>
+        </button>
+        <button
+          class="nav-item"
+          :class="{ active: activeTab === 'params' }"
+          @click="activeTab = 'params'"
+          :title="sidebarCollapsed ? '報表三方設定' : ''"
+        >
+          <span class="nav-icon">⚙️</span>
+          <span class="nav-text" v-show="!sidebarCollapsed">報表三方設定</span>
         </button>
         <!-- 暫時隱藏 PRD 文件
         <button
@@ -1059,7 +280,7 @@ const hasCurrentData = computed(() => {
         <div class="header-content">
           <h2 class="page-title">
             <span class="verify-badge">验证版</span>
-            {{ activeTab === 'deposit' ? '充值分析报表' : activeTab === 'withdraw' ? '提现分析报表' : activeTab === 'weekly' ? '日/周报数据汇总' : activeTab === 'history' ? '上传纪录' : activeTab === 'prd' ? 'PRD文件' : activeTab === 'pm' ? 'PM專用' : '骗分统计' }}
+            {{ activeTab === 'deposit' ? '充值分析报表' : activeTab === 'withdraw' ? '提现分析报表' : activeTab === 'weekly' ? '日/周报数据汇总' : activeTab === 'history' ? '上传纪录' : activeTab === 'prd' ? 'PRD文件' : activeTab === 'pm' ? 'PM專用' : activeTab === 'params' ? '報表三方設定' : '骗分统计' }}
           </h2>
           <div class="data-info">
             <span class="file-info" v-if="depositFileName">📥 充值: {{ depositFileName }}</span>
@@ -1106,6 +327,9 @@ const hasCurrentData = computed(() => {
             <PrdPage :isVerifyVersion="true" />
           </template>
           -->
+          <template v-else-if="activeTab === 'params'">
+            <ReportParams />
+          </template>
           <template v-else-if="activeTab === 'pm'">
             <PmMetrics />
           </template>
