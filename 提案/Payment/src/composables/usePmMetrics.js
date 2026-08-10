@@ -1087,13 +1087,16 @@ export function usePmMetrics(depositRecords, withdrawRecords) {
     allRecords.forEach(r => {
       const dateStr = (r.requestTime || '').substring(0, 10)
       if (!dateStr) return
-      if (!dailyMap[dateStr]) dailyMap[dateStr] = { totalApply: 0, successCount: 0, totalSeconds: 0, timeCount: 0, over30Count: 0 }
+      if (!dailyMap[dateStr]) dailyMap[dateStr] = { totalApply: 0, totalSuccessCount: 0, successCount: 0, totalSeconds: 0, timeCount: 0, over30Count: 0 }
       dailyMap[dateStr].totalApply++
-      if (isSuccess(r) && r.avgTimeSeconds !== null && r.avgTimeSeconds >= 0) {
-        dailyMap[dateStr].successCount++
-        dailyMap[dateStr].totalSeconds += r.avgTimeSeconds
-        dailyMap[dateStr].timeCount++
-        if (r.avgTimeSeconds > 1800) dailyMap[dateStr].over30Count++
+      if (isSuccess(r)) {
+        dailyMap[dateStr].totalSuccessCount++
+        if (r.avgTimeSeconds !== null && r.avgTimeSeconds >= 0) {
+          dailyMap[dateStr].successCount++
+          dailyMap[dateStr].totalSeconds += r.avgTimeSeconds
+          dailyMap[dateStr].timeCount++
+          if (r.avgTimeSeconds > 1800) dailyMap[dateStr].over30Count++
+        }
       }
     })
 
@@ -1102,7 +1105,8 @@ export function usePmMetrics(depositRecords, withdrawRecords) {
       .map(([date, d]) => ({
         date,
         totalApply: d.totalApply,
-        successCount: d.successCount,
+        successCount: d.totalSuccessCount,
+        succRate: d.totalApply > 0 ? (d.totalSuccessCount / d.totalApply) * 100 : 0,
         avgSeconds: d.timeCount > 0 ? d.totalSeconds / d.timeCount : null,
         over30Count: d.over30Count
       }))

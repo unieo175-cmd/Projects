@@ -351,6 +351,7 @@
                 <th class="alipay-th">日期</th>
                 <th class="alipay-th">申請筆數</th>
                 <th class="alipay-th">成功筆數</th>
+                <th class="alipay-th">成功率</th>
                 <th class="alipay-th">平均時間</th>
                 <th class="alipay-th warn-th">&gt;30分鐘筆數</th>
               </tr>
@@ -360,6 +361,7 @@
                 <td class="alipay-date-cell">{{ row.date }}</td>
                 <td class="alipay-count-cell">{{ row.totalApply.toLocaleString() }}</td>
                 <td class="alipay-count-cell">{{ row.successCount.toLocaleString() }}</td>
+                <td class="alipay-count-cell">{{ row.succRate.toFixed(2) }}%</td>
                 <td class="alipay-time-cell" :class="{ 'warn-cell': row.avgSeconds !== null && row.avgSeconds > 1800 }">
                   {{ row.avgSeconds !== null ? formatTimeHMS(row.avgSeconds) : '--' }}
                 </td>
